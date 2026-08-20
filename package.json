@@ -1,0 +1,44 @@
+{
+  "name": "aqui-estamos-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "API MVC (Model-View-Controller) de Aquí Estamos — red de acompañamiento psicológico",
+  "main": "src/server.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:deploy": "prisma migrate deploy",
+    "prisma:studio": "prisma studio",
+    "db:seed": "node prisma/seed.js",
+    "postinstall": "prisma generate",
+    "db:seed-admin": "node prisma/seedAdmin.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:purgar": "node prisma/purgar.js"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  },
+  "dependencies": {
+    "@node-rs/argon2": "^2.1.0",
+    "@prisma/client": "^6.2.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.0.0",
+    "morgan": "^1.10.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "prisma": "^6.2.1",
+    "vitest": "^2.1.8",
+    "supertest": "^7.0.0"
+  }
+}
