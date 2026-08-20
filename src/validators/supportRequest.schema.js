@@ -37,9 +37,9 @@ export const supportRequestCreateSchema = z
     city: trimmed(160),
 
     // --- Bloque 3: cuándo y cómo ---
-    preferredModality: z.enum(['PRESENCIAL', 'VIRTUAL', 'INDIFERENTE']).optional().nullable(),
-    availableDays: z.array(z.enum(WEEKDAYS)).optional().default([]),
-    availableSlots: z.array(z.enum(DAY_SLOTS)).optional().default([]),
+    preferredModality: choice(['PRESENCIAL', 'VIRTUAL', 'INDIFERENTE']),
+    availableDays: z.array(z.enum(WEEKDAYS), required).min(1, 'Selecciona al menos un día'),
+    availableSlots: z.array(z.enum(DAY_SLOTS), required).min(1, 'Selecciona al menos una franja'),
     message: opcional(1000),
 
     // --- Bloque 4: autorizaciones ---

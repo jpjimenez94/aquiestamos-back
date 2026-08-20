@@ -35,26 +35,42 @@ describe('formulario de profesionales', () => {
     expect(volunteerCreateSchema.safeParse({ ...voluntarioBase, availableSlots: [] }).success).toBe(false)
   })
 
-  it('si es presencial, exige la vacuna Y su autorización expresa', () => {
-    const presencial = { ...voluntarioBase, modality: 'PRESENCIAL' }
+  // A quien acompaña solo virtual no se le pregunta por la vacuna, así que el
+  // formulario manda ''. Eso es "no se preguntó", no un valor inválido: si se
+  // tratara como inválido, el envío fallaría señalando una pregunta oculta.
+  it('acepta la vacuna vacía cuando el acompañamiento es virtual', () => {
+    const r = volunteerCreateSchema.safeParse({ ...voluntarioBase, yellowFeverVaccine: '' })
+    expect(r.success).toBe(true)
+    expect(r.data.yellowFeverVaccine).toBeUndefined()
+  })
 
-    const sinVacuna = volunteerCreateSchema.safeParse(presencial)
+  it('si es presencial, exige la vacuna', () => {
+    const sinVacuna = volunteerCreateSchema.safeParse({
+      ...voluntarioBase,
+      modality: 'PRESENCIAL',
+      sensitiveDataConsent: true,
+    })
     expect(sinVacuna.success).toBe(false)
     expect(sinVacuna.error.issues.some((i) => i.path[0] === 'yellowFeverVaccine')).toBe(true)
+  })
 
+  it('no guarda el dato de vacunación sin su autorización expresa', () => {
     const sinAutorizacion = volunteerCreateSchema.safeParse({
-      ...presencial,
+      ...voluntarioBase,
+      modality: 'PRESENCIAL',
       yellowFeverVaccine: 'SI',
+      sensitiveDataConsent: false,
     })
     expect(sinAutorizacion.success).toBe(false)
     expect(sinAutorizacion.error.issues.some((i) => i.path[0] === 'sensitiveDataConsent')).toBe(true)
 
-    const completo = volunteerCreateSchema.safeParse({
-      ...presencial,
+    const conAutorizacion = volunteerCreateSchema.safeParse({
+      ...voluntarioBase,
+      modality: 'PRESENCIAL',
       yellowFeverVaccine: 'SI',
       sensitiveDataConsent: true,
     })
-    expect(completo.success).toBe(true)
+    expect(conAutorizacion.success).toBe(true)
   })
 
   it('si es virtual, no hace falta autorización de datos sensibles', () => {

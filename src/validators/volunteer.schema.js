@@ -34,6 +34,17 @@ const opcional = (max) => z.string().trim().max(max).optional().or(z.literal('')
 const choice = (values) =>
   z.enum(values, { errorMap: () => ({ message: 'Selecciona una opción' }) })
 
+/**
+ * La vacuna solo se le pregunta a quien puede ir presencial. A los demás el
+ * formulario les manda '' (React inicializa los selects vacíos), que no es lo
+ * mismo que un valor inválido: es "no se preguntó".
+ */
+const choiceOpcional = (values) =>
+  z.preprocess(
+    (v) => (v === '' || v === null ? undefined : v),
+    z.enum(values, { errorMap: () => ({ message: 'Selecciona una opción' }) }).optional(),
+  )
+
 const consentimiento = (mensaje) =>
   z.literal(true, { errorMap: () => ({ message: mensaje }) })
 
@@ -62,12 +73,12 @@ export const volunteerCreateSchema = z
     ]),
 
     // --- Bloque 3 ---
-    modality: z.enum(['PRESENCIAL', 'VIRTUAL', 'AMBAS']).optional().nullable(),
+    modality: choice(['PRESENCIAL', 'VIRTUAL', 'AMBAS']),
     availableToTravel: opcional(200),
-    availableDays: z.array(z.enum(WEEKDAYS)).optional().default([]),
-    availableSlots: z.array(z.enum(DAY_SLOTS)).optional().default([]),
-    weeklyHours: z.enum(['ENTRE_1_Y_3', 'ENTRE_4_Y_6', 'MAS_DE_6', 'VARIABLE']).optional().nullable(),
-    yellowFeverVaccine: z.enum(['SI', 'NO', 'CITA_AGENDADA']).optional().nullable(),
+    availableDays: z.array(z.enum(WEEKDAYS), required).min(1, 'Selecciona al menos un día'),
+    availableSlots: z.array(z.enum(DAY_SLOTS), required).min(1, 'Selecciona al menos una franja'),
+    weeklyHours: choice(['ENTRE_1_Y_3', 'ENTRE_4_Y_6', 'MAS_DE_6', 'VARIABLE']),
+    yellowFeverVaccine: choiceOpcional(['SI', 'NO', 'CITA_AGENDADA']),
 
     // --- Bloque 4 ---
     consentVersion: z.enum(VERSIONES_VALIDAS, {
@@ -81,4 +92,19 @@ export const volunteerCreateSchema = z
   .refine(
     (d) => !d.populations.includes('Otra') || Boolean(d.populationOther?.trim()),
     { message: 'Cuéntanos con qué otra población trabajas', path: ['populationOther'] },
+  )
+  // La vacuna solo se pregunta a quien puede ir de forma presencial, pero si se
+  // pregunta, es obligatoria.
+  .refine(
+    (d) => d.modality === 'VIRTUAL' || Boolean(d.yellowFeverVaccine),
+    { message: 'Selecciona una opción', path: ['yellowFeverVaccine'] },
+  )
+  // El estado de vacunación es un dato de salud. La Ley 1581 pide autorización
+  // expresa y aparte para tratarlo; no basta con el consentimiento general.
+  .refine(
+    (d) => !d.yellowFeverVaccine || d.sensitiveDataConsent === true,
+    {
+      message: 'Necesitamos tu autorización expresa para guardar el dato de vacunación',
+      path: ['sensitiveDataConsent'],
+    },
   )
