@@ -80,6 +80,8 @@ export const aprobarPostulacionSchema = z.object({
   profession: z.string().trim().max(160).optional(),
   maxActiveCases: z.number().int().min(0).max(50).optional(),
   status: choice(['PENDIENTE_VALIDACION', 'ACTIVO']).optional(),
+  // Quien aprueba completa la modalidad cuando la postulación no la traía.
+  modality: choice(['PRESENCIAL', 'VIRTUAL', 'AMBAS']).optional(),
 })
 
 export const editarProfesionalSchema = z.object({
@@ -94,6 +96,9 @@ export const editarProfesionalSchema = z.object({
   status: choice(['PENDIENTE_VALIDACION', 'ACTIVO', 'PAUSADO', 'INACTIVO']).optional(),
   maxActiveCases: z.number().int().min(0).max(50).optional(),
   notes: z.string().trim().max(1000).optional().or(z.literal('')),
+  /// Cuenta del portal con la que este profesional entra a ver su agenda.
+  /// `null` desvincula.
+  userId: z.string().uuid('Identificador no valido').nullable().optional(),
 })
 
 export const editarPacienteSchema = z.object({

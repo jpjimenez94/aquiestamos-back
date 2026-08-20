@@ -30,6 +30,7 @@ export const crearUsuarioSchema = z.object({
 
 export const editarUsuarioSchema = z.object({
   name: z.string().trim().min(1).max(160).optional(),
+  email: z.string().trim().toLowerCase().email('Correo no válido').max(160).optional(),
   role: z.enum(ROLES, { errorMap: () => ({ message: 'Rol no válido' }) }).optional(),
   active: z.boolean().optional(),
 })

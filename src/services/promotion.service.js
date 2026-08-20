@@ -25,6 +25,9 @@ export async function aprobarPostulacion({ volunteerId, ajustes = {} }) {
     })
   }
 
+  // Quien aprueba puede corregir la modalidad que declaró la persona.
+  const modalidad = ajustes.modality ?? postulacion.modality
+
   return prisma.$transaction(async (tx) => {
     const profesional = await tx.professional.create({
       data: {
@@ -38,7 +41,7 @@ export async function aprobarPostulacion({ volunteerId, ajustes = {} }) {
         yearsExperience: postulacion.yearsExperience,
         professionalCard: postulacion.professionalCard,
         populations: postulacion.populations,
-        modality: postulacion.modality,
+        modality: modalidad,
         travelsTo: postulacion.availableToTravel,
         // Nace pendiente de validación: alguien tiene que revisar su tarjeta
         // profesional antes de que reciba casos.
@@ -65,7 +68,7 @@ export async function aprobarPostulacion({ volunteerId, ajustes = {} }) {
           weekday: dia,
           startMinute: rango[0],
           endMinute: rango[1],
-          modality: postulacion.modality,
+          modality: modalidad,
         })
       }
     }

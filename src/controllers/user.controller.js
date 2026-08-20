@@ -58,6 +58,16 @@ export const UserController = {
       const anterior = await UserModel.findById(req.params.id)
       if (!anterior) return res.status(404).json(failure('Usuario no encontrado'))
 
+      // Cambiar el correo es cambiar con qué se entra: no puede chocar con otra cuenta.
+      if (req.validated.email && req.validated.email !== anterior.email) {
+        const ocupado = await UserModel.findByEmail(req.validated.email)
+        if (ocupado) {
+          return res
+            .status(409)
+            .json(failure('Ya hay una cuenta con ese correo', { email: 'Ya está registrado' }))
+        }
+      }
+
       // Nadie puede quitarse a sí mismo el rol de administrador ni desactivarse:
       // es la forma más común de quedarse sin acceso al portal.
       if (anterior.id === req.usuario.id) {

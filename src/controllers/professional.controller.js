@@ -1,4 +1,5 @@
 import { ProfessionalModel } from '../models/professional.model.js'
+import { UserModel } from '../models/user.model.js'
 import { CaseAssignmentModel } from '../models/caseAssignment.model.js'
 import { aprobarPostulacion } from '../services/promotion.service.js'
 import { cargaActual } from '../services/scheduling.service.js'
@@ -88,6 +89,25 @@ export const ProfessionalController = {
     try {
       const anterior = await ProfessionalModel.findById(req.params.id)
       if (!anterior) return res.status(404).json(failure('Profesional no encontrado'))
+
+      // Enlazar con una cuenta del portal: es lo que permite que el profesional
+      // entre y vea su propia agenda.
+      if (req.validated.userId) {
+        const cuenta = await UserModel.findById(req.validated.userId)
+        if (!cuenta) return res.status(404).json(failure('Esa cuenta no existe'))
+        if (cuenta.role !== 'PROFESIONAL') {
+          return res
+            .status(422)
+            .json(failure('La cuenta debe tener el rol PROFESIONAL para enlazarla'))
+        }
+
+        const yaEnlazada = await ProfessionalModel.findByUserId(req.validated.userId)
+        if (yaEnlazada && yaEnlazada.id !== req.params.id) {
+          return res
+            .status(409)
+            .json(failure(`Esa cuenta ya está enlazada con ${yaEnlazada.fullName}`))
+        }
+      }
 
       const profesional = await ProfessionalModel.update(req.params.id, req.validated)
 
