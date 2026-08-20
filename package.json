@@ -16,7 +16,6 @@
     "prisma:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "db:seed": "node prisma/seed.js",
-    "postinstall": "prisma generate",
     "db:seed-admin": "node prisma/seedAdmin.js",
     "test": "vitest run",
     "test:watch": "vitest",
