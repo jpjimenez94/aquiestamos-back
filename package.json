@@ -17,6 +17,7 @@
     "prisma:studio": "prisma studio",
     "db:seed": "node prisma/seed.js",
     "db:seed-admin": "node prisma/seedAdmin.js",
+    "db:seed-roles": "node prisma/seedRoles.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "db:purgar": "node prisma/purgar.js"
