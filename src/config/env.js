@@ -22,6 +22,17 @@ export const env = {
   // Duración de la sesión del portal.
   sessionTtlHours: Number(process.env.SESSION_TTL_HOURS ?? 12),
 
+  // Firma de los enlaces de caso compartido. Es un secreto aparte a proposito:
+  // reutilizar DATABASE_URL mete la contrasena de la base en un contexto de
+  // firma y ata la validez de los enlaces a la rotacion de esa contrasena.
+  sharedCaseSecret:
+    process.env.NODE_ENV === 'production'
+      ? required('SHARED_CASE_SECRET')
+      : process.env.SHARED_CASE_SECRET ?? 'secreto-de-desarrollo-no-usar-en-produccion',
+
+  // Cuanto dura un enlace de caso compartido antes de pedir el correo otra vez.
+  sharedCaseTtlHours: Number(process.env.SHARED_CASE_TTL_HOURS ?? 12),
+
   // Primera cuenta de administrador, solo para el seed inicial.
   bootstrapAdminEmail: process.env.BOOTSTRAP_ADMIN_EMAIL ?? '',
   bootstrapAdminName: process.env.BOOTSTRAP_ADMIN_NAME ?? 'Administración',

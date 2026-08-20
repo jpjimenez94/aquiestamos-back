@@ -31,6 +31,15 @@ export const AppointmentModel = {
     })
   },
 
+  /** Todas las citas de un paciente, de la más próxima a la más lejana. */
+  findDePaciente(patientId) {
+    return prisma.appointment.findMany({
+      where: { patientId },
+      include: CON_PERSONAS,
+      orderBy: { startsAt: 'asc' },
+    })
+  },
+
   /** Las próximas citas de un profesional. Es lo que ve en su portal. */
   proximasDeProfesional(professionalId, { desde = new Date(), take = 50 } = {}) {
     return prisma.appointment.findMany({
