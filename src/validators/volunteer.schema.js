@@ -62,11 +62,11 @@ export const volunteerCreateSchema = z
     ]),
 
     // --- Bloque 3 ---
-    modality: choice(['PRESENCIAL', 'VIRTUAL', 'AMBAS']),
+    modality: z.enum(['PRESENCIAL', 'VIRTUAL', 'AMBAS']).optional().nullable(),
     availableToTravel: opcional(200),
-    availableDays: z.array(z.enum(WEEKDAYS), required).min(1, 'Selecciona al menos un día'),
-    availableSlots: z.array(z.enum(DAY_SLOTS), required).min(1, 'Selecciona al menos una franja'),
-    weeklyHours: choice(['ENTRE_1_Y_3', 'ENTRE_4_Y_6', 'MAS_DE_6', 'VARIABLE']),
+    availableDays: z.array(z.enum(WEEKDAYS)).optional().default([]),
+    availableSlots: z.array(z.enum(DAY_SLOTS)).optional().default([]),
+    weeklyHours: z.enum(['ENTRE_1_Y_3', 'ENTRE_4_Y_6', 'MAS_DE_6', 'VARIABLE']).optional().nullable(),
     yellowFeverVaccine: z.enum(['SI', 'NO', 'CITA_AGENDADA']).optional().nullable(),
 
     // --- Bloque 4 ---
@@ -81,18 +81,4 @@ export const volunteerCreateSchema = z
   .refine(
     (d) => !d.populations.includes('Otra') || Boolean(d.populationOther?.trim()),
     { message: 'Cuéntanos con qué otra población trabajas', path: ['populationOther'] },
-  )
-  // La vacuna solo se pregunta a quien puede ir de forma presencial, pero si se
-  // pregunta, es obligatoria.
-  .refine(
-    (d) => d.modality === 'VIRTUAL' || Boolean(d.yellowFeverVaccine),
-    { message: 'Selecciona una opción', path: ['yellowFeverVaccine'] },
-  )
-  // Y ese dato es de salud: sin autorización expresa no se puede guardar.
-  .refine(
-    (d) => d.modality === 'VIRTUAL' || d.sensitiveDataConsent === true,
-    {
-      message: 'Necesitamos tu autorización expresa para guardar el dato de vacunación',
-      path: ['sensitiveDataConsent'],
-    },
   )
