@@ -14,7 +14,19 @@
 export const VERSION_ACTUAL = '2026-08'
 
 /** Versiones que el backend acepta. Las viejas siguen siendo válidas para los registros que ya existen. */
-export const VERSIONES_VALIDAS = ['2026-08']
+export const VERSIONES_VALIDAS = ['2026-08', '2026-08-google']
+
+/**
+ * Las 71 postulaciones que llegaron por el Google Form antes de que existiera
+ * el formulario del sitio. Aceptaron este texto, que es el que se conserva:
+ *
+ *   "Autorizo el uso de los datos suministrados exclusivamente para
+ *    contactarme en relacion con esta iniciativa de acompanamiento
+ *    psicologico."
+ *
+ * Se marca aparte de la version 2026-08 para que quede claro que texto acepto
+ * cada persona. No se edita nunca.
+ */
 
 /**
  * Responsable del tratamiento. Estos datos salen en la política pública.

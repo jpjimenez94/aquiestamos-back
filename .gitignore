@@ -3,3 +3,8 @@ node_modules/
 .env.local
 dist/
 *.log
+
+# Datos personales reales de las postulaciones del Google Form (nombres,
+# celulares, correos). El repositorio es publico: este archivo se queda en la
+# maquina de quien hace la carga y nunca se sube.
+prisma/datos/
