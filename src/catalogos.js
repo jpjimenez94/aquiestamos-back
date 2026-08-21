@@ -42,3 +42,13 @@ export const ETIQUETAS_MODALIDAD = {
   AMBAS: 'Ambas',
   INDIFERENTE: 'Indiferente',
 }
+
+/// Areas del voluntariado de otras disciplinas.
+export const ETIQUETAS_AREA = {
+  SALUD: 'Salud y primeros auxilios',
+  SOCIAL_LEGAL_EDUCATIVO: 'Social, legal y educativo',
+  OPERACION_LOGISTICA: 'Operacion y logistica',
+  COMUNICACION_TECNOLOGIA: 'Comunicacion y tecnologia',
+  GESTION_PROYECTOS: 'Gestion y proyectos',
+  OTRA: 'Otra area',
+}

@@ -196,17 +196,28 @@ enum SubmissionStatus {
   DESCARTADO
 }
 
+/// Areas del voluntariado que no da acompanamiento psicologico.
+/// Es un enum y no texto libre porque es con lo que se filtra el directorio.
+enum CollaboratorArea {
+  SALUD
+  SOCIAL_LEGAL_EDUCATIVO
+  OPERACION_LOGISTICA
+  COMUNICACION_TECNOLOGIA
+  GESTION_PROYECTOS
+  OTRA
+}
+
 /// Profesional que se postula a la red ("Quiero ser parte").
 /// Es el registro de lo que la persona envió: no se edita.
 model Volunteer {
-  id                 String                 @id @default(uuid()) @db.Uuid
+  id String @id @default(uuid()) @db.Uuid
 
   // --- Bloque 1: datos de contacto ---
-  fullName           String                 @map("full_name") @db.VarChar(160)
-  phone              String                 @db.VarChar(40)
-  email              String                 @db.VarChar(160)
+  fullName String  @map("full_name") @db.VarChar(160)
+  phone    String  @db.VarChar(40)
+  email    String  @db.VarChar(160)
   /// Ciudad o municipio donde vive. Antes se llamaba `residence`.
-  city               String?                @db.VarChar(160)
+  city     String? @db.VarChar(160)
 
   // --- Bloque 2: perfil profesional ---
   /// Profesion, en campo aparte para poder filtrar por ella.
@@ -221,35 +232,35 @@ model Volunteer {
 
   // --- Bloque 3: disponibilidad ---
   modality           Modality
-  availableToTravel  String?                @map("available_to_travel") @db.VarChar(200)
+  availableToTravel  String?            @map("available_to_travel") @db.VarChar(200)
   /// Que dias puede. Alimenta directamente las franjas de la agenda.
-  availableDays      Weekday[]              @map("available_days")
-  availableSlots     DaySlot[]              @map("available_slots")
-  weeklyHours        WeeklyHours?           @map("weekly_hours")
+  availableDays      Weekday[]          @map("available_days")
+  availableSlots     DaySlot[]          @map("available_slots")
+  weeklyHours        WeeklyHours?       @map("weekly_hours")
   /// Solo se pregunta a quien puede acompanar de forma presencial.
-  yellowFeverVaccine YellowFeverStatus?     @map("yellow_fever_vaccine")
+  yellowFeverVaccine YellowFeverStatus? @map("yellow_fever_vaccine")
 
   // --- Bloque 4: autorizaciones ---
   /// Que version del texto de autorizacion acepto. Sin esto, una autorizacion
   /// no se puede probar cuando el texto cambie.
-  consentVersion        String?             @map("consent_version") @db.VarChar(20)
-  dataConsent           Boolean             @map("data_consent")
+  consentVersion        String? @map("consent_version") @db.VarChar(20)
+  dataConsent           Boolean @map("data_consent")
   /// Solo aplica si entrego el dato de vacunacion, que es dato de salud.
-  sensitiveDataConsent  Boolean             @default(false) @map("sensitive_data_consent")
-  communicationsConsent Boolean             @default(false) @map("communications_consent")
+  sensitiveDataConsent  Boolean @default(false) @map("sensitive_data_consent")
+  communicationsConsent Boolean @default(false) @map("communications_consent")
 
   // --- Heredados de la primera version del formulario ---
   /// @deprecated Sustituido por `profession` y `additionalTraining`.
-  training           String?                @db.VarChar(300)
+  training     String?  @db.VarChar(300)
   /// @deprecated Sustituido por `city`.
-  residence          String?                @db.VarChar(160)
+  residence    String?  @db.VarChar(160)
   /// @deprecated Sustituido por `weeklyHours`.
-  availability       String[]
+  availability String[]
 
-  status             SubmissionStatus       @default(NUEVO)
-  createdAt          DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt          DateTime               @updatedAt @map("updated_at") @db.Timestamptz(3)
-  deletedAt          DateTime?              @map("deleted_at") @db.Timestamptz(3)
+  status    SubmissionStatus @default(NUEVO)
+  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime?        @map("deleted_at") @db.Timestamptz(3)
 
   @@index([email])
   @@index([createdAt])
@@ -260,27 +271,27 @@ model Volunteer {
 /// Persona que solicita acompañamiento ("Atención Psicológica").
 /// Igual que la postulación: es el registro de lo enviado, no se edita.
 model SupportRequest {
-  id           String            @id @default(uuid()) @db.Uuid
+  id String @id @default(uuid()) @db.Uuid
 
   // --- Bloque 1: para quien es ---
-  forWhom      ForWhom?          @map("for_whom")
+  forWhom      ForWhom? @map("for_whom")
   /// Solo si es para otra persona. Cambia quien debe autorizar el tratamiento.
-  isMinor      Boolean?          @map("is_minor")
+  isMinor      Boolean? @map("is_minor")
   /// Parentesco o relacion con la persona acompanada.
-  relationship String?           @db.VarChar(120)
+  relationship String?  @db.VarChar(120)
   /// Nombre de quien llena el formulario, cuando no es la persona acompanada.
-  contactName  String?           @map("contact_name") @db.VarChar(160)
+  contactName  String?  @map("contact_name") @db.VarChar(160)
 
   // --- Bloque 2: contacto ---
   /// Nombre de la persona que recibira el acompanamiento.
-  name         String            @db.VarChar(160)
-  phone        String            @db.VarChar(40)
+  name             String            @db.VarChar(160)
+  phone            String            @db.VarChar(40)
   /// Opcional a proposito: la red trabaja por WhatsApp y no todo el mundo
   /// tiene o revisa correo.
-  email        String?           @db.VarChar(160)
+  email            String?           @db.VarChar(160)
   preferredContact PreferredContact? @map("preferred_contact")
   /// Ciudad o municipio. Antes se llamaba `place`.
-  city         String?           @db.VarChar(160)
+  city             String?           @db.VarChar(160)
 
   // --- Bloque 3: cuando y como ---
   preferredModality PreferredModality? @map("preferred_modality")
@@ -289,23 +300,23 @@ model SupportRequest {
   message           String?            @db.VarChar(1000)
 
   // --- Bloque 4: autorizaciones ---
-  consentVersion        String?     @map("consent_version") @db.VarChar(20)
-  dataConsent           Boolean     @map("data_consent")
-  sensitiveDataConsent  Boolean     @default(false) @map("sensitive_data_consent")
+  consentVersion        String? @map("consent_version") @db.VarChar(20)
+  dataConsent           Boolean @map("data_consent")
+  sensitiveDataConsent  Boolean @default(false) @map("sensitive_data_consent")
   /// Obligatoria cuando la persona acompanada es menor de edad.
-  guardianConsent       Boolean     @default(false) @map("guardian_consent")
-  communicationsConsent Boolean     @default(false) @map("communications_consent")
+  guardianConsent       Boolean @default(false) @map("guardian_consent")
+  communicationsConsent Boolean @default(false) @map("communications_consent")
 
   // --- Heredados de la primera version del formulario ---
   /// @deprecated Sustituido por `city`.
-  place        String?           @db.VarChar(160)
+  place        String? @db.VarChar(160)
   /// @deprecated Sustituido por `availableDays` y `availableSlots`.
-  availability String?           @db.VarChar(300)
+  availability String? @db.VarChar(300)
 
-  status       SubmissionStatus  @default(NUEVO)
-  createdAt    DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt    DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
-  deletedAt    DateTime?         @map("deleted_at") @db.Timestamptz(3)
+  status    SubmissionStatus @default(NUEVO)
+  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime?        @map("deleted_at") @db.Timestamptz(3)
 
   @@index([createdAt])
   @@index([deletedAt])
@@ -378,6 +389,69 @@ enum PatientStatus {
 enum AssignmentStatus {
   ACTIVA
   CERRADA
+}
+
+/// Voluntariado de otras disciplinas: quien apoya la respuesta sin dar
+/// acompanamiento psicologico.
+///
+/// Va en tabla aparte de `Volunteer` a proposito. Una postulacion de
+/// psicologia se aprueba y se convierte en `Professional`, que es a quien el
+/// sistema le busca pacientes compatibles y le agenda citas. Un abogado o un
+/// coordinador de logistica no entra en ese circuito: si compartieran tabla,
+/// bastaria con olvidar un filtro en una consulta para que apareciera como
+/// candidato para acompanar a alguien en crisis.
+///
+/// Esto es un directorio: se consulta y se llama. No tiene agenda.
+model Collaborator {
+  id String @id @default(uuid()) @db.Uuid
+
+  // --- Bloque 1: contacto ---
+  fullName String @map("full_name") @db.VarChar(160)
+  phone    String @db.VarChar(40)
+  email    String @db.VarChar(160)
+  city     String @db.VarChar(160)
+
+  // --- Bloque 2: que sabe hacer ---
+  area             CollaboratorArea
+  /// La disciplina concreta dentro del area. Es texto y no enum para poder
+  /// anadir una sin migrar la base: el catalogo vive en el validador.
+  discipline       String                  @db.VarChar(120)
+  /// Que escribio si eligio "Otra".
+  disciplineOther  String?                 @map("discipline_other") @db.VarChar(160)
+  yearsExperience  YearsExperience?        @map("years_experience")
+  /// Opcional: no todas las disciplinas tienen tarjeta profesional.
+  professionalCard ProfessionalCardStatus? @map("professional_card")
+  /// En que puede ayudar, con sus palabras. Es lo que mas sirve para decidir
+  /// a quien llamar cuando aparece una necesidad concreta.
+  skills           String?                 @db.VarChar(600)
+
+  // --- Bloque 3: disponibilidad ---
+  modality           Modality
+  availableToTravel  String?            @map("available_to_travel") @db.VarChar(200)
+  availableDays      Weekday[]          @map("available_days")
+  availableSlots     DaySlot[]          @map("available_slots")
+  weeklyHours        WeeklyHours?       @map("weekly_hours")
+  /// Solo se pregunta a quien puede apoyar de forma presencial.
+  yellowFeverVaccine YellowFeverStatus? @map("yellow_fever_vaccine")
+
+  // --- Bloque 4: autorizaciones ---
+  consentVersion        String? @map("consent_version") @db.VarChar(20)
+  dataConsent           Boolean @map("data_consent")
+  /// Solo aplica si entrego el dato de vacunacion, que es dato de salud.
+  sensitiveDataConsent  Boolean @default(false) @map("sensitive_data_consent")
+  communicationsConsent Boolean @default(false) @map("communications_consent")
+
+  status    SubmissionStatus @default(NUEVO)
+  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime?        @map("deleted_at") @db.Timestamptz(3)
+
+  @@index([email])
+  @@index([area])
+  @@index([city])
+  @@index([createdAt])
+  @@index([deletedAt])
+  @@map("collaborators")
 }
 
 model Professional {
@@ -555,13 +629,13 @@ model Appointment {
   caseAssignmentId String?         @map("case_assignment_id") @db.Uuid
   caseAssignment   CaseAssignment? @relation(fields: [caseAssignmentId], references: [id], onDelete: SetNull)
 
-  startsAt DateTime @map("starts_at") @db.Timestamptz(3)
-  endsAt   DateTime @map("ends_at") @db.Timestamptz(3)
+  startsAt      DateTime  @map("starts_at") @db.Timestamptz(3)
+  endsAt        DateTime  @map("ends_at") @db.Timestamptz(3)
   /// Descanso obligatorio después de la sesión.
-  bufferMinutes Int @default(30) @map("buffer_minutes")
+  bufferMinutes Int       @default(30) @map("buffer_minutes")
   /// La calcula un disparador: `endsAt + bufferMinutes`. Es la columna sobre la
   /// que actúa la restricción de exclusión. No la escribas desde la aplicación.
-  blocksUntil DateTime? @map("blocks_until") @db.Timestamptz(3)
+  blocksUntil   DateTime? @map("blocks_until") @db.Timestamptz(3)
 
   modality Modality
   status   AppointmentStatus @default(PROGRAMADA)

@@ -6,6 +6,7 @@ import { userRoutes } from './user.routes.js'
 import { auditLogRoutes } from './auditLog.routes.js'
 import { volunteerRoutes } from './volunteer.routes.js'
 import { supportRequestRoutes } from './supportRequest.routes.js'
+import { collaboratorRoutes } from './collaborator.routes.js'
 import { resourceRoutes } from './resource.routes.js'
 import sharedCaseRoutes from './sharedCase.routes.js'
 import {
@@ -34,6 +35,7 @@ apiRoutes.get('/health', HealthController.check)
 apiRoutes.use('/resources', resourceRoutes)
 apiRoutes.use('/volunteers', formLimiter, volunteerRoutes)
 apiRoutes.use('/support-requests', formLimiter, supportRequestRoutes)
+apiRoutes.use('/collaborators', formLimiter, collaboratorRoutes)
 
 // --- Casos compartidos (acceso por enlace + correo) ---
 apiRoutes.use('/shared-cases', sharedCaseRoutes)

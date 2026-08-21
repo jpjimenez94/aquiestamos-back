@@ -52,7 +52,10 @@ export const volunteerCreateSchema = z
   .object({
     // --- Bloque 1 ---
     fullName: trimmed(160),
-    phone: trimmed(40).regex(/^[0-9+()\s-]{7,40}$/, 'Número de celular no válido'),
+    // Acepta un celular colombiano tal como se marca aquí (3001234567) y
+    // cualquiera de otro país con su indicativo (+34 600 123 456). El `+`
+    // solo vale al principio: en medio del número no significa nada.
+    phone: trimmed(40).regex(/^\+?[\d\s()-]{7,25}$/, 'Número de celular no válido'),
     email: z.string(required).trim().toLowerCase().email('Correo no válido').max(160),
     city: trimmed(160),
 

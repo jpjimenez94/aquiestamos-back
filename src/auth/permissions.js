@@ -14,6 +14,7 @@ export const PERMISOS = {
   AGENDADOR: [
     'postulacion:leer',
     'solicitud:leer',
+    'colaborador:leer',
     'profesional:leer',
     'paciente:leer',
     'agenda:leer',
