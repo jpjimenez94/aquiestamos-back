@@ -1,4 +1,4 @@
-import { ETIQUETAS_ESTADO_PACIENTE } from '../catalogos.js'
+import { ETIQUETAS_ESTADO_PACIENTE, ETIQUETAS_PRIORIDAD } from '../catalogos.js'
 
 /**
  * VISTA: Patient
@@ -19,6 +19,8 @@ export function pacienteParaAgendador(p) {
     availableSlots: p.availableSlots,
     status: p.status,
     estadoLegible: ETIQUETAS_ESTADO_PACIENTE[p.status] ?? p.status,
+    priority: p.priority,
+    prioridadLegible: ETIQUETAS_PRIORIDAD[p.priority] ?? p.priority,
     createdAt: p.createdAt,
     diasEsperando: Math.floor((Date.now() - new Date(p.createdAt).getTime()) / 86400000),
   }
@@ -55,6 +57,8 @@ export function casoCompartido(p, citas) {
   return {
     fullName: p.fullName,
     city: p.city,
+    priority: p.priority,
+    prioridadLegible: ETIQUETAS_PRIORIDAD[p.priority] ?? p.priority,
     phone: p.phone,
     email: p.email,
     preferredContact: p.preferredContact,

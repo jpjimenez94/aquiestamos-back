@@ -84,6 +84,16 @@ export const aprobarPostulacionSchema = z.object({
   modality: choice(['PRESENCIAL', 'VIRTUAL', 'AMBAS']).optional(),
 })
 
+/**
+ * Admitir una solicitud. La prioridad es obligatoria a propósito: si tuviera
+ * valor por defecto, en la práctica todo quedaría en "media" y el campo
+ * dejaría de servir para ordenar la cola, que es para lo que existe.
+ */
+export const admitirSolicitudSchema = z.object({
+  priority: choice(['BAJA', 'MEDIA', 'ALTA']),
+  city: z.string().trim().max(160).optional(),
+})
+
 export const editarProfesionalSchema = z.object({
   fullName: z.string().trim().min(1).max(160).optional(),
   email: z.string().trim().toLowerCase().email('Correo no valido').max(160).optional(),
@@ -102,6 +112,7 @@ export const editarProfesionalSchema = z.object({
 })
 
 export const editarPacienteSchema = z.object({
+  priority: choice(['BAJA', 'MEDIA', 'ALTA']).optional(),
   fullName: z.string().trim().min(1).max(160).optional(),
   phone: z.string().trim().max(40).optional(),
   email: z.string().trim().toLowerCase().email('Correo no valido').max(160).optional().or(z.literal('')),

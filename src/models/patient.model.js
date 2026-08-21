@@ -40,7 +40,10 @@ export const PatientModel = {
         status: { in: ['NUEVO', 'EN_ADMISION'] },
         assignments: { none: { status: 'ACTIVA', deletedAt: null } },
       },
-      orderBy: { createdAt: 'asc' },
+      // Primero lo urgente y, dentro de cada nivel, quien lleva más esperando.
+      // Sin el segundo criterio un caso de prioridad baja podría quedarse
+      // al final de la cola para siempre.
+      orderBy: [{ priority: 'desc' }, { createdAt: 'asc' }],
     })
   },
 

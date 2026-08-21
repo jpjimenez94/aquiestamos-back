@@ -16,6 +16,7 @@ import {
   reemplazarFranjasSchema,
   crearBloqueoSchema,
   aprobarPostulacionSchema,
+  admitirSolicitudSchema,
   editarProfesionalSchema,
   editarPacienteSchema,
 } from '../validators/agenda.schema.js'
@@ -64,7 +65,12 @@ patientRoutes.get('/', authorize('paciente:leer'), PatientController.index)
 patientRoutes.get('/:id', authorize('paciente:leer'), PatientController.show)
 patientRoutes.get('/:id/candidatos', authorize('asignacion:crear'), PatientController.candidatos)
 
-patientRoutes.post('/admitir/:supportRequestId', authorize('paciente:crear'), PatientController.admitir)
+patientRoutes.post(
+  '/admitir/:supportRequestId',
+  authorize('paciente:crear'),
+  validateBody(admitirSolicitudSchema),
+  PatientController.admitir,
+)
 patientRoutes.patch(
   '/:id',
   authorize('paciente:editar'),

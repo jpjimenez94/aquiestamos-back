@@ -63,6 +63,8 @@ export const PatientController = {
                 profesional: {
                   id: asignacion.professional.id,
                   nombre: asignacion.professional.fullName,
+                  // Para armar el enlace de WhatsApp desde el portal.
+                  telefono: asignacion.professional.phone,
                 },
               }
             : null,
@@ -82,6 +84,7 @@ export const PatientController = {
     try {
       const paciente = await admitirSolicitud({
         supportRequestId: req.params.supportRequestId,
+        ajustes: req.validated,
       })
 
       await registrar({
@@ -89,7 +92,7 @@ export const PatientController = {
         action: ACCION.CREAR,
         entity: 'paciente',
         entityId: paciente.id,
-        after: { desdeSolicitud: req.params.supportRequestId },
+        after: { desdeSolicitud: req.params.supportRequestId, prioridad: paciente.priority },
       })
 
       return res

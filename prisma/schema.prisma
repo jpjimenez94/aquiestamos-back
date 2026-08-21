@@ -378,6 +378,15 @@ enum ProfessionalStatus {
   INACTIVO
 }
 
+/// Urgencia con la que hay que buscarle profesional a alguien.
+/// El orden de declaracion importa: ordenar por prioridad descendente pone
+/// ALTA primero, que es como se lee la cola de pendientes.
+enum CasePriority {
+  BAJA
+  MEDIA
+  ALTA
+}
+
 enum PatientStatus {
   NUEVO
   EN_ADMISION
@@ -517,7 +526,11 @@ model Patient {
   availableDays     Weekday[]          @map("available_days")
   availableSlots    DaySlot[]          @map("available_slots")
 
-  status PatientStatus @default(NUEVO)
+  status   PatientStatus @default(NUEVO)
+  /// La define quien admite la solicitud. Es obligatoria en el formulario de
+  /// admision; el valor por defecto solo existe para las filas anteriores a
+  /// este campo.
+  priority CasePriority  @default(MEDIA)
 
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -527,6 +540,7 @@ model Patient {
   appointments Appointment[]
 
   @@index([status])
+  @@index([status, priority])
   @@index([city])
   @@index([createdAt])
   @@index([deletedAt])

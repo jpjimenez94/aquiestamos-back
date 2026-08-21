@@ -63,3 +63,10 @@ export const ETIQUETAS_RESULTADO = {
   SIGO_INTENTANDO: 'Sigo intentando',
   OTRO: 'Otra cosa',
 }
+
+/// Urgencia del caso, la elige quien admite.
+export const ETIQUETAS_PRIORIDAD = {
+  ALTA: 'Alta',
+  MEDIA: 'Media',
+  BAJA: 'Baja',
+}

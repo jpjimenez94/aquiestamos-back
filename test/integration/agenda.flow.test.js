@@ -142,17 +142,47 @@ describe('1 · del formulario público a la entidad operativa', () => {
     expect(res.status).toBe(400)
   })
 
+  it('no se puede admitir sin decidir la prioridad', async () => {
+    // La prioridad ordena la cola de pendientes por asignar. Si tuviera valor
+    // por defecto, todo quedaría en "media" y la cola dejaría de ordenar nada.
+    const otra = await prisma.supportRequest.create({
+      data: {
+        name: `Sin prioridad ${marca}`,
+        phone: '3001112299',
+        city: 'Ibagué',
+        preferredContact: 'WHATSAPP',
+        preferredModality: 'VIRTUAL',
+        availableDays: ['MARTES'],
+        availableSlots: ['TARDE'],
+        consentVersion: '2026-08',
+        dataConsent: true,
+        sensitiveDataConsent: true,
+      },
+    })
+
+    const res = await request(app)
+      .post(`/api/patients/admitir/${otra.id}`)
+      .set(admin())
+      .send({})
+
+    expect(res.status).toBe(422)
+    expect(res.body.details.priority).toBeTruthy()
+
+    await prisma.supportRequest.delete({ where: { id: otra.id } })
+  })
+
   it('el administrador admite la solicitud y se copian sus preferencias', async () => {
     const res = await request(app)
       .post(`/api/patients/admitir/${ids.supportRequestId}`)
       .set(admin())
-      .send({})
+      .send({ priority: 'ALTA' })
 
     expect(res.status).toBe(201)
     ids.patientId = res.body.data.id
 
     const paciente = await prisma.patient.findUnique({ where: { id: ids.patientId } })
     expect(paciente.availableDays).toEqual(['MARTES'])
+    expect(paciente.priority).toBe('ALTA')
     expect(paciente.availableSlots).toEqual(['TARDE'])
   })
 })

@@ -114,6 +114,10 @@ describe('caso compartido', () => {
         'preferredModality',
         'relationship',
         'reportes',
+        // Con qué urgencia hay que buscar a la persona. El profesional
+        // necesita saberlo tanto como quien coordina.
+        'priority',
+        'prioridadLegible',
       ].sort(),
     )
     // Lo que no debe salir nunca por esta puerta.

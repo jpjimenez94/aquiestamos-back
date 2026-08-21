@@ -111,6 +111,7 @@ export async function admitirSolicitud({ supportRequestId, ajustes = {} }) {
         preferredModality: solicitud.preferredModality,
         availableDays: solicitud.availableDays ?? [],
         availableSlots: solicitud.availableSlots ?? [],
+        priority: ajustes.priority,
         status: 'EN_ADMISION',
       },
     })
