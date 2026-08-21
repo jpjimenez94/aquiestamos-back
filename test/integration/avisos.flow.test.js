@@ -17,6 +17,11 @@ import { simpleParser } from 'mailparser'
 
 const PUERTO_SMTP = 2599
 
+// Sin esto, si la máquina tiene BREVO_API_KEY en su .env, el mailer prefiere
+// la API y las pruebas llamarían al Brevo de verdad: correos reales a
+// direcciones inventadas, cuota gastada y rebotes. Aquí se prueba el
+// transporte SMTP contra el servidor de mentira de más abajo.
+process.env.BREVO_API_KEY = ''
 process.env.SMTP_HOST = '127.0.0.1'
 process.env.SMTP_PORT = String(PUERTO_SMTP)
 process.env.SMTP_USER = 'prueba'

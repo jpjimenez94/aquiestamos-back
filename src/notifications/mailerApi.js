@@ -31,6 +31,14 @@ export function partirRemitente(cadena) {
 export async function enviarCorreoApi({ para, nombre, asunto, html, texto }) {
   if (!hayApiConfigurada()) throw new Error('BREVO_API_KEY sin configurar')
 
+  // Una tanda de pruebas no puede acabar mandando correos de verdad. Pasó:
+  // basta con tener la clave en el .env de la máquina para que el mailer
+  // prefiera la API y las direcciones inventadas de las pruebas se conviertan
+  // en envíos reales, con su cuota y sus rebotes.
+  if (process.env.NODE_ENV === 'test') {
+    throw new Error('La API de Brevo no se llama desde las pruebas')
+  }
+
   const respuesta = await fetch(ENDPOINT, {
     method: 'POST',
     headers: {
