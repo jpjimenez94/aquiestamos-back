@@ -33,6 +33,28 @@ export const env = {
   // Cuanto dura un enlace de caso compartido antes de pedir el correo otra vez.
   sharedCaseTtlHours: Number(process.env.SHARED_CASE_TTL_HOURS ?? 12),
 
+  // Envío de avisos por correo. Se habla SMTP y no la API del proveedor a
+  // propósito: cambiar de Brevo a otro es cambiar estas variables, no código.
+  // Si SMTP_HOST viene vacío, los avisos se siguen encolando pero no se
+  // envían: nada se pierde y arrancan solos en cuanto se configure.
+  smtp: {
+    host: process.env.SMTP_HOST ?? '',
+    port: Number(process.env.SMTP_PORT ?? 587),
+    usuario: process.env.SMTP_USER ?? '',
+    clave: process.env.SMTP_PASSWORD ?? '',
+    remitente: process.env.SMTP_FROM ?? 'Red Aquí Estamos <no-responder@redaquiestamos.org>',
+    /// A dónde llegan los avisos internos. Si está vacío, van a todas las
+    /// cuentas de administración activas.
+    coordinacion: (process.env.NOTIFICACIONES_COORDINACION ?? '')
+      .split(',')
+      .map((c) => c.trim().toLowerCase())
+      .filter(Boolean),
+  },
+
+  /// Dirección pública del sitio. Los avisos llevan enlaces, y un enlace a
+  /// localhost dentro de un correo no le sirve a nadie.
+  sitioUrl: process.env.SITIO_URL ?? 'http://localhost:3000',
+
   // Primera cuenta de administrador, solo para el seed inicial.
   bootstrapAdminEmail: process.env.BOOTSTRAP_ADMIN_EMAIL ?? '',
   bootstrapAdminName: process.env.BOOTSTRAP_ADMIN_NAME ?? 'Administración',

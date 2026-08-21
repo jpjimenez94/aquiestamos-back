@@ -1,6 +1,7 @@
 import { CollaboratorModel } from '../models/collaborator.model.js'
 import { created, ok } from '../views/response.view.js'
 import { registrar, ACCION } from '../services/audit.service.js'
+import { apoyoRecibido } from '../notifications/eventos.js'
 import {
   collaboratorReceipt,
   collaboratorAdminList,
@@ -55,6 +56,8 @@ export const CollaboratorController = {
         entity: 'colaborador',
         entityId: colaborador.id,
       })
+
+      await apoyoRecibido(colaborador)
 
       return res.status(201).json(
         created(

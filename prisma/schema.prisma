@@ -207,6 +207,61 @@ enum CollaboratorArea {
   OTRA
 }
 
+/// Estado de un aviso en la bandeja de salida.
+enum NotificationStatus {
+  PENDIENTE
+  ENVIADA
+  FALLIDA
+}
+
+/// Bandeja de salida de avisos.
+///
+/// Los correos NO se envían dentro de la petición. Si el proveedor tarda o
+/// está caído, el formulario público le fallaría a la persona por algo que no
+/// es culpa suya. Aquí el evento se guarda y responde de inmediato; un
+/// despachador los envía aparte y reintenta lo que falle.
+///
+/// Además deja rastro de qué se le envió a quién, que con datos de salud de
+/// por medio no es un lujo sino parte de habeas data.
+///
+/// Regla del contenido: un aviso NUNCA lleva datos identificatorios de una
+/// persona acompañada. Lleva un enlace; quien tenga que ver los datos entra
+/// por ahí y se identifica.
+model Notification {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// Qué plantilla se usa. Es texto y no enum para poder añadir un aviso sin
+  /// migrar la base.
+  template String  @db.VarChar(60)
+  toEmail  String  @map("to_email") @db.VarChar(160)
+  toName   String? @map("to_name") @db.VarChar(160)
+  subject  String  @db.VarChar(200)
+  /// Lo que la plantilla necesita para armarse.
+  payload  Json
+
+  status    NotificationStatus @default(PENDIENTE)
+  attempts  Int                @default(0)
+  lastError String?            @map("last_error") @db.VarChar(500)
+  /// No se intenta antes de esta hora. Es el reintento con espera creciente.
+  sendAfter DateTime           @default(now()) @map("send_after") @db.Timestamptz(3)
+  sentAt    DateTime?          @map("sent_at") @db.Timestamptz(3)
+
+  /// A qué se refiere, para poder rastrearlo desde el portal.
+  entity   String? @db.VarChar(60)
+  entityId String? @map("entity_id") @db.VarChar(60)
+
+  /// Mismo evento y mismo destinatario, un solo envío. Es lo que evita que un
+  /// reintento de la petición mande el correo dos veces.
+  dedupeKey String @unique @map("dedupe_key") @db.VarChar(200)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([status, sendAfter])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
 /// Profesional que se postula a la red ("Quiero ser parte").
 /// Es el registro de lo que la persona envió: no se edita.
 model Volunteer {

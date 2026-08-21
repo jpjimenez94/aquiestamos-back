@@ -1,5 +1,6 @@
 import { SupportRequestModel } from '../models/supportRequest.model.js'
 import { created, ok } from '../views/response.view.js'
+import { solicitudRecibida } from '../notifications/eventos.js'
 import { registrar, ACCION } from '../services/audit.service.js'
 import {
   supportRequestReceipt,
@@ -35,6 +36,8 @@ export const SupportRequestController = {
         guardianConsent: input.isMinor === true ? input.guardianConsent : false,
         communicationsConsent: input.communicationsConsent,
       })
+
+      await solicitudRecibida(request)
 
       return res
         .status(201)

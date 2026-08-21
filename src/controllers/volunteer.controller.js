@@ -1,6 +1,7 @@
 import { VolunteerModel } from '../models/volunteer.model.js'
 import { created, ok } from '../views/response.view.js'
 import { registrar, ACCION } from '../services/audit.service.js'
+import { postulacionRecibida } from '../notifications/eventos.js'
 import { volunteerReceipt, volunteerAdminList } from '../views/volunteer.view.js'
 
 /**
@@ -42,6 +43,9 @@ export const VolunteerController = {
         sensitiveDataConsent: soloVirtual ? false : input.sensitiveDataConsent,
         communicationsConsent: input.communicationsConsent,
       })
+
+      // Encolar el aviso no puede hacer fallar el registro.
+      await postulacionRecibida(volunteer)
 
       return res
         .status(201)

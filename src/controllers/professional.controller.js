@@ -2,6 +2,7 @@ import { ProfessionalModel } from '../models/professional.model.js'
 import { UserModel } from '../models/user.model.js'
 import { CaseAssignmentModel } from '../models/caseAssignment.model.js'
 import { aprobarPostulacion } from '../services/promotion.service.js'
+import { postulacionAprobada } from '../notifications/eventos.js'
 import { cargaActual } from '../services/scheduling.service.js'
 import { registrar, ACCION } from '../services/audit.service.js'
 import { ok, created, failure } from '../views/response.view.js'
@@ -68,6 +69,8 @@ export const ProfessionalController = {
         entityId: profesional.id,
         after: { desdePostulacion: req.params.volunteerId, franjasCreadas },
       })
+
+      await postulacionAprobada(profesional)
 
       return res
         .status(201)

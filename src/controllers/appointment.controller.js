@@ -9,6 +9,8 @@ import {
 } from '../services/appointment.service.js'
 import { huecosDisponibles } from '../services/scheduling.service.js'
 import { registrar, ACCION } from '../services/audit.service.js'
+import { citaAgendada } from '../notifications/eventos.js'
+import { formatearLocal } from '../services/timezone.service.js'
 import { ok, created, failure } from '../views/response.view.js'
 import { cita, citaLista, citaListaParaProfesional } from '../views/appointment.view.js'
 import { huecoLista } from '../views/availability.view.js'
@@ -97,6 +99,14 @@ export const AppointmentController = {
         entity: 'cita',
         entityId: nueva.id,
         after: { inicio, fin, professionalId, patientId },
+      })
+
+      // El aviso lleva cuándo y un enlace; los datos de la persona los abre
+      // el profesional entrando con su correo, no este correo.
+      await citaAgendada({
+        cita: nueva,
+        profesional: nueva.professional,
+        cuando: formatearLocal(nueva.startsAt),
       })
 
       return res.status(201).json(created(cita(nueva), 'Cita agendada.'))

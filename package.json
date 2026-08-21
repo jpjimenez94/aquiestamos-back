@@ -21,7 +21,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:purgar": "node prisma/purgar.js",
-    "db:importar": "node prisma/importarPostulaciones.js"
+    "db:importar": "node prisma/importarPostulaciones.js",
+    "correo:probar": "node prisma/probarCorreo.js",
+    "avisos:despachar": "node prisma/despacharAvisos.js"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
@@ -35,10 +37,13 @@
     "express-rate-limit": "^7.5.0",
     "helmet": "^8.0.0",
     "morgan": "^1.10.0",
+    "nodemailer": "^9.0.5",
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "mailparser": "^3.9.15",
     "prisma": "^6.2.1",
+    "smtp-server": "^3.19.3",
     "supertest": "^7.0.0",
     "vitest": "^2.1.8"
   }

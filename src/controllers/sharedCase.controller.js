@@ -7,6 +7,7 @@ import { casoCompartido } from '../views/patient.view.js'
 import { reporteListaParaProfesional, reporteParaProfesional } from '../views/caseReport.view.js'
 import { ok, created, failure } from '../views/response.view.js'
 import { registrar, ACCION } from '../services/audit.service.js'
+import { reporteRecibido } from '../notifications/eventos.js'
 import { env } from '../config/env.js'
 
 /**
@@ -198,6 +199,8 @@ export async function reportarCaso(req, res, next) {
       notes: input.notes || null,
       reportedByEmail: asignacion.professional.email,
     })
+
+    await reporteRecibido({ reporte: creado, asignacion })
 
     await registrar({
       req,

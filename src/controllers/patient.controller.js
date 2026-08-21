@@ -3,6 +3,7 @@ import { CaseAssignmentModel } from '../models/caseAssignment.model.js'
 import { CaseReportModel } from '../models/caseReport.model.js'
 import { admitirSolicitud } from '../services/promotion.service.js'
 import { reporte } from '../views/caseReport.view.js'
+import { pacienteAdmitido } from '../notifications/eventos.js'
 import { candidatosPara } from '../services/matching.service.js'
 import { registrar, ACCION } from '../services/audit.service.js'
 import { ok, created, failure } from '../views/response.view.js'
@@ -94,6 +95,8 @@ export const PatientController = {
         entityId: paciente.id,
         after: { desdeSolicitud: req.params.supportRequestId, prioridad: paciente.priority },
       })
+
+      await pacienteAdmitido(paciente)
 
       return res
         .status(201)
