@@ -111,12 +111,48 @@ describe('1 · del formulario público a la entidad operativa', () => {
     ids.supportRequestId = guardada.id
   })
 
-  it('el agendador NO puede aprobar una postulación', async () => {
+  it('el agendador SÍ puede aprobar: es quien opera la entrada', async () => {
+    // Antes esto era un 403 y cada aprobación esperaba a la administración.
+    // La red decidió que quien agenda también aprueba. La prueba de abajo
+    // hace la aprobación real con el administrador sobre otra postulación.
+    const otra = await prisma.volunteer.create({
+      data: {
+        fullName: `Aprobada Por Agenda ${marca}`,
+        phone: '3001112288',
+        email: `agenda-aprueba.${marca}@pruebas.local`,
+        city: 'Ibagué',
+        profession: 'Psicología',
+        yearsExperience: 'ENTRE_1_Y_3',
+        professionalCard: 'SI',
+        populations: ['Adultos'],
+        crisisExperience: 'SI',
+        modality: 'VIRTUAL',
+        availableDays: ['MARTES'],
+        availableSlots: ['TARDE'],
+        weeklyHours: 'ENTRE_1_Y_3',
+        consentVersion: '2026-08',
+        dataConsent: true,
+      },
+    })
+
     const res = await request(app)
-      .post(`/api/professionals/aprobar/${ids.volunteerId}`)
+      .post(`/api/professionals/aprobar/${otra.id}`)
       .set(agendador())
-      .send({})
-    expect(res.status).toBe(403)
+      .send({ status: 'ACTIVO' })
+    expect(res.status).toBe(201)
+
+    // Pero los datos maestros siguen sin ser suyos: la lista completa de
+    // profesionales no la ve.
+    const lista = await request(app).get('/api/professionals').set(agendador())
+    expect(lista.status).toBe(403)
+
+    await prisma.availabilityRule.deleteMany({
+      where: { professional: { email: `agenda-aprueba.${marca}@pruebas.local` } },
+    })
+    await prisma.professional.deleteMany({
+      where: { email: `agenda-aprueba.${marca}@pruebas.local` },
+    })
+    await prisma.volunteer.delete({ where: { id: otra.id } })
   })
 
   it('el administrador aprueba, y las franjas del formulario se convierten en disponibilidad', async () => {

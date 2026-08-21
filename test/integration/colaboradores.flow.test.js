@@ -44,6 +44,7 @@ beforeAll(async () => {
     { email: `admin.${marca}@ejemplo.com`, name: 'Admin', role: 'ADMIN' },
     { email: `agenda.${marca}@ejemplo.com`, name: 'Agenda', role: 'AGENDADOR' },
     { email: `pro.${marca}@ejemplo.com`, name: 'Pro', role: 'PROFESIONAL' },
+    { email: `lectura.${marca}@ejemplo.com`, name: 'Lectura', role: 'LECTURA' },
   ]
 
   for (const cuenta of cuentas) {
@@ -100,10 +101,17 @@ describe('voluntariado de apoyo', () => {
     expect(res.status).toBe(403)
   })
 
-  it('quien coordina sí lo ve, con el resumen por área', async () => {
+  it('el agendador tampoco lo ve: decisión expresa de la red', async () => {
     const res = await request(app)
       .get('/api/collaborators')
       .set('Authorization', `Bearer ${tokens.AGENDADOR}`)
+    expect(res.status).toBe(403)
+  })
+
+  it('la administración sí lo ve, con el resumen por área', async () => {
+    const res = await request(app)
+      .get('/api/collaborators')
+      .set('Authorization', `Bearer ${tokens.ADMIN}`)
 
     expect(res.status).toBe(200)
     expect(res.body.meta.porArea.length).toBeGreaterThan(0)
@@ -139,6 +147,32 @@ describe('voluntariado de apoyo', () => {
     expect(mios(await pedir('city=ibagu'))).toHaveLength(1)
     // Quien puede ir presencial: no debe salir quien solo apoya en remoto.
     expect(mios(await pedir('modality=PRESENCIAL'))).toHaveLength(1)
+  })
+
+  it('el rol de lectura ve el directorio pero no puede escribir nada', async () => {
+    const lee = await request(app)
+      .get('/api/collaborators')
+      .set('Authorization', `Bearer ${tokens.LECTURA}`)
+    expect(lee.status).toBe(200)
+
+    // Ninguna escritura pasa: ni admitir, ni aprobar, ni crear cuentas.
+    const admitir = await request(app)
+      .post('/api/patients/admitir/00000000-0000-4000-8000-000000000000')
+      .set('Authorization', `Bearer ${tokens.LECTURA}`)
+      .send({ priority: 'ALTA' })
+    expect(admitir.status).toBe(403)
+
+    const aprobar = await request(app)
+      .post('/api/professionals/aprobar/00000000-0000-4000-8000-000000000000')
+      .set('Authorization', `Bearer ${tokens.LECTURA}`)
+      .send({})
+    expect(aprobar.status).toBe(403)
+
+    const crearCuenta = await request(app)
+      .post('/api/users')
+      .set('Authorization', `Bearer ${tokens.LECTURA}`)
+      .send({ email: 'x@x.com', name: 'X', role: 'ADMIN', password: 'unaClaveLarga123' })
+    expect(crearCuenta.status).toBe(403)
   })
 
   it('deja rastro en auditoría de quién consulta el directorio', async () => {

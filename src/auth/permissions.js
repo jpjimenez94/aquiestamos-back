@@ -10,13 +10,22 @@
 export const PERMISOS = {
   ADMIN: ['*'],
 
-  // Voluntario digital: consulta y agenda. No toca datos maestros ni usuarios.
+  // Voluntario digital: recibe lo que llega, lo aprueba y lo agenda.
+  //
+  // Puede APROBAR postulaciones (profesional:crear) y ADMITIR solicitudes con
+  // su prioridad (paciente:crear): es quien opera la entrada, y sin eso cada
+  // aprobación tenía que esperar a la administración.
+  //
+  // NO ve el módulo de profesionales ni el directorio de voluntariado de
+  // apoyo: son datos maestros y decisión expresa de la red. El emparejamiento
+  // no lo necesita —va por asignacion:crear— así que puede asignar sin poder
+  // hojear la lista completa.
   AGENDADOR: [
     'postulacion:leer',
     'solicitud:leer',
-    'colaborador:leer',
-    'profesional:leer',
     'paciente:leer',
+    'paciente:crear',
+    'profesional:crear',
     'agenda:leer',
     'disponibilidad:leer',
     'asignacion:crear',
@@ -26,6 +35,21 @@ export const PERMISOS = {
     'cita:cancelar',
     'cita:confirmar',
     'cita:cerrar',
+  ],
+
+  // Solo lectura: visibilidad global, ninguna acción. Todos sus permisos
+  // terminan en :leer a propósito; si alguna vez aparece aquí uno de escribir,
+  // el rol dejó de ser lo que su nombre promete.
+  LECTURA: [
+    'postulacion:leer',
+    'solicitud:leer',
+    'colaborador:leer',
+    'profesional:leer',
+    'paciente:leer',
+    'agenda:leer',
+    'disponibilidad:leer',
+    'usuario:leer',
+    'auditoria:leer',
   ],
 
   // Profesional de la red: su agenda y sus propias franjas de disponibilidad.

@@ -37,9 +37,16 @@ export const supportRequestCreateSchema = z
     city: trimmed(160),
 
     // --- Bloque 3: cuándo y cómo ---
-    preferredModality: choice(['PRESENCIAL', 'VIRTUAL', 'INDIFERENTE']),
-    availableDays: z.array(z.enum(WEEKDAYS), required).min(1, 'Selecciona al menos un día'),
-    availableSlots: z.array(z.enum(DAY_SLOTS), required).min(1, 'Selecciona al menos una franja'),
+    // El formulario público ya no pregunta cuándo le viene bien: la red
+    // decidió acordarlo en la primera llamada, no en el registro. Se siguen
+    // aceptando por si llegan (envíos viejos, cargas), pero un select vacío
+    // ('') cuenta como "no se preguntó", no como valor inválido.
+    preferredModality: z.preprocess(
+      (v) => (v === '' || v === null ? undefined : v),
+      z.enum(['PRESENCIAL', 'VIRTUAL', 'INDIFERENTE']).optional(),
+    ),
+    availableDays: z.array(z.enum(WEEKDAYS)).optional().default([]),
+    availableSlots: z.array(z.enum(DAY_SLOTS)).optional().default([]),
     message: opcional(1000),
 
     // --- Bloque 4: autorizaciones ---

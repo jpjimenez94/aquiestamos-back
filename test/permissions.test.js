@@ -22,6 +22,46 @@ describe('matriz de permisos', () => {
     expect(puede(agendador, 'auditoria:leer')).toBe(false)
   })
 
+  it('el agendador aprueba y admite: es quien opera la entrada', () => {
+    expect(puede(agendador, 'profesional:crear')).toBe(true)
+    expect(puede(agendador, 'paciente:crear')).toBe(true)
+  })
+
+  it('el agendador no ve profesionales ni el voluntariado de apoyo', () => {
+    // Decisión expresa de la red: puede aprobar y asignar, pero los datos
+    // maestros no son suyos. El emparejamiento va por asignacion:crear.
+    expect(puede(agendador, 'profesional:leer')).toBe(false)
+    expect(puede(agendador, 'colaborador:leer')).toBe(false)
+    expect(puede(agendador, 'asignacion:crear')).toBe(true)
+  })
+
+  it('el rol de lectura ve todo y no toca nada', () => {
+    const lectura = { role: 'LECTURA' }
+
+    for (const permiso of [
+      'postulacion:leer', 'solicitud:leer', 'colaborador:leer',
+      'profesional:leer', 'paciente:leer', 'agenda:leer',
+      'usuario:leer', 'auditoria:leer',
+    ]) {
+      expect(puede(lectura, permiso)).toBe(true)
+    }
+
+    for (const permiso of [
+      'paciente:crear', 'profesional:crear', 'cita:crear', 'cita:cancelar',
+      'asignacion:crear', 'usuario:crear', 'usuario:borrar', 'paciente:editar',
+    ]) {
+      expect(puede(lectura, permiso)).toBe(false)
+    }
+  })
+
+  it('ningún permiso del rol de lectura permite escribir', () => {
+    // Si esto falla, alguien le dio al rol un permiso que no termina en
+    // :leer, y "solo lectura" dejó de ser cierto.
+    for (const permiso of PERMISOS.LECTURA) {
+      expect(permiso.endsWith(':leer')).toBe(true)
+    }
+  })
+
   it('el profesional solo ve su propia agenda', () => {
     expect(puede(profesional, 'agenda:leer:propia')).toBe(true)
 

@@ -165,9 +165,16 @@ describe('formulario de atención', () => {
     expect(supportRequestCreateSchema.safeParse(mayor).success).toBe(true)
   })
 
-  it('exige día y franja', () => {
-    expect(supportRequestCreateSchema.safeParse({ ...solicitudBase, availableDays: [] }).success).toBe(false)
-    expect(supportRequestCreateSchema.safeParse({ ...solicitudBase, availableSlots: [] }).success).toBe(false)
+  // El formulario dejó de preguntar cuándo le viene bien: eso se acuerda en
+  // la primera llamada. Lo que NO puede pasar es que el select vacío ('')
+  // haga fallar un envío señalando una pregunta que ya no existe.
+  it('acepta que no haya disponibilidad ni modalidad', () => {
+    expect(supportRequestCreateSchema.safeParse({ ...solicitudBase, availableDays: [] }).success).toBe(true)
+    expect(supportRequestCreateSchema.safeParse({ ...solicitudBase, availableSlots: [] }).success).toBe(true)
+
+    const r = supportRequestCreateSchema.safeParse({ ...solicitudBase, preferredModality: '' })
+    expect(r.success).toBe(true)
+    expect(r.data.preferredModality).toBeUndefined()
   })
 })
 

@@ -32,6 +32,8 @@ enum UserRole {
   AGENDADOR
   /// Profesional de la red: solo consulta sus propias asignaciones.
   PROFESIONAL
+  /// Solo lectura: ve todo, no toca nada. Para quien supervisa u observa.
+  LECTURA
 }
 
 model User {
