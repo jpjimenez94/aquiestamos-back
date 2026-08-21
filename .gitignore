@@ -8,3 +8,7 @@ dist/
 # celulares, correos). El repositorio es publico: este archivo se queda en la
 # maquina de quien hace la carga y nunca se sube.
 prisma/datos/
+
+# Scripts sueltos de diagnostico, no son del proyecto.
+_*.mjs
+_*.js
