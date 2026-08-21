@@ -77,3 +77,19 @@ describe('tokens de sesión', () => {
     expect(tokenDePeticion({ get: () => undefined })).toBe(null)
   })
 })
+
+/**
+ * El enlace de caso es la única puerta pública a los datos de una persona
+ * acompañada. Su secreto tuvo por defecto un valor publicado en el
+ * repositorio, y el guardián que lo exigía dependía de NODE_ENV: si el
+ * servidor arrancaba sin esa variable —lo que pasa por omisión en Railway—
+ * producción firmaba con el secreto público y cualquiera podía fabricar un
+ * enlace válido. Pasó de verdad.
+ */
+describe('secreto del enlace de casos', () => {
+  it('no puede caer nunca al valor de ejemplo publicado', async () => {
+    const { env } = await import('../src/config/env.js')
+    expect(env.sharedCaseSecret).not.toBe('secreto-de-desarrollo-no-usar-en-produccion')
+    expect(env.sharedCaseSecret.length).toBeGreaterThan(10)
+  })
+})

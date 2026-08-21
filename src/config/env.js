@@ -25,10 +25,16 @@ export const env = {
   // Firma de los enlaces de caso compartido. Es un secreto aparte a proposito:
   // reutilizar DATABASE_URL mete la contrasena de la base en un contexto de
   // firma y ata la validez de los enlaces a la rotacion de esa contrasena.
+  // Se exige SIEMPRE, salvo en las pruebas. Antes solo se exigía cuando
+  // NODE_ENV valía 'production', y eso resultó ser una trampa: si el servidor
+  // arranca sin esa variable —cosa que pasa por omisión en Railway— caía al
+  // valor por defecto, que está publicado en GitHub. Cualquiera podía firmar
+  // un enlace de caso válido. Ahora, sin secreto, el backend no arranca: un
+  // fallo ruidoso es infinitamente mejor que uno silencioso aquí.
   sharedCaseSecret:
-    process.env.NODE_ENV === 'production'
-      ? required('SHARED_CASE_SECRET')
-      : process.env.SHARED_CASE_SECRET ?? 'secreto-de-desarrollo-no-usar-en-produccion',
+    process.env.NODE_ENV === 'test'
+      ? process.env.SHARED_CASE_SECRET ?? 'secreto-solo-para-pruebas'
+      : required('SHARED_CASE_SECRET'),
 
   // Cuanto dura un enlace de caso compartido antes de pedir el correo otra vez.
   sharedCaseTtlHours: Number(process.env.SHARED_CASE_TTL_HOURS ?? 12),
