@@ -1,6 +1,7 @@
 import { NotificationModel } from '../models/notification.model.js'
 import { enviarCorreo, hayCorreoConfigurado, transporteEnUso } from './mailer.js'
 import { construir } from './plantillas.js'
+import { env } from '../config/env.js'
 
 /**
  * El que vacía la bandeja de salida.
@@ -51,6 +52,17 @@ export function arrancarDespachador() {
 
   if (hayCorreoConfigurado()) {
     console.log(`[avisos] despachador activo cada ${CADA_MS / 1000}s · ${transporteEnUso()}`)
+  }
+
+  // Los correos llevan el logo y los botones apuntando a SITIO_URL. Si apunta
+  // a la máquina de desarrollo, quien reciba el correo ve una imagen rota y un
+  // enlace que no abre. Pasó en producción y no había forma de notarlo hasta
+  // que alguien miró un correo recibido.
+  if (/localhost|127\.0\.0\.1/.test(env.sitioUrl)) {
+    console.warn(
+      `[avisos] OJO: SITIO_URL es "${env.sitioUrl}". Los correos van a salir con ` +
+        'el logo roto y enlaces que no abren. En producción tiene que ser el dominio real.',
+    )
   }
 }
 

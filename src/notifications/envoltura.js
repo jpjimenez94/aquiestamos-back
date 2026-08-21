@@ -86,6 +86,14 @@ export function envolver({ titulo, parrafos, boton, datos }) {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="light">
+  <meta name="supported-color-schemes" content="light">
+  <style>
+    /* Gmail y Outlook invierten los colores en modo oscuro. Esto les pide que
+       no lo hagan; algunos hacen caso y otros no, así que el diseño tiene que
+       leerse bien igual: por eso todo el texto va sobre fondos declarados y no
+       sobre el color por defecto. */
+    :root { color-scheme: light; supported-color-schemes: light; }
+  </style>
   <title>${titulo}</title>
 </head>
 <body style="margin:0;padding:0;background-color:${FONDO};-webkit-font-smoothing:antialiased;">
