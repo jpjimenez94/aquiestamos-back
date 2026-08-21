@@ -51,6 +51,13 @@ export const env = {
       .filter(Boolean),
   },
 
+  /// Clave de la API de Brevo. Es DISTINTA de la clave SMTP.
+  ///
+  /// Con esto puesto, los correos salen por HTTPS en vez de por SMTP. Hace
+  /// falta en Railway: sus planes Free, Trial y Hobby bloquean el SMTP
+  /// saliente y los envíos mueren por tiempo agotado, sin más pista.
+  brevoApiKey: process.env.BREVO_API_KEY ?? '',
+
   /// Dirección pública del sitio. Los avisos llevan enlaces, y un enlace a
   /// localhost dentro de un correo no le sirve a nadie.
   sitioUrl: process.env.SITIO_URL ?? 'http://localhost:3000',

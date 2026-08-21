@@ -1,5 +1,5 @@
 import { NotificationModel } from '../models/notification.model.js'
-import { enviarCorreo, hayCorreoConfigurado } from './mailer.js'
+import { enviarCorreo, hayCorreoConfigurado, transporteEnUso } from './mailer.js'
 import { construir } from './plantillas.js'
 
 /**
@@ -50,7 +50,7 @@ export function arrancarDespachador() {
   temporizador.unref?.()
 
   if (hayCorreoConfigurado()) {
-    console.log(`[avisos] despachador activo, cada ${CADA_MS / 1000}s`)
+    console.log(`[avisos] despachador activo cada ${CADA_MS / 1000}s · ${transporteEnUso()}`)
   }
 }
 

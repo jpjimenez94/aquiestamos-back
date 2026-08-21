@@ -1,18 +1,35 @@
 import nodemailer from 'nodemailer'
 import { env } from '../config/env.js'
+import { enviarCorreoApi, hayApiConfigurada } from './mailerApi.js'
 
 /**
- * El transporte de correo.
+ * El transporte de correo. Hay dos y se elige solo:
  *
- * Se habla SMTP y no la API del proveedor a propósito: cambiar de Brevo a
- * Resend, a SES o a lo que sea queda en cambiar variables de entorno, no en
- * reescribir código.
+ *   · API HTTPS de Brevo, si hay BREVO_API_KEY. Es lo que hay que usar en
+ *     Railway, porque sus planes Free, Trial y Hobby bloquean el SMTP
+ *     saliente: los envíos mueren por tiempo agotado sin decir por qué.
+ *   · SMTP con nodemailer, si no. Sirve en local y en cualquier sitio que no
+ *     bloquee el puerto, y funciona con cualquier proveedor.
+ *
+ * La API se prefiere cuando está disponible porque funciona en los dos sitios;
+ * SMTP solo en uno.
  */
 
 let transporte = null
 
 export function hayCorreoConfigurado() {
+  return hayApiConfigurada() || haySmtpConfigurado()
+}
+
+function haySmtpConfigurado() {
   return Boolean(env.smtp.host && env.smtp.usuario && env.smtp.clave)
+}
+
+/** Cuál se está usando. Sale en el log al arrancar, para no adivinar. */
+export function transporteEnUso() {
+  if (hayApiConfigurada()) return 'API HTTPS de Brevo'
+  if (haySmtpConfigurado()) return `SMTP ${env.smtp.host}:${env.smtp.port}`
+  return 'ninguno'
 }
 
 function obtenerTransporte() {
@@ -31,8 +48,12 @@ function obtenerTransporte() {
 }
 
 export async function enviarCorreo({ para, nombre, asunto, html, texto }) {
-  if (!hayCorreoConfigurado()) {
-    throw new Error('SMTP sin configurar')
+  if (hayApiConfigurada()) {
+    return enviarCorreoApi({ para, nombre, asunto, html, texto })
+  }
+
+  if (!haySmtpConfigurado()) {
+    throw new Error('Correo sin configurar')
   }
 
   return obtenerTransporte().sendMail({
@@ -46,6 +67,17 @@ export async function enviarCorreo({ para, nombre, asunto, html, texto }) {
 
 /** Comprueba credenciales sin enviar nada. Lo usa `npm run correo:probar`. */
 export async function verificarConexion() {
-  if (!hayCorreoConfigurado()) throw new Error('SMTP sin configurar')
+  // La API no tiene un "verify": se comprueba pidiendo la cuenta, que no
+  // envía nada y falla claro si la clave no sirve.
+  if (hayApiConfigurada()) {
+    const r = await fetch('https://api.brevo.com/v3/account', {
+      headers: { 'api-key': env.brevoApiKey, accept: 'application/json' },
+      signal: AbortSignal.timeout(15_000),
+    })
+    if (!r.ok) throw new Error(`Brevo respondió ${r.status}: ${(await r.text()).slice(0, 200)}`)
+    return true
+  }
+
+  if (!haySmtpConfigurado()) throw new Error('Correo sin configurar')
   return obtenerTransporte().verify()
 }

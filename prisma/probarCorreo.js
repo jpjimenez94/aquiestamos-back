@@ -6,7 +6,12 @@
  *   npm run correo:probar
  *   npm run correo:probar -- alguien@ejemplo.com
  */
-import { verificarConexion, enviarCorreo, hayCorreoConfigurado } from '../src/notifications/mailer.js'
+import {
+  verificarConexion,
+  enviarCorreo,
+  hayCorreoConfigurado,
+  transporteEnUso,
+} from '../src/notifications/mailer.js'
 import { construir } from '../src/notifications/plantillas.js'
 import { env } from '../src/config/env.js'
 
@@ -14,19 +19,24 @@ const destino = process.argv[2]
 
 if (!hayCorreoConfigurado()) {
   console.error('')
-  console.error('SMTP sin configurar. Faltan estas variables en backend/.env:')
-  console.error('  SMTP_HOST      smtp-relay.brevo.com')
-  console.error('  SMTP_PORT      587')
-  console.error('  SMTP_USER      el login que da Brevo en SMTP & API')
-  console.error('  SMTP_PASSWORD  la clave SMTP generada ahí mismo')
-  console.error('  SMTP_FROM      Red Aquí Estamos <no-responder@redaquiestamos.org>')
+  console.error('Correo sin configurar. Hace falta una de las dos vías:')
+  console.error('')
+  console.error('  A) API HTTPS (la que sirve en Railway):')
+  console.error('     BREVO_API_KEY  la clave de API, empieza por xkeysib-')
+  console.error('     SMTP_FROM      Red Aquí Estamos <no-responder@redaquiestamos.org>')
+  console.error('')
+  console.error('  B) SMTP (sirve en local; Railway lo bloquea salvo en plan Pro):')
+  console.error('     SMTP_HOST      smtp-relay.brevo.com')
+  console.error('     SMTP_PORT      587')
+  console.error('     SMTP_USER      el login que da Brevo en SMTP y API')
+  console.error('     SMTP_PASSWORD  la clave SMTP, empieza por xsmtpsib-')
+  console.error('     SMTP_FROM      Red Aquí Estamos <no-responder@redaquiestamos.org>')
   console.error('')
   process.exit(1)
 }
 
-console.log(`Servidor : ${env.smtp.host}:${env.smtp.port}`)
-console.log(`Usuario  : ${env.smtp.usuario}`)
-console.log(`Remitente: ${env.smtp.remitente}`)
+console.log(`Transporte: ${transporteEnUso()}`)
+console.log(`Remitente : ${env.smtp.remitente}`)
 console.log('')
 
 try {

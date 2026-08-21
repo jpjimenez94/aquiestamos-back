@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { PLANTILLAS, construir } from '../src/notifications/plantillas.js'
+import { partirRemitente } from '../src/notifications/mailerApi.js'
 
 /**
  * Las plantillas de los avisos.
@@ -93,5 +94,31 @@ describe('plantillas de avisos', () => {
 
   it('avisa si le piden una plantilla que no existe', () => {
     expect(() => construir('NO_EXISTE', {})).toThrow(/NO_EXISTE/)
+  })
+})
+
+/**
+ * Railway bloquea el SMTP saliente en sus planes Free, Trial y Hobby, así que
+ * en producción el correo sale por la API HTTPS de Brevo. Lo único delicado de
+ * ese camino es armar el remitente: si sale mal, Brevo rechaza el envío
+ * entero.
+ */
+describe('remitente para la API de Brevo', () => {
+  it('separa el nombre del correo', () => {
+    expect(partirRemitente('Red Aquí Estamos <no-responder@x.org>')).toEqual({
+      name: 'Red Aquí Estamos',
+      email: 'no-responder@x.org',
+    })
+  })
+
+  it('acepta un remitente sin nombre', () => {
+    expect(partirRemitente('suelto@x.org')).toEqual({ email: 'suelto@x.org' })
+  })
+
+  it('aguanta comillas y espacios de más', () => {
+    expect(partirRemitente('  "Red Aquí Estamos"  <  no-responder@x.org  >  ')).toEqual({
+      name: 'Red Aquí Estamos',
+      email: 'no-responder@x.org',
+    })
   })
 })
