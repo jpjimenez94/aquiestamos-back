@@ -25,16 +25,20 @@ const POR_TANDA = 20
 
 let temporizador = null
 let corriendo = false
+let yaAvisadoSinSmtp = false
 
 export function arrancarDespachador() {
   if (temporizador) return
 
+  // El temporizador arranca SIEMPRE, aunque no haya SMTP. La comprobación se
+  // hace en cada tanda, no aquí: decidirlo una sola vez al arrancar deja al
+  // despachador muerto en silencio si las credenciales se configuran después,
+  // y nadie se entera hasta que alguien pregunta por qué no llegan los avisos.
   if (!hayCorreoConfigurado()) {
     console.log(
       '[avisos] SMTP sin configurar: los avisos se encolan pero no se envían. ' +
-        'En cuanto se llenen SMTP_HOST, SMTP_USER y SMTP_PASSWORD salen solos.',
+        'En cuanto se llenen SMTP_HOST, SMTP_USER y SMTP_PASSWORD y se reinicie, salen solos.',
     )
-    return
   }
 
   temporizador = setInterval(() => {
@@ -45,7 +49,9 @@ export function arrancarDespachador() {
   // que se cierre.
   temporizador.unref?.()
 
-  console.log(`[avisos] despachador activo, cada ${CADA_MS / 1000}s`)
+  if (hayCorreoConfigurado()) {
+    console.log(`[avisos] despachador activo, cada ${CADA_MS / 1000}s`)
+  }
 }
 
 export function detenerDespachador() {
@@ -61,6 +67,14 @@ export function detenerDespachador() {
 export async function despachar() {
   // Si una tanda se alarga, la siguiente no se le monta encima.
   if (corriendo) return { enviados: 0, fallidos: 0, omitidos: 0 }
+
+  // Sin credenciales no se intenta: se dejarían todos los avisos con un
+  // intento gastado y una espera por delante, por nada.
+  if (!hayCorreoConfigurado()) {
+    avisarUnaVezSinSmtp()
+    return { enviados: 0, fallidos: 0, omitidos: 0 }
+  }
+
   corriendo = true
 
   let enviados = 0
@@ -109,4 +123,11 @@ export async function despachar() {
   } finally {
     corriendo = false
   }
+}
+
+/** Que el log no se llene con el mismo aviso cada 30 segundos. */
+function avisarUnaVezSinSmtp() {
+  if (yaAvisadoSinSmtp) return
+  yaAvisadoSinSmtp = true
+  console.warn('[avisos] hay avisos encolados pero SMTP no está configurado.')
 }
