@@ -2,8 +2,10 @@ import { createHmac, timingSafeEqual } from 'node:crypto'
 import { CaseAssignmentModel } from '../models/caseAssignment.model.js'
 import { PatientModel } from '../models/patient.model.js'
 import { AppointmentModel } from '../models/appointment.model.js'
+import { CaseReportModel } from '../models/caseReport.model.js'
 import { casoCompartido } from '../views/patient.view.js'
-import { ok, failure } from '../views/response.view.js'
+import { reporteListaParaProfesional, reporteParaProfesional } from '../views/caseReport.view.js'
+import { ok, created, failure } from '../views/response.view.js'
 import { registrar, ACCION } from '../services/audit.service.js'
 import { env } from '../config/env.js'
 
@@ -143,9 +145,71 @@ export async function getSharedCase(req, res, next) {
       return res.status(404).json(failure('No encontramos el caso.'))
     }
 
-    const citas = await AppointmentModel.findDePaciente(id)
+    const [citas, reportes] = await Promise.all([
+      AppointmentModel.findDePaciente(id),
+      CaseReportModel.findDeAsignacion(asignacion.id),
+    ])
 
-    return res.json(ok(casoCompartido(paciente, citas)))
+    return res.json(
+      ok({
+        ...casoCompartido(paciente, citas),
+        reportes: reporteListaParaProfesional(reportes),
+      }),
+    )
+  } catch (error) {
+    return next(error)
+  }
+}
+
+/**
+ * POST /api/shared-cases/:id/reporte
+ *
+ * El profesional cuenta qué pasó con su asignación. Es la única forma que
+ * tiene de responder: no tiene cuenta en el portal, solo el enlace.
+ */
+export async function reportarCaso(req, res, next) {
+  try {
+    const { id } = req.params
+
+    const datos = leerToken(req.headers['x-shared-case-token'], id)
+    if (!datos) {
+      return res
+        .status(401)
+        .json(failure('El acceso venció. Vuelve a ingresar tu correo.'))
+    }
+
+    // Las mismas dos comprobaciones que para leer: el token dice quién es, la
+    // base dice si el caso sigue siendo suyo.
+    const asignacion = await CaseAssignmentModel.findActivaDePaciente(id)
+    if (!asignacion || asignacion.professionalId !== datos.profesional) {
+      return res.status(403).json(failure('Este caso ya no está a tu cargo.'))
+    }
+
+    const input = req.validated
+    const hubo = ['CITA_ACORDADA', 'YA_ATENDIDA'].includes(input.outcome)
+
+    const creado = await CaseReportModel.create({
+      assignmentId: asignacion.id,
+      outcome: input.outcome,
+      // La modalidad y la fecha solo tienen sentido si hubo o habrá encuentro.
+      modality: hubo ? (input.modality ?? null) : null,
+      meetsAt: hubo ? (input.meetsAt ?? null) : null,
+      contactDifficulties: input.contactDifficulties || null,
+      notes: input.notes || null,
+      reportedByEmail: asignacion.professional.email,
+    })
+
+    await registrar({
+      req,
+      action: ACCION.CREAR,
+      entity: 'ReporteDeCaso',
+      entityId: creado.id,
+      after: { caso: id, resultado: creado.outcome },
+    })
+
+    return res.status(201).json(
+      created(reporteParaProfesional(creado), 'Gracias. Quedó registrado.'),
+    )
   } catch (error) {
     return next(error)
   }

@@ -1,7 +1,13 @@
 import { Router } from 'express'
 import rateLimit from 'express-rate-limit'
-import { authorizeSharedCase, getSharedCase } from '../controllers/sharedCase.controller.js'
+import {
+  authorizeSharedCase,
+  getSharedCase,
+  reportarCaso,
+} from '../controllers/sharedCase.controller.js'
 import { validarParamsUuid } from '../middlewares/validarUuid.js'
+import { validateBody } from '../middlewares/validate.js'
+import { caseReportCreateSchema } from '../validators/caseReport.schema.js'
 
 export const sharedCaseRoutes = Router()
 
@@ -25,5 +31,13 @@ const limiteIntentos = rateLimit({
 // El acceso no lo da la sesion del portal, sino el enlace mas el correo.
 sharedCaseRoutes.post('/:id/auth', limiteIntentos, validarParamsUuid, authorizeSharedCase)
 sharedCaseRoutes.get('/:id', validarParamsUuid, getSharedCase)
+
+// Responder qué pasó con la asignación. Va con el mismo token del enlace.
+sharedCaseRoutes.post(
+  '/:id/reporte',
+  validarParamsUuid,
+  validateBody(caseReportCreateSchema),
+  reportarCaso,
+)
 
 export default sharedCaseRoutes

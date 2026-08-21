@@ -1,6 +1,8 @@
 import { PatientModel } from '../models/patient.model.js'
 import { CaseAssignmentModel } from '../models/caseAssignment.model.js'
+import { CaseReportModel } from '../models/caseReport.model.js'
 import { admitirSolicitud } from '../services/promotion.service.js'
+import { reporte } from '../views/caseReport.view.js'
 import { candidatosPara } from '../services/matching.service.js'
 import { registrar, ACCION } from '../services/audit.service.js'
 import { ok, created, failure } from '../views/response.view.js'
@@ -39,6 +41,11 @@ export const PatientController = {
 
       const asignacion = await CaseAssignmentModel.findActivaDePaciente(paciente.id)
 
+      // Lo que haya reportado quien acompaña, aunque la persona haya pasado
+      // por más de un profesional: el histórico completo es lo que permite
+      // ver si un caso se quedó estancado.
+      const reportes = await CaseReportModel.findDePaciente(paciente.id)
+
       await registrar({
         req,
         action: ACCION.CONSULTAR,
@@ -59,6 +66,10 @@ export const PatientController = {
                 },
               }
             : null,
+          reportes: reportes.map((r) => ({
+            ...reporte(r),
+            profesional: r.assignment?.professional?.fullName ?? null,
+          })),
         }),
       )
     } catch (error) {

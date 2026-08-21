@@ -60,6 +60,7 @@ beforeAll(async () => {
 })
 
 afterAll(async () => {
+  await prisma.caseReport.deleteMany({ where: { assignmentId: ids.asignacion } })
   await prisma.auditLog.deleteMany({ where: { entityId: ids.paciente } })
   await prisma.caseAssignment.deleteMany({ where: { patientId: ids.paciente } })
   await prisma.patient.deleteMany({ where: { id: ids.paciente } })
@@ -112,6 +113,7 @@ describe('caso compartido', () => {
         'preferredContact',
         'preferredModality',
         'relationship',
+        'reportes',
       ].sort(),
     )
     // Lo que no debe salir nunca por esta puerta.
@@ -175,5 +177,98 @@ describe('caso compartido', () => {
 
     expect(registros.some((r) => r.action === 'acceder')).toBe(true)
     expect(registros.some((r) => r.action === 'acceso_fallido')).toBe(true)
+  })
+})
+
+describe('el profesional responde qué pasó', () => {
+  // Un solo token para todo el bloque. Es lo que pasa de verdad —el
+  // profesional confirma su correo una vez y de ahí en adelante usa el
+  // enlace— y evita chocar con el límite de intentos, que es de diez.
+  let t
+
+  beforeAll(async () => {
+    const res = await request(app)
+      .post(`/api/shared-cases/${ids.paciente}/auth`)
+      .send({ email: CORREO })
+    t = res.body.data.token
+  })
+
+  it('registra lo que pasó y lo devuelve en el propio enlace', async () => {
+    const enviado = await request(app)
+      .post(`/api/shared-cases/${ids.paciente}/reporte`)
+      .set('x-shared-case-token', t)
+      .send({
+        outcome: 'NO_CONTESTA',
+        contactDifficulties: 'La llamé tres veces y entra a buzón.',
+      })
+    expect(enviado.status).toBe(201)
+
+    const caso = await request(app)
+      .get(`/api/shared-cases/${ids.paciente}`)
+      .set('x-shared-case-token', t)
+
+    expect(caso.body.data.reportes).toHaveLength(1)
+    expect(caso.body.data.reportes[0].outcome).toBe('NO_CONTESTA')
+    // No se le repite su propio correo: ya sabe quién es.
+    expect(caso.body.data.reportes[0].reportedByEmail).toBeUndefined()
+  })
+
+  it('una cita acordada necesita modalidad y fecha', async () => {
+    const incompleto = await request(app)
+      .post(`/api/shared-cases/${ids.paciente}/reporte`)
+      .set('x-shared-case-token', t)
+      .send({ outcome: 'CITA_ACORDADA' })
+
+    // 422: la petición está bien formada pero rompe una regla del formulario.
+    expect(incompleto.status).toBe(422)
+    expect(incompleto.body.details.modality).toBeTruthy()
+    expect(incompleto.body.details.meetsAt).toBeTruthy()
+
+    const completo = await request(app)
+      .post(`/api/shared-cases/${ids.paciente}/reporte`)
+      .set('x-shared-case-token', t)
+      .send({
+        outcome: 'CITA_ACORDADA',
+        modality: 'PRESENCIAL',
+        meetsAt: '2026-09-03T20:00:00.000Z',
+      })
+    expect(completo.status).toBe(201)
+  })
+
+  it('no se puede reportar sin el enlace', async () => {
+    const res = await request(app)
+      .post(`/api/shared-cases/${ids.paciente}/reporte`)
+      .send({ outcome: 'NO_CONTESTA' })
+    expect(res.status).toBe(401)
+  })
+
+  it('deja de poderse reportar cuando el caso se cierra', async () => {
+    await prisma.caseAssignment.update({
+      where: { id: ids.asignacion },
+      data: { status: 'CERRADA' },
+    })
+
+    const res = await request(app)
+      .post(`/api/shared-cases/${ids.paciente}/reporte`)
+      .set('x-shared-case-token', t)
+      .send({ outcome: 'NO_CONTESTA' })
+    expect(res.status).toBe(403)
+
+    await prisma.caseAssignment.update({
+      where: { id: ids.asignacion },
+      data: { status: 'ACTIVA' },
+    })
+  })
+
+  it('es una bitácora: los reportes se suman, no se pisan', async () => {
+    const antes = await prisma.caseReport.count({ where: { assignmentId: ids.asignacion } })
+
+    await request(app)
+      .post(`/api/shared-cases/${ids.paciente}/reporte`)
+      .set('x-shared-case-token', t)
+      .send({ outcome: 'YA_ATENDIDA', modality: 'VIRTUAL' })
+
+    const despues = await prisma.caseReport.count({ where: { assignmentId: ids.asignacion } })
+    expect(despues).toBe(antes + 1)
   })
 })

@@ -556,6 +556,7 @@ model CaseAssignment {
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
 
   appointments Appointment[]
+  reports      CaseReport[]
 
   @@index([professionalId, status])
   @@index([patientId, status])
@@ -565,6 +566,24 @@ model CaseAssignment {
 // ===========================================================================
 // Fase 2 — agenda
 // ===========================================================================
+
+/// Qué pasó cuando el profesional intentó contactar a la persona asignada.
+/// Lo reporta él mismo desde el enlace del caso, sin cuenta en el portal.
+enum CaseOutcome {
+  /// Hablamos y quedamos en una cita.
+  CITA_ACORDADA
+  /// Ya la acompañé.
+  YA_ATENDIDA
+  /// La busqué y no contesta.
+  NO_CONTESTA
+  /// El numero o el correo no corresponden.
+  DATOS_ERRADOS
+  /// No quiere el acompanamiento o ya no lo necesita.
+  NO_QUIERE
+  /// Sigo intentando contactarla.
+  SIGO_INTENTANDO
+  OTRO
+}
 
 enum AppointmentStatus {
   PROGRAMADA
@@ -610,6 +629,44 @@ model AvailabilityException {
 
   @@index([professionalId, startsAt])
   @@map("availability_exceptions")
+}
+
+/// Reporte del profesional sobre su asignación.
+///
+/// Quien acompaña no tiene cuenta en el portal: entra por el enlace del caso
+/// y con eso mismo puede contar qué pasó. Sin esto, quien coordina se entera
+/// del estado de un caso solo si llama y pregunta.
+///
+/// IMPORTANTE: aquí NO se guarda nada de lo que se habló en la sesión. La red
+/// decidió no almacenar contenido clínico, y este formulario es solo sobre la
+/// logística del contacto: si se logró, cuándo quedaron y qué estorbó.
+///
+/// Es una bitácora: se añaden reportes, no se corrigen. "No contesta" el
+/// lunes y "cita acordada" el jueves son dos hechos, no una correccion del
+/// primero.
+model CaseReport {
+  id           String         @id @default(uuid()) @db.Uuid
+  assignmentId String         @map("assignment_id") @db.Uuid
+  assignment   CaseAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+
+  outcome  CaseOutcome
+  /// Solo cuando hubo o habrá encuentro.
+  modality Modality?
+  /// Cuándo quedaron, si quedaron. La hora la escribe el profesional.
+  meetsAt  DateTime?   @map("meets_at") @db.Timestamptz(3)
+
+  /// Qué estorbó para contactarla. Es lo que permite a la coordinación
+  /// intervenir: un numero mal digitado, una zona sin señal, un horario imposible.
+  contactDifficulties String? @map("contact_difficulties") @db.VarChar(600)
+  /// En qué quedó, en una línea. NO es para contenido de la sesión.
+  notes               String? @db.VarChar(1000)
+
+  /// Quién lo reportó. No hay sesión: el correo sale del token del enlace.
+  reportedByEmail String   @map("reported_by_email") @db.VarChar(160)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([assignmentId, createdAt])
+  @@map("case_reports")
 }
 
 /// Una sesión.

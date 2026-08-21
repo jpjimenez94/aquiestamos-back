@@ -52,3 +52,14 @@ export const ETIQUETAS_AREA = {
   GESTION_PROYECTOS: 'Gestion y proyectos',
   OTRA: 'Otra area',
 }
+
+/// Que reporta el profesional sobre su asignacion.
+export const ETIQUETAS_RESULTADO = {
+  CITA_ACORDADA: 'Quedamos en una cita',
+  YA_ATENDIDA: 'Ya la acompane',
+  NO_CONTESTA: 'No contesta',
+  DATOS_ERRADOS: 'Los datos no corresponden',
+  NO_QUIERE: 'No quiere el acompanamiento',
+  SIGO_INTENTANDO: 'Sigo intentando',
+  OTRO: 'Otra cosa',
+}
