@@ -39,7 +39,7 @@ export function supportRequestAgendador(request) {
      */
     tamizaje: request.tamizaje
       ? {
-          ruta: request.tamizaje.ruta,
+          enlace: request.tamizaje.enlace,
           respuesta: tamizajeResumen(request.tamizaje.respuesta),
           diasParaAdmisionAutomatica: request.tamizaje.diasParaAdmisionAutomatica,
         }
@@ -53,7 +53,7 @@ export function supportRequestAdmin(request) {
     ...supportRequestAgendador(request),
     tamizaje: request.tamizaje
       ? {
-          ruta: request.tamizaje.ruta,
+          enlace: request.tamizaje.enlace,
           respuesta: tamizajeCompleto(request.tamizaje.respuesta),
           diasParaAdmisionAutomatica: request.tamizaje.diasParaAdmisionAutomatica,
         }

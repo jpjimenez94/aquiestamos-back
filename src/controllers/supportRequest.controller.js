@@ -2,6 +2,7 @@ import { SupportRequestModel } from '../models/supportRequest.model.js'
 import { TriageResponseModel } from '../models/triageResponse.model.js'
 import { crearEnlaceTamizaje } from '../auth/enlaceTamizaje.js'
 import { DIAS_SIN_RESPUESTA } from '../services/promotion.service.js'
+import { env } from '../config/env.js'
 import { created, ok, failure } from '../views/response.view.js'
 import { solicitudRecibida } from '../notifications/eventos.js'
 import { registrar, ACCION } from '../services/audit.service.js'
@@ -83,10 +84,21 @@ export const SupportRequestController = {
         const transcurridos = (ahora.getTime() - request.createdAt.getTime()) / 86400000
         const faltan = Math.max(0, Math.ceil(DIAS_SIN_RESPUESTA - transcurridos))
 
+        /**
+         * El enlace va COMPLETO y se arma con `SITIO_URL`, no con el origen
+         * del navegador de quien coordina.
+         *
+         * Se armaba en el portal con `window.location.origin`, y eso significa
+         * que quien abría el portal en su máquina de desarrollo le mandaba a
+         * una persona en crisis un enlace a `localhost`, que desde su teléfono
+         * no lleva a ninguna parte. Lo mismo con una URL de vista previa de
+         * Vercel. El destino de ese enlace no depende de dónde esté mirando el
+         * equipo: es el sitio público, y eso es configuración del servidor.
+         */
         return {
           ...request,
           tamizaje: {
-            ruta: `/tamizaje/${crearEnlaceTamizaje(request.id)}`,
+            enlace: `${env.sitioUrl.replace(/\/$/, '')}/tamizaje/${crearEnlaceTamizaje(request.id)}`,
             respuesta: porSolicitud.get(request.id) ?? null,
             diasParaAdmisionAutomatica: faltan,
           },
