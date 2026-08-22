@@ -24,6 +24,9 @@ const bien = {
   hasSupport: true,
   selfHarmThoughts: false,
   howSoon: 'PUEDO_ESPERAR',
+  availableDays: ['MARTES'],
+  availableSlots: ['TARDE'],
+  preferredModality: 'VIRTUAL',
   sensitiveDataConsent: true,
 }
 
@@ -164,9 +167,34 @@ describe('validación de las respuestas', () => {
     }
   })
 
+  /**
+   * La disponibilidad es obligatoria AQUÍ aunque en el formulario público sea
+   * opcional. Esa es la razón de haberla movido: allá no la llenaba nadie —de
+   * cinco solicitudes, cinco sin días— y el profesional recibía la propuesta
+   * sin más dato que la ciudad.
+   */
+  it('exige decir cuándo puede: es el dato que decide a quién proponérselo', () => {
+    expect(triageResponseSchema.safeParse({ ...bien, availableDays: [] }).success).toBe(false)
+    expect(triageResponseSchema.safeParse({ ...bien, availableSlots: [] }).success).toBe(false)
+    const sinModalidad = { ...bien }
+    delete sinModalidad.preferredModality
+    expect(triageResponseSchema.safeParse(sinModalidad).success).toBe(false)
+  })
+
+  it('acepta varios días y varias franjas', () => {
+    const r = triageResponseSchema.safeParse({
+      ...bien,
+      availableDays: ['LUNES', 'MIERCOLES', 'SABADO'],
+      availableSlots: ['MANANA', 'NOCHE'],
+    })
+    expect(r.success).toBe(true)
+  })
+
   it('no se cuela una opción que no está en la lista', () => {
     expect(triageResponseSchema.safeParse({ ...bien, howSoon: 'AHORA_MISMO' }).success).toBe(false)
     expect(triageResponseSchema.safeParse({ ...bien, sleepAndEat: 'QUIZAS' }).success).toBe(false)
+    expect(triageResponseSchema.safeParse({ ...bien, availableDays: ['LUNESITO'] }).success).toBe(false)
+    expect(triageResponseSchema.safeParse({ ...bien, preferredModality: 'TELEPATIA' }).success).toBe(false)
   })
 })
 

@@ -887,6 +887,20 @@ model TriageResponse {
   /// 7. Qué tan pronto siente que necesita hablar con alguien.
   howSoon          TriageUrgency  @map("how_soon")
 
+  /// 8, 9 y 10. Cuándo puede y cómo lo prefiere.
+  ///
+  /// Esto ya se preguntaba en el formulario público, pero como opcional, y en
+  /// la práctica no lo llenaba nadie: la propuesta le llegaba al profesional
+  /// sin más dato que la ciudad. Aquí sí lo responde, porque ya está
+  /// contestando y le cuesta dos toques más.
+  ///
+  /// Vive en el tamizaje y NO se escribe sobre la solicitud: esa es el
+  /// registro de lo que la persona envió y no se edita nunca. De aquí pasa a
+  /// la ficha del paciente, que es la que sí se administra.
+  availableDays     Weekday[]          @map("available_days")
+  availableSlots    DaySlot[]          @map("available_slots")
+  preferredModality PreferredModality? @map("preferred_modality")
+
   /// La prioridad que sale de esas respuestas.
   ///
   /// Se GUARDA en vez de recalcularse al mostrarla: si mañana se afinan las

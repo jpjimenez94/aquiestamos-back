@@ -108,9 +108,12 @@ export async function admitirSolicitud({ supportRequestId, ajustes = {} }) {
         contactName: solicitud.contactName,
         relationship: solicitud.relationship,
         preferredContact: solicitud.preferredContact,
-        preferredModality: solicitud.preferredModality,
-        availableDays: solicitud.availableDays ?? [],
-        availableSlots: solicitud.availableSlots ?? [],
+        // Lo que respondió en el tamizaje manda sobre lo que trajo la
+        // solicitud: es más fresco, y el formulario público pide esto como
+        // opcional, así que casi siempre viene vacío.
+        preferredModality: ajustes.preferredModality ?? solicitud.preferredModality,
+        availableDays: ajustes.availableDays ?? solicitud.availableDays ?? [],
+        availableSlots: ajustes.availableSlots ?? solicitud.availableSlots ?? [],
         priority: ajustes.priority,
         status: 'EN_ADMISION',
       },
@@ -138,20 +141,26 @@ export async function admitirSolicitud({ supportRequestId, ajustes = {} }) {
  * responde por segunda vez casi siempre lo hace porque está peor que antes, y
  * ese es justamente el caso en el que la cola tiene que reordenarse.
  */
-export async function admitirPorTamizaje({ supportRequestId, prioridad }) {
+export async function admitirPorTamizaje({ supportRequestId, prioridad, disponibilidad = {} }) {
   const yaExiste = await PatientModel.findBySupportRequestId(supportRequestId)
 
   if (yaExiste) {
-    if (yaExiste.priority === prioridad) {
-      return { paciente: yaExiste, nuevo: false, prioridadAnterior: null }
+    // Responder otra vez actualiza también cuándo puede: si contesta de nuevo
+    // suele ser porque algo cambió, y lo que cambió puede ser justamente eso.
+    const cambios = { ...disponibilidad }
+    if (yaExiste.priority !== prioridad) cambios.priority = prioridad
+
+    const actualizado = await PatientModel.update(yaExiste.id, cambios)
+    return {
+      paciente: actualizado,
+      nuevo: false,
+      prioridadAnterior: yaExiste.priority !== prioridad ? yaExiste.priority : null,
     }
-    const actualizado = await PatientModel.update(yaExiste.id, { priority: prioridad })
-    return { paciente: actualizado, nuevo: false, prioridadAnterior: yaExiste.priority }
   }
 
   const paciente = await admitirSolicitud({
     supportRequestId,
-    ajustes: { priority: prioridad },
+    ajustes: { priority: prioridad, ...disponibilidad },
   })
   return { paciente, nuevo: true, prioridadAnterior: null }
 }

@@ -78,6 +78,9 @@ export const TriageController = {
         hasSupport: input.hasSupport,
         selfHarmThoughts: input.selfHarmThoughts,
         howSoon: input.howSoon,
+        availableDays: input.availableDays,
+        availableSlots: input.availableSlots,
+        preferredModality: input.preferredModality,
         suggestedPriority: prioridad,
         reasons: razones,
         consentVersion: input.consentVersion,
@@ -95,7 +98,18 @@ export const TriageController = {
        */
       let admision = null
       try {
-        admision = await admitirPorTamizaje({ supportRequestId: solicitud.id, prioridad })
+        admision = await admitirPorTamizaje({
+          supportRequestId: solicitud.id,
+          prioridad,
+          // Lo que acaba de decir sobre cuándo puede pisa a lo que trajo la
+          // solicitud, que casi siempre venía vacío. Es el dato más fresco y
+          // es el que va a leer el profesional en la propuesta.
+          disponibilidad: {
+            availableDays: input.availableDays,
+            availableSlots: input.availableSlots,
+            preferredModality: input.preferredModality,
+          },
+        })
       } catch (error) {
         console.error('[tamizaje] no se pudo admitir automáticamente:', error.message)
       }
