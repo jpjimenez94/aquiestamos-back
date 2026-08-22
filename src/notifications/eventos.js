@@ -274,3 +274,30 @@ export async function tamizajeRespondido({ solicitud, respuesta }) {
     clave: `coord-tamizaje-alta:${respuesta.id}`,
   })
 }
+
+/**
+ * El profesional respondió a un caso que le propusieron.
+ *
+ * Va a coordinación porque es lo que desbloquea el siguiente paso: si aceptó,
+ * hay que cuadrar horario con la persona; si no, hay que proponérselo a otro.
+ * Un caso esperando en silencio es la forma más fácil de que alguien lleve
+ * dos semanas sin acompañamiento sin que nadie se dé cuenta.
+ *
+ * Como siempre, el aviso no dice a quién acompaña: lleva un enlace.
+ */
+export async function propuestaRespondida({ asignacion, profesional }) {
+  await avisarACoordinacion({
+    plantilla: asignacion.status === 'ACEPTADA' ? 'COORD_PROPUESTA_ACEPTADA' : 'COORD_PROPUESTA_RECHAZADA',
+    payload: {
+      profesional: profesional.fullName,
+      dias: asignacion.acceptedDays ?? [],
+      franjas: asignacion.acceptedSlots ?? [],
+      nota: asignacion.availabilityNote || null,
+      motivo: asignacion.declineReason || null,
+      ruta: `/portal/personas/${asignacion.patientId}`,
+    },
+    entidad: 'asignacion',
+    entidadId: asignacion.id,
+    clave: `coord-propuesta:${asignacion.id}:${asignacion.status}`,
+  })
+}

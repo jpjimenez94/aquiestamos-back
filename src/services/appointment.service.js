@@ -6,6 +6,7 @@ import { PatientModel } from '../models/patient.model.js'
 import { CaseAssignmentModel } from '../models/caseAssignment.model.js'
 import { DomainError } from '../errors/DomainError.js'
 import { exigirTransicion, ESTADOS } from './appointmentState.service.js'
+import { exigirTransicion as exigirTransicionAsignacion } from './assignmentState.service.js'
 import { dentroDeDisponibilidad, DURACION_MINIMA, DESCANSO } from './scheduling.service.js'
 
 /**
@@ -76,6 +77,7 @@ export async function crearCita({
   fin,
   modalidad,
   descansoMinutos = DESCANSO,
+  permitirFueraDeFranja = false,
   actorId,
 }) {
   const [profesional, paciente] = await Promise.all([
@@ -106,7 +108,14 @@ export async function crearCita({
   }
 
   const disponibilidad = await dentroDeDisponibilidad({ professionalId, inicio, fin })
-  if (!disponibilidad.cabe) {
+
+  // Un BLOQUEO no se salta nunca: si dijo "estas dos semanas no estoy", no
+  // está. Lo que sí se puede saltar es la franja declarada, y solo cuando
+  // quien coordina lo marca a mano porque el profesional aceptó ese horario
+  // concreto: eso es un dato más fresco que sus reglas de disponibilidad.
+  const saltable = permitirFueraDeFranja && disponibilidad.motivo === 'FUERA_DE_FRANJA'
+
+  if (!disponibilidad.cabe && !saltable) {
     throw new DomainError(
       disponibilidad.motivo === 'BLOQUEO' ? 'BLOQUEO_DE_AGENDA' : 'FUERA_DE_FRANJA',
       disponibilidad.motivo === 'BLOQUEO'
@@ -116,7 +125,7 @@ export async function crearCita({
   }
 
   // Si ya existe una asignación activa, la cita cuelga de ella.
-  const asignacion = await CaseAssignmentModel.findActivaDePaciente(patientId)
+  const asignacion = await CaseAssignmentModel.findAbiertaDePaciente(patientId)
 
   try {
     const cita = await AppointmentModel.create({
@@ -196,8 +205,15 @@ export async function reprogramar({ citaId, inicio, fin, modalidad, actorId }) {
   })
 }
 
-/** Asigna un profesional a una persona. Solo puede haber una asignación activa. */
-export async function asignarCaso({ professionalId, patientId, actorId }) {
+/**
+ * Le PROPONE un caso a un profesional.
+ *
+ * Antes esto creaba la asignación en ACTIVA y ahí terminaba, como si aceptar
+ * fuera automático. No lo es: el profesional es voluntario y puede no poder.
+ * Ahora nace como PROPUESTA y solo pasa a ACTIVA cuando él acepta y la persona
+ * acompañada confirma un horario.
+ */
+export async function proponerCaso({ professionalId, patientId, actorId }) {
   const [profesional, paciente] = await Promise.all([
     ProfessionalModel.findById(professionalId),
     PatientModel.findById(patientId),
@@ -228,7 +244,9 @@ export async function asignarCaso({ professionalId, patientId, actorId }) {
       createdById: actorId ?? null,
     })
 
-    await PatientModel.update(patientId, { status: 'ASIGNADO' })
+    // El paciente NO pasa a ASIGNADO todavía: nadie ha aceptado nada. Decir
+    // "asignado" en el tablero cuando solo hay una propuesta en el aire es
+    // justo la mentira que este cambio viene a quitar.
     return asignacion
   } catch (error) {
     throw traducirChoque(error)
@@ -246,4 +264,60 @@ export async function cerrarCaso({ asignacionId, motivo }) {
   const cerrada = await CaseAssignmentModel.cerrar(asignacionId, motivo)
   await PatientModel.update(asignacion.patientId, { status: 'CERRADO' })
   return cerrada
+}
+
+
+/**
+ * La persona acompañada eligió horario: se agenda y el caso arranca.
+ *
+ * Este es el paso que faltaba. `POST /api/appointments` existía, estaba
+ * probado, y no lo llamaba ninguna pantalla: no había forma de crear una cita
+ * desde el portal. Aquí encaja de forma natural, porque cuadrar el horario y
+ * agendar son el mismo gesto.
+ */
+export async function confirmarHorario({
+  asignacionId,
+  inicio,
+  fin,
+  modalidad,
+  fueraDeFranja = false,
+  actorId,
+}) {
+  const asignacion = await CaseAssignmentModel.findById(asignacionId)
+  if (!asignacion) throw new DomainError('NO_ENCONTRADO', 'La asignación no existe')
+
+  exigirTransicionAsignacion(asignacion.status, 'ACTIVA')
+
+  return prisma.$transaction(async () => {
+    const cita = await crearCita({
+      professionalId: asignacion.professionalId,
+      patientId: asignacion.patientId,
+      inicio,
+      fin,
+      modalidad,
+      // El profesional acepto ESTE horario desde su enlace. Su palabra de hoy
+      // vale mas que las franjas que declaro hace un mes; quien coordina tiene
+      // que marcarlo a mano y queda en la auditoria.
+      permitirFueraDeFranja: fueraDeFranja,
+      actorId,
+    })
+
+    await CaseAssignmentModel.activar(asignacionId)
+    await PatientModel.update(asignacion.patientId, { status: 'EN_ACOMPANAMIENTO' })
+
+    return { cita, asignacion }
+  })
+}
+
+/** Aceptó, pero no hubo forma de cuadrar. El caso vuelve a la cola. */
+export async function cancelarAsignacion({ asignacionId, motivo }) {
+  const asignacion = await CaseAssignmentModel.findById(asignacionId)
+  if (!asignacion) throw new DomainError('NO_ENCONTRADO', 'La asignación no existe')
+
+  exigirTransicionAsignacion(asignacion.status, 'CANCELADA')
+
+  const cancelada = await CaseAssignmentModel.cancelar(asignacionId, motivo)
+  // Vuelve a estar disponible para que se le proponga a otro profesional.
+  await PatientModel.update(asignacion.patientId, { status: 'EN_ADMISION' })
+  return cancelada
 }

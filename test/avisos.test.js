@@ -33,6 +33,18 @@ const CASOS = {
   COORD_SOLICITUD: { ciudad: 'Ibagué' },
   COORD_PACIENTE_ADMITIDO: { prioridad: 'ALTA', ciudad: 'Ibagué', sinRespuesta: false, ruta: '/portal/personas/abc' },
   COORD_TAMIZAJE_ALTA: { ciudad: 'Ibagué', esMenor: true, ruta: '/portal/solicitudes' },
+  COORD_PROPUESTA_ACEPTADA: {
+    profesional: 'Ana María Pérez',
+    dias: ['MARTES', 'JUEVES'],
+    franjas: ['TARDE'],
+    nota: 'después de las 4 mejor',
+    ruta: '/portal/personas/abc',
+  },
+  COORD_PROPUESTA_RECHAZADA: {
+    profesional: 'Ana María Pérez',
+    motivo: 'Me queda muy lejos',
+    ruta: '/portal/personas/abc',
+  },
 }
 
 describe('plantillas de avisos', () => {
@@ -171,5 +183,38 @@ describe('admisión de quien nunca respondió', () => {
     const { asunto, texto } = construir('COORD_PACIENTE_ADMITIDO', { ...base, sinRespuesta: false })
     expect(asunto).not.toContain('sin haber respondido')
     expect(texto).not.toContain('No sabemos cómo está')
+  })
+})
+
+
+/**
+ * Los avisos de la negociación.
+ *
+ * Los dos existen para lo mismo: desbloquear el siguiente paso. Un caso
+ * esperando en silencio es la forma más fácil de que alguien lleve dos
+ * semanas sin acompañamiento sin que nadie se dé cuenta.
+ */
+describe('avisos de la propuesta', () => {
+  it('cuando acepta, el aviso lleva sus horarios en palabras', () => {
+    const { asunto, texto } = construir('COORD_PROPUESTA_ACEPTADA', CASOS.COORD_PROPUESTA_ACEPTADA)
+    expect(asunto).toContain('falta cuadrar horario')
+    expect(texto).toContain('Martes')
+    expect(texto).toContain('Tarde')
+    expect(texto).toContain('después de las 4 mejor')
+  })
+
+  it('cuando no puede, el aviso dice qué hacer: proponérselo a otro', () => {
+    const { texto } = construir('COORD_PROPUESTA_RECHAZADA', CASOS.COORD_PROPUESTA_RECHAZADA)
+    expect(texto).toContain('vuelve a la cola')
+    expect(texto).toContain('Me queda muy lejos')
+  })
+
+  /** Ninguno de los dos dice a quién acompaña: llevan un enlace. */
+  it('no nombran a la persona acompañada', () => {
+    for (const clave of ['COORD_PROPUESTA_ACEPTADA', 'COORD_PROPUESTA_RECHAZADA']) {
+      const { texto } = construir(clave, CASOS[clave])
+      expect(texto).not.toMatch(/d{7,}/)
+      expect(texto).toContain('/portal/personas/abc')
+    }
   })
 })

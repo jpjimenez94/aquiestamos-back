@@ -1,4 +1,5 @@
 import { prisma } from '../config/database.js'
+import { VIVOS } from '../services/assignmentState.service.js'
 import { ok } from '../views/response.view.js'
 import { formatearLocal } from '../services/timezone.service.js'
 
@@ -27,7 +28,7 @@ export const DashboardController = {
           where: {
             deletedAt: null,
             status: { in: ['NUEVO', 'EN_ADMISION'] },
-            assignments: { none: { status: 'ACTIVA', deletedAt: null } },
+            assignments: { none: { status: { in: VIVOS }, deletedAt: null } },
           },
         }),
         prisma.professional.count({ where: { status: 'ACTIVO', deletedAt: null } }),
@@ -49,7 +50,7 @@ export const DashboardController = {
         where: {
           deletedAt: null,
           status: { in: ['NUEVO', 'EN_ADMISION'] },
-          assignments: { none: { status: 'ACTIVA', deletedAt: null } },
+          assignments: { none: { status: { in: VIVOS }, deletedAt: null } },
         },
         orderBy: { createdAt: 'asc' },
         select: { createdAt: true, fullName: true },
@@ -105,7 +106,7 @@ export const DashboardController = {
         orderBy: [{ priority: 'desc' }, { createdAt: 'asc' }],
         include: {
           assignments: {
-            where: { status: 'ACTIVA', deletedAt: null },
+            where: { status: { in: VIVOS }, deletedAt: null },
             take: 1,
             include: {
               professional: {

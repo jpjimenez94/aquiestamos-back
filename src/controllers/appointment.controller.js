@@ -4,7 +4,9 @@ import {
   crearCita,
   cambiarEstado,
   reprogramar,
-  asignarCaso,
+  proponerCaso,
+  confirmarHorario,
+  cancelarAsignacion,
   cerrarCaso,
 } from '../services/appointment.service.js'
 import { huecosDisponibles } from '../services/scheduling.service.js'
@@ -12,7 +14,7 @@ import { registrar, ACCION } from '../services/audit.service.js'
 import { citaAgendada } from '../notifications/eventos.js'
 import { formatearLocal } from '../services/timezone.service.js'
 import { ok, created, failure } from '../views/response.view.js'
-import { cita, citaLista, citaListaParaProfesional } from '../views/appointment.view.js'
+import { cita as citaVista, citaLista, citaListaParaProfesional } from '../views/appointment.view.js'
 import { huecoLista } from '../views/availability.view.js'
 import { DomainError } from '../errors/DomainError.js'
 
@@ -129,7 +131,7 @@ export const AppointmentController = {
     try {
       const encontrada = await AppointmentModel.findById(req.params.id)
       if (!encontrada) return res.status(404).json(failure('Cita no encontrada'))
-      return res.json(ok(cita(encontrada)))
+      return res.json(ok(citaVista(encontrada)))
     } catch (error) {
       next(error)
     }
@@ -165,7 +167,7 @@ export const AppointmentController = {
         cuando: formatearLocal(nueva.startsAt),
       })
 
-      return res.status(201).json(created(cita(nueva), 'Cita agendada.'))
+      return res.status(201).json(created(citaVista(nueva), 'Cita agendada.'))
     } catch (error) {
       next(error)
     }
@@ -193,7 +195,7 @@ export const AppointmentController = {
         after: { estado: actualizada.status, motivo: req.validated.motivo || null },
       })
 
-      return res.json(ok(cita(actualizada)))
+      return res.json(ok(citaVista(actualizada)))
     } catch (error) {
       next(error)
     }
@@ -224,7 +226,7 @@ export const AppointmentController = {
         after: { consentSigned: actualizada.consentSigned },
       })
 
-      return res.json(ok(cita(actualizada), 'Consentimiento informado actualizado'))
+      return res.json(ok(citaVista(actualizada), 'Consentimiento informado actualizado'))
     } catch (error) {
       next(error)
     }
@@ -251,7 +253,7 @@ export const AppointmentController = {
 
       return res
         .status(201)
-        .json(created(cita(nueva), 'Cita reprogramada. La anterior queda en el historial.'))
+        .json(created(citaVista(nueva), 'Cita reprogramada. La anterior queda en el historial.'))
     } catch (error) {
       next(error)
     }
@@ -282,7 +284,7 @@ export const AppointmentController = {
   /** POST /api/appointments/asignar */
   async asignar(req, res, next) {
     try {
-      const asignacion = await asignarCaso({
+      const asignacion = await proponerCaso({
         professionalId: req.validated.professionalId,
         patientId: req.validated.patientId,
         actorId: req.usuario.id,
@@ -310,6 +312,76 @@ export const AppointmentController = {
           'Profesional asignado.',
         ),
       )
+    } catch (error) {
+      next(error)
+    }
+  },
+
+  /**
+   * POST /api/appointments/asignaciones/:id/confirmar
+   *
+   * La persona acompañada eligió horario: se agenda y el caso arranca. Es el
+   * paso 10 del flujo y, de paso, la primera pantalla del portal que llega a
+   * crear una cita.
+   */
+  async confirmar(req, res, next) {
+    try {
+      const { inicio, fin, modalidad, fueraDeFranja } = req.validated
+
+      const { cita, asignacion } = await confirmarHorario({
+        asignacionId: req.params.id,
+        inicio,
+        fin,
+        modalidad,
+        fueraDeFranja,
+        actorId: req.usuario.id,
+      })
+
+      await registrar({
+        req,
+        action: ACCION.EDITAR,
+        entity: 'asignacion',
+        entityId: asignacion.id,
+        before: { estado: asignacion.status },
+        after: {
+          estado: 'ACTIVA',
+          cita: cita.id,
+          inicio,
+          // Que alguien agendara fuera de lo que el profesional tiene
+          // declarado no puede quedar solo en su cabeza.
+          fueraDeFranja: Boolean(fueraDeFranja),
+        },
+      })
+
+      await citaAgendada({
+        cita,
+        profesional: cita.professional,
+        cuando: formatearLocal(cita.startsAt),
+      })
+
+      return res.status(201).json(created(citaVista(cita), 'Cita agendada. El caso queda activo.'))
+    } catch (error) {
+      next(error)
+    }
+  },
+
+  /** POST /api/appointments/asignaciones/:id/cancelar */
+  async cancelar(req, res, next) {
+    try {
+      const cancelada = await cancelarAsignacion({
+        asignacionId: req.params.id,
+        motivo: req.validated.motivo,
+      })
+
+      await registrar({
+        req,
+        action: ACCION.EDITAR,
+        entity: 'asignacion',
+        entityId: cancelada.id,
+        after: { estado: 'CANCELADA', motivo: req.validated.motivo },
+      })
+
+      return res.json(ok({ id: cancelada.id, estado: cancelada.status }))
     } catch (error) {
       next(error)
     }

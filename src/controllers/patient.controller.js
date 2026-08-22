@@ -9,6 +9,10 @@ import { registrar, ACCION } from '../services/audit.service.js'
 import { ok, created, failure } from '../views/response.view.js'
 import { pacienteLista, pacienteSegunRol } from '../views/patient.view.js'
 import { profesionalConCarga } from '../views/professional.view.js'
+import {
+  ETIQUETAS as ETIQUETAS_ASIGNACION,
+  SIGUIENTE_PASO,
+} from '../services/assignmentState.service.js'
 
 export const PatientController = {
   /** GET /api/patients */
@@ -40,7 +44,7 @@ export const PatientController = {
       const paciente = await PatientModel.findById(req.params.id)
       if (!paciente) return res.status(404).json(failure('Persona no encontrada'))
 
-      const asignacion = await CaseAssignmentModel.findActivaDePaciente(paciente.id)
+      const asignacion = await CaseAssignmentModel.findAbiertaDePaciente(paciente.id)
 
       // Lo que haya reportado quien acompaña, aunque la persona haya pasado
       // por más de un profesional: el histórico completo es lo que permite
@@ -57,10 +61,27 @@ export const PatientController = {
       return res.json(
         ok({
           ...pacienteSegunRol(paciente, req.usuario),
+          /**
+           * La negociación con el profesional, no solo "quién lo lleva".
+           *
+           * El estado es lo que decide qué botón se le enseña a quien
+           * coordina: proponer, escribirle a la persona, o hacer seguimiento.
+           * Sin esto, el portal solo sabía decir "asignado" y el resto vivía
+           * en el historial de WhatsApp de alguien.
+           */
           asignacion: asignacion
             ? {
                 id: asignacion.id,
+                estado: asignacion.status,
+                estadoLegible: ETIQUETAS_ASIGNACION[asignacion.status] ?? asignacion.status,
+                siguientePaso: SIGUIENTE_PASO[asignacion.status] ?? null,
                 desde: asignacion.startedAt,
+                respondioEn: asignacion.respondedAt,
+                // Lo que el profesional puso él mismo desde su enlace.
+                diasQuePuede: asignacion.acceptedDays ?? [],
+                franjasQuePuede: asignacion.acceptedSlots ?? [],
+                nota: asignacion.availabilityNote,
+                motivoRechazo: asignacion.declineReason,
                 profesional: {
                   id: asignacion.professional.id,
                   nombre: asignacion.professional.fullName,
@@ -135,7 +156,7 @@ export const PatientController = {
       const paciente = await PatientModel.findById(req.params.id)
       if (!paciente) return res.status(404).json(failure('Persona no encontrada'))
 
-      const asignacion = await CaseAssignmentModel.findActivaDePaciente(paciente.id)
+      const asignacion = await CaseAssignmentModel.findAbiertaDePaciente(paciente.id)
       if (asignacion) {
         return res
           .status(409)

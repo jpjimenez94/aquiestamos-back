@@ -458,8 +458,19 @@ enum PatientStatus {
   CERRADO
 }
 
+/// Estados de la negociación de un caso. El detalle de qué transición es
+/// válida vive en `src/services/assignmentState.service.js`, no aquí.
 enum AssignmentStatus {
+  /// Se le propuso al profesional y está esperando su respuesta.
+  PROPUESTA
+  /// Aceptó y dejó los horarios en los que puede.
+  ACEPTADA
+  /// Hay cita agendada: el acompañamiento va.
   ACTIVA
+  /// El profesional no pudo. Terminal: se le propone a otro.
+  RECHAZADA
+  /// Aceptó, pero no se pudo cuadrar horario con la persona. Terminal.
+  CANCELADA
   CERRADA
 }
 
@@ -626,10 +637,27 @@ model CaseAssignment {
   patientId      String       @map("patient_id") @db.Uuid
   patient        Patient      @relation(fields: [patientId], references: [id], onDelete: Restrict)
 
-  status      AssignmentStatus @default(ACTIVA)
+  /// Nace como PROPUESTA: proponerle un caso a alguien no es asignárselo.
+  status      AssignmentStatus @default(PROPUESTA)
   startedAt   DateTime         @default(now()) @map("started_at") @db.Timestamptz(3)
   endedAt     DateTime?        @map("ended_at") @db.Timestamptz(3)
   closeReason String?          @map("close_reason") @db.VarChar(300)
+
+  // --- La negociación ---
+
+  /// Cuándo respondió el profesional, sea que aceptara o no.
+  respondedAt        DateTime? @map("responded_at") @db.Timestamptz(3)
+  /// Los días y franjas en los que dijo que puede, puestos por él mismo desde
+  /// el enlace de su caso. No los transcribe nadie: el dato es suyo.
+  acceptedDays       Weekday[] @map("accepted_days")
+  acceptedSlots      DaySlot[] @map("accepted_slots")
+  /// El matiz que no cabe en días y franjas: "después de las 4 mejor".
+  availabilityNote   String?   @map("availability_note") @db.VarChar(600)
+  /// Por qué no pudo. Es lo que permite saber si el problema es de la red
+  /// —siempre los mismos días, siempre la misma ciudad— o del caso.
+  declineReason      String?   @map("decline_reason") @db.VarChar(300)
+  /// Cuándo la persona acompañada confirmó el horario.
+  patientConfirmedAt DateTime? @map("patient_confirmed_at") @db.Timestamptz(3)
 
   createdById String? @map("created_by_id") @db.Uuid
 

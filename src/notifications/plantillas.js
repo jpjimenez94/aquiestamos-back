@@ -1,5 +1,10 @@
 import { envolver, envolverTexto, urlDelSitio } from './envoltura.js'
-import { ETIQUETAS_PRIORIDAD, ETIQUETAS_RESULTADO } from '../catalogos.js'
+import {
+  ETIQUETAS_PRIORIDAD,
+  ETIQUETAS_RESULTADO,
+  ETIQUETAS_DIA,
+  ETIQUETAS_FRANJA,
+} from '../catalogos.js'
 
 /**
  * Las plantillas de los avisos.
@@ -156,6 +161,34 @@ export const PLANTILLAS = {
         p.esMenor ? '<strong>Es menor de edad.</strong>' : null,
       ].filter(Boolean),
       boton: { texto: 'Ver la solicitud', url: urlDelSitio(p.ruta) },
+    }),
+
+  /** A coordinación: el profesional aceptó y dejó sus horarios. */
+  COORD_PROPUESTA_ACEPTADA: (p) =>
+    armar('Un profesional acepto un caso · falta cuadrar horario', {
+      titulo: 'Aceptó, y ya dijo cuándo puede',
+      parrafos: [
+        `<strong>${p.profesional}</strong> acepta acompañar un caso que le propusiste.`,
+        'Ya puedes escribirle a la persona con estos horarios y cuadrar uno. Hasta que no se cuadre, el caso sigue esperando.',
+      ],
+      datos: [
+        `<strong>Puede:</strong> ${(p.dias ?? []).map((d) => ETIQUETAS_DIA[d] ?? d).join(', ') || 'sin especificar'}`,
+        `<strong>Franjas:</strong> ${(p.franjas ?? []).map((f) => ETIQUETAS_FRANJA[f] ?? f).join(', ') || 'sin especificar'}`,
+        p.nota ? `<strong>Además dijo:</strong> ${p.nota}` : null,
+      ].filter(Boolean),
+      boton: { texto: 'Cuadrar el horario', url: urlDelSitio(p.ruta) },
+    }),
+
+  /** A coordinación: el profesional no puede. Hay que buscarle otro. */
+  COORD_PROPUESTA_RECHAZADA: (p) =>
+    armar('Un profesional no pudo tomar un caso', {
+      titulo: 'Hay que proponérselo a otro',
+      parrafos: [
+        `<strong>${p.profesional}</strong> no puede tomar un caso que le propusiste.`,
+        'La persona vuelve a la cola de pendientes por asignar. Cuanto antes se le proponga a alguien más, menos espera.',
+      ],
+      datos: [p.motivo ? `<strong>Dijo:</strong> ${p.motivo}` : null].filter(Boolean),
+      boton: { texto: 'Buscarle otro profesional', url: urlDelSitio(p.ruta) },
     }),
 
   /** A coordinación: se admitió a alguien y falta asignarle profesional. */

@@ -1,6 +1,7 @@
 import { prisma } from '../config/database.js'
 import { deLocalAUtc, diaDeLaSemana, diasEntre, partesLocales } from './timezone.service.js'
 import { DomainError } from '../errors/DomainError.js'
+import { VIVOS } from './assignmentState.service.js'
 
 /**
  * SERVICIO: agenda.
@@ -173,7 +174,9 @@ export async function cargaActual(professionalIds) {
     by: ['professionalId'],
     where: {
       professionalId: { in: professionalIds },
-      status: 'ACTIVA',
+      // Cuenta tambien las propuestas sin responder: una propuesta ocupa a
+      // quien la recibe, aunque todavia no haya dicho que si.
+      status: { in: VIVOS },
       deletedAt: null,
     },
     _count: { _all: true },

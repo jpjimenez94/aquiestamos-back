@@ -136,3 +136,27 @@ export const editarPacienteSchema = z.object({
   availableSlots: z.array(z.enum(['MANANA', 'TARDE', 'NOCHE'])).max(3).optional(),
   status: choice(['NUEVO', 'EN_ADMISION', 'ASIGNADO', 'EN_ACOMPANAMIENTO', 'CERRADO']).optional(),
 })
+
+/**
+ * Cuadrar el horario que la persona acompañada eligió.
+ *
+ * `fueraDeFranja` es un sí explícito de quien coordina a agendar en un rato
+ * que el profesional no tiene declarado. No es un valor por defecto ni algo
+ * que el portal marque solo: el profesional aceptó ESE horario desde su
+ * enlace, y su palabra de hoy vale más que las franjas que cargó hace un mes.
+ * Queda en la auditoría.
+ */
+export const confirmarHorarioSchema = z.object({
+  inicio: z.coerce.date({ errorMap: () => ({ message: 'Esa fecha no es válida' }) }),
+  fin: z.coerce.date({ errorMap: () => ({ message: 'Esa fecha no es válida' }) }),
+  modalidad: z.enum(['PRESENCIAL', 'VIRTUAL']).optional(),
+  fueraDeFranja: z.boolean().optional().default(false),
+})
+
+export const cancelarAsignacionSchema = z.object({
+  motivo: z
+    .string({ required_error: 'Cuéntanos por qué no se pudo cuadrar' })
+    .trim()
+    .min(3, 'Cuéntanos por qué no se pudo cuadrar')
+    .max(300),
+})

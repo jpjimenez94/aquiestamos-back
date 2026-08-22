@@ -120,7 +120,7 @@ export async function candidatosPara({ patientId, poblaciones, desde, hasta }) {
   const paciente = await PatientModel.findById(patientId)
   if (!paciente) throw new DomainError('NO_ENCONTRADO', 'La persona no existe')
 
-  const yaAsignada = await CaseAssignmentModel.findActivaDePaciente(patientId)
+  const yaAsignada = await CaseAssignmentModel.findAbiertaDePaciente(patientId)
   if (yaAsignada) {
     throw new DomainError(
       'YA_TIENE_PROFESIONAL',

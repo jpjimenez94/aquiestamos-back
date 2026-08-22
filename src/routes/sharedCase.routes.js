@@ -4,10 +4,12 @@ import {
   authorizeSharedCase,
   getSharedCase,
   reportarCaso,
+  responderPropuesta,
 } from '../controllers/sharedCase.controller.js'
 import { validarParamsUuid } from '../middlewares/validarUuid.js'
 import { validateBody } from '../middlewares/validate.js'
 import { caseReportCreateSchema } from '../validators/caseReport.schema.js'
+import { respuestaPropuestaSchema } from '../validators/propuesta.schema.js'
 
 export const sharedCaseRoutes = Router()
 
@@ -31,6 +33,14 @@ const limiteIntentos = rateLimit({
 // El acceso no lo da la sesion del portal, sino el enlace mas el correo.
 sharedCaseRoutes.post('/:id/auth', limiteIntentos, validarParamsUuid, authorizeSharedCase)
 sharedCaseRoutes.get('/:id', validarParamsUuid, getSharedCase)
+
+// Aceptar o rechazar el caso que le proponen, y decir cuándo puede.
+sharedCaseRoutes.post(
+  '/:id/propuesta',
+  validarParamsUuid,
+  validateBody(respuestaPropuestaSchema),
+  responderPropuesta,
+)
 
 // Responder qué pasó con la asignación. Va con el mismo token del enlace.
 sharedCaseRoutes.post(

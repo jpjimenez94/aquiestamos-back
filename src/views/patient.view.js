@@ -65,6 +65,26 @@ export function pacienteLista(lista, usuario) {
  * No se devuelve el objeto de Prisma: si manana se agrega una columna al
  * paciente, no se filtra sola por esta puerta.
  */
+/**
+ * Lo que ve quien todavía NO ha aceptado el caso.
+ *
+ * Para decidir si puede acompañar a alguien hace falta saber dónde está, cómo
+ * prefiere que sea y cuándo puede — no su nombre, su teléfono ni su correo.
+ * Esos datos aparecen cuando acepta, no antes: si dice que no, no se lleva
+ * nada de una persona que nunca fue suya.
+ */
+export function casoPropuesto(p) {
+  return {
+    city: p.city,
+    priority: p.priority,
+    prioridadLegible: ETIQUETAS_PRIORIDAD[p.priority] ?? p.priority,
+    preferredModality: p.preferredModality,
+    isMinor: p.isMinor,
+    availableDays: p.availableDays,
+    availableSlots: p.availableSlots,
+  }
+}
+
 export function casoCompartido(p, citas) {
   return {
     fullName: p.fullName,

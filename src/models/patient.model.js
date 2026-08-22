@@ -1,4 +1,5 @@
 import { prisma } from '../config/database.js'
+import { VIVOS } from '../services/assignmentState.service.js'
 
 const vivos = { deletedAt: null }
 
@@ -27,7 +28,7 @@ export const PatientModel = {
       },
       include: {
         assignments: {
-          where: { status: 'ACTIVA', deletedAt: null },
+          where: { status: { in: VIVOS }, deletedAt: null },
           include: { professional: true },
         },
       },
@@ -44,11 +45,11 @@ export const PatientModel = {
       where: {
         ...vivos,
         status: { in: ['NUEVO', 'EN_ADMISION'] },
-        assignments: { none: { status: 'ACTIVA', deletedAt: null } },
+        assignments: { none: { status: { in: VIVOS }, deletedAt: null } },
       },
       include: {
         assignments: {
-          where: { status: 'ACTIVA', deletedAt: null },
+          where: { status: { in: VIVOS }, deletedAt: null },
           include: { professional: true },
         },
       },

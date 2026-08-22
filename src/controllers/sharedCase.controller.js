@@ -3,12 +3,13 @@ import { CaseAssignmentModel } from '../models/caseAssignment.model.js'
 import { PatientModel } from '../models/patient.model.js'
 import { AppointmentModel } from '../models/appointment.model.js'
 import { CaseReportModel } from '../models/caseReport.model.js'
-import { casoCompartido } from '../views/patient.view.js'
+import { casoCompartido, casoPropuesto } from '../views/patient.view.js'
 import { reporteListaParaProfesional, reporteParaProfesional } from '../views/caseReport.view.js'
 import { ok, created, failure } from '../views/response.view.js'
 import { registrar, ACCION } from '../services/audit.service.js'
-import { reporteRecibido } from '../notifications/eventos.js'
+import { reporteRecibido, propuestaRespondida } from '../notifications/eventos.js'
 import { env } from '../config/env.js'
+import { exigirTransicion } from '../services/assignmentState.service.js'
 
 /**
  * CONTROLADOR: caso compartido.
@@ -86,7 +87,10 @@ export async function authorizeSharedCase(req, res, next) {
     // Se busca por el caso y se compara el correo, no al reves. Buscar primero
     // al profesional y responder distinto segun exista o no convierte la ruta
     // en un buscador de quien pertenece a la red.
-    const asignacion = await CaseAssignmentModel.findActivaDePaciente(id)
+    //
+    // Vale cualquier negociacion abierta, no solo la ACTIVA: el profesional
+    // entra por aqui precisamente para decir si acepta.
+    const asignacion = await CaseAssignmentModel.findAbiertaDePaciente(id)
     const profesional = asignacion?.professional
 
     const coincide =
@@ -136,7 +140,7 @@ export async function getSharedCase(req, res, next) {
     }
 
     // El token dice quien entro; la base dice si eso sigue siendo cierto.
-    const asignacion = await CaseAssignmentModel.findActivaDePaciente(id)
+    const asignacion = await CaseAssignmentModel.findAbiertaDePaciente(id)
     if (!asignacion || asignacion.professionalId !== datos.profesional) {
       return res.status(403).json(failure('Este caso ya no está a tu cargo.'))
     }
@@ -146,6 +150,25 @@ export async function getSharedCase(req, res, next) {
       return res.status(404).json(failure('No encontramos el caso.'))
     }
 
+    /**
+     * Todavía no ha aceptado: se le enseña lo justo para decidir.
+     *
+     * Dónde está la persona, cómo prefiere que sea el acompañamiento y cuándo
+     * puede. Ni nombre, ni teléfono, ni correo. Si dice que no, no se lleva
+     * los datos de alguien que nunca fue su caso — y eso importa más aquí que
+     * en ninguna otra pantalla, porque a esta se entra con un enlace y un
+     * correo, no con una cuenta.
+     */
+    if (asignacion.status === 'PROPUESTA') {
+      return res.json(
+        ok({
+          estado: asignacion.status,
+          decidir: true,
+          caso: casoPropuesto(paciente),
+        }),
+      )
+    }
+
     const [citas, reportes] = await Promise.all([
       AppointmentModel.findDePaciente(id),
       CaseReportModel.findDeAsignacion(asignacion.id),
@@ -153,6 +176,8 @@ export async function getSharedCase(req, res, next) {
 
     return res.json(
       ok({
+        estado: asignacion.status,
+        decidir: false,
         ...casoCompartido(paciente, citas),
         reportes: reporteListaParaProfesional(reportes),
       }),
@@ -181,7 +206,7 @@ export async function reportarCaso(req, res, next) {
 
     // Las mismas dos comprobaciones que para leer: el token dice quién es, la
     // base dice si el caso sigue siendo suyo.
-    const asignacion = await CaseAssignmentModel.findActivaDePaciente(id)
+    const asignacion = await CaseAssignmentModel.findAbiertaDePaciente(id)
     if (!asignacion || asignacion.professionalId !== datos.profesional) {
       return res.status(403).json(failure('Este caso ya no está a tu cargo.'))
     }
@@ -212,6 +237,69 @@ export async function reportarCaso(req, res, next) {
 
     return res.status(201).json(
       created(reporteParaProfesional(creado), 'Gracias. Quedó registrado.'),
+    )
+  } catch (error) {
+    return next(error)
+  }
+}
+
+/**
+ * POST /api/shared-cases/:id/propuesta
+ *
+ * El profesional acepta o rechaza el caso que le propusieron, y si acepta,
+ * deja él mismo los días y las franjas en las que puede.
+ *
+ * Que lo ponga él y no quien coordina es el punto: antes esto llegaba por
+ * WhatsApp y alguien lo transcribía, y lo que el portal decía dependía de que
+ * esa persona se acordara. Aquí el dato es suyo y entra en firme.
+ */
+export async function responderPropuesta(req, res, next) {
+  try {
+    const { id } = req.params
+
+    const datos = leerToken(req.headers['x-shared-case-token'], id)
+    if (!datos) {
+      return res.status(401).json(failure('El acceso venció. Vuelve a ingresar tu correo.'))
+    }
+
+    const asignacion = await CaseAssignmentModel.findAbiertaDePaciente(id)
+    if (!asignacion || asignacion.professionalId !== datos.profesional) {
+      return res.status(403).json(failure('Este caso ya no está a tu cargo.'))
+    }
+
+    const { acepta, dias, franjas, nota, motivo } = req.validated
+
+    // La máquina de estados decide si esto es legal. Responder dos veces no lo
+    // es: si ya aceptó y quiere cambiar sus horarios, eso es otra conversación
+    // con quien coordina, no reescribir la respuesta.
+    exigirTransicion(asignacion.status, acepta ? 'ACEPTADA' : 'RECHAZADA')
+
+    const actualizada = await CaseAssignmentModel.responder(asignacion.id, {
+      acepta,
+      dias,
+      franjas,
+      nota,
+      motivo,
+    })
+
+    await propuestaRespondida({ asignacion: actualizada, profesional: asignacion.professional })
+
+    await registrar({
+      req,
+      action: ACCION.EDITAR,
+      entity: 'asignacion',
+      entityId: asignacion.id,
+      before: { estado: asignacion.status },
+      after: { estado: actualizada.status, respondioProfesional: asignacion.professional.email },
+    })
+
+    return res.json(
+      ok(
+        { estado: actualizada.status },
+        acepta
+          ? 'Gracias. Vamos a cuadrar el horario y te escribimos.'
+          : 'Gracias por avisarnos. Le buscamos otro acompañamiento.',
+      ),
     )
   } catch (error) {
     return next(error)

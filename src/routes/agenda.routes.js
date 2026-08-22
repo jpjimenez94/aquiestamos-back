@@ -21,6 +21,8 @@ import {
   editarPacienteSchema,
   actualizarTarjetaProfesionalSchema,
   actualizarConsentimientoSchema,
+  confirmarHorarioSchema,
+  cancelarAsignacionSchema,
 } from '../validators/agenda.schema.js'
 
 // ---------------------------------------------------------------- profesionales
@@ -128,6 +130,22 @@ appointmentRoutes.post(
   validateBody(asignarCasoSchema),
   AppointmentController.asignar,
 )
+// La persona acompañada eligió horario: se agenda y el caso arranca.
+appointmentRoutes.post(
+  '/asignaciones/:id/confirmar',
+  authorize('cita:crear'),
+  validateBody(confirmarHorarioSchema),
+  AppointmentController.confirmar,
+)
+
+// El profesional aceptó, pero no hubo forma de cuadrar. Vuelve a la cola.
+appointmentRoutes.post(
+  '/asignaciones/:id/cancelar',
+  authorize('asignacion:cerrar'),
+  validateBody(cancelarAsignacionSchema),
+  AppointmentController.cancelar,
+)
+
 appointmentRoutes.post(
   '/asignaciones/:id/cerrar',
   authorize('asignacion:cerrar'),
