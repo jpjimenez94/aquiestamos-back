@@ -31,6 +31,15 @@ export const ESTADOS_HTTP = {
   RANGO_DEMASIADO_LARGO: 422,
   EN_EL_PASADO: 422,
 
+  // 422 — lo que mando la persona no sirve
+  TIPO_NO_ACEPTADO: 422,
+  ARCHIVO_VACIO: 422,
+  ARCHIVO_DEMASIADO_GRANDE: 413,
+  CARPETA_INVALIDA: 422,
+
+  // 503 — no es culpa de quien pide: al servidor le falta configuracion
+  ALMACENAMIENTO_SIN_CONFIGURAR: 503,
+
   // 404
   NO_ENCONTRADO: 404,
 }

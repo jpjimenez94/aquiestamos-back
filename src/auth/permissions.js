@@ -40,6 +40,11 @@ export const PERMISOS = {
     'cita:cancelar',
     'cita:confirmar',
     'cita:cerrar',
+    // El consentimiento firmado de una cita lo sube y lo mira quien agenda.
+    // No le abre las tarjetas profesionales: para llegar a una haría falta su
+    // clave, y esa solo aparece en fichas de profesional, que este rol no ve.
+    'documento:subir',
+    'documento:leer',
   ],
 
   // Solo lectura: visibilidad global, ninguna acción. Todos sus permisos
@@ -55,6 +60,7 @@ export const PERMISOS = {
     'disponibilidad:leer',
     'usuario:leer',
     'auditoria:leer',
+    'documento:leer',
   ],
 
   // Profesional de la red: su agenda y sus propias franjas de disponibilidad.

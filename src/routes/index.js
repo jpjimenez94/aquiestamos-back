@@ -10,6 +10,7 @@ import { collaboratorRoutes } from './collaborator.routes.js'
 import { resourceRoutes } from './resource.routes.js'
 import sharedCaseRoutes from './sharedCase.routes.js'
 import { triageRoutes } from './triage.routes.js'
+import { documentoRoutes } from './documento.routes.js'
 import {
   professionalRoutes,
   patientRoutes,
@@ -48,6 +49,9 @@ apiRoutes.use('/triage', triageRoutes)
 apiRoutes.use('/auth', authRoutes)
 apiRoutes.use('/users', userRoutes)
 apiRoutes.use('/audit', auditLogRoutes)
+
+// --- Documentos: tarjetas, certificados y consentimientos firmados ---
+apiRoutes.use('/documentos', documentoRoutes)
 
 // --- Operación: personas, profesionales y agenda ---
 apiRoutes.use('/dashboard', dashboardRoutes)

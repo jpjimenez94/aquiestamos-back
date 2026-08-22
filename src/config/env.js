@@ -64,6 +64,32 @@ export const env = {
       .filter(Boolean),
   },
 
+  /**
+   * Almacenamiento de documentos: tarjetas profesionales, certificados de
+   * estudio y consentimientos firmados.
+   *
+   * Antes se guardaban en `front/public/uploads/`, que es la carpeta que Next
+   * sirve al mundo entero sin pedir sesión, y que además el repositorio
+   * versionaba. Un documento de identidad no puede vivir ahí.
+   *
+   * La clave que va aquí es la `service_role` de Supabase, no la `anon`: es la
+   * única que puede leer y escribir en un bucket privado. Por eso vive solo en
+   * el backend y NUNCA se le manda al navegador; lo que el portal recibe es
+   * una URL firmada que caduca en un minuto.
+   *
+   * Si esto está vacío, subir un documento falla con un mensaje que lo dice.
+   * Falla ruidosamente a propósito: guardar el archivo en el disco del
+   * servidor "mientras tanto" es cómo se llegó al problema anterior.
+   */
+  supabase: {
+    url: (process.env.SUPABASE_URL ?? '').replace(/\/$/, ''),
+    serviceKey: process.env.SUPABASE_SERVICE_KEY ?? '',
+    bucket: process.env.SUPABASE_BUCKET ?? 'documentos',
+    /// Cuánto vive el enlace que se le da al navegador para ver un documento.
+    /// Un minuto: lo que tarda en abrirse la imagen, no más.
+    firmaSegundos: Number(process.env.SUPABASE_FIRMA_SEGUNDOS ?? 60),
+  },
+
   /// Clave de la API de Brevo. Es DISTINTA de la clave SMTP.
   ///
   /// Con esto puesto, los correos salen por HTTPS en vez de por SMTP. Hace
