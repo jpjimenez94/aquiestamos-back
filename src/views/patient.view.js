@@ -23,6 +23,18 @@ export function pacienteParaAgendador(p) {
     prioridadLegible: ETIQUETAS_PRIORIDAD[p.priority] ?? p.priority,
     createdAt: p.createdAt,
     diasEsperando: Math.floor((Date.now() - new Date(p.createdAt).getTime()) / 86400000),
+    asignacion: p.assignments?.[0]
+      ? {
+          id: p.assignments[0].id,
+          desde: p.assignments[0].startedAt,
+          profesional: {
+            id: p.assignments[0].professional?.id,
+            nombre: p.assignments[0].professional?.fullName,
+            telefono: p.assignments[0].professional?.phone,
+            email: p.assignments[0].professional?.email,
+          },
+        }
+      : null,
   }
 }
 

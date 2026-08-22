@@ -19,6 +19,8 @@ import {
   admitirSolicitudSchema,
   editarProfesionalSchema,
   editarPacienteSchema,
+  actualizarTarjetaProfesionalSchema,
+  actualizarConsentimientoSchema,
 } from '../validators/agenda.schema.js'
 
 // ---------------------------------------------------------------- profesionales
@@ -39,6 +41,12 @@ professionalRoutes.patch(
   authorize('profesional:editar'),
   validateBody(editarProfesionalSchema),
   ProfessionalController.update,
+)
+professionalRoutes.patch(
+  '/:id/tarjeta-profesional',
+  authorize('profesional:editar'),
+  validateBody(actualizarTarjetaProfesionalSchema),
+  ProfessionalController.actualizarTarjetaProfesional,
 )
 professionalRoutes.delete('/:id', authorize('profesional:borrar'), ProfessionalController.destroy)
 
@@ -85,6 +93,7 @@ appointmentRoutes.use(authenticate)
 
 // Las rutas fijas van antes que `/:id`, si no `huecos` se leería como un id.
 appointmentRoutes.get('/huecos', authorize('agenda:leer'), AppointmentController.huecos)
+appointmentRoutes.get('/historial', authorize('agenda:leer'), AppointmentController.historial)
 appointmentRoutes.get('/mias', authorize('agenda:leer:propia'), AppointmentController.mias)
 
 appointmentRoutes.get('/', authorize('agenda:leer'), AppointmentController.index)
@@ -96,6 +105,12 @@ appointmentRoutes.patch(
   authorize('cita:confirmar'),
   validateBody(cambiarEstadoSchema),
   AppointmentController.cambiarEstado,
+)
+appointmentRoutes.patch(
+  '/:id/consentimiento',
+  authorize('cita:confirmar'),
+  validateBody(actualizarConsentimientoSchema),
+  AppointmentController.actualizarConsentimiento,
 )
 appointmentRoutes.post(
   '/:id/reprogramar',
@@ -120,3 +135,4 @@ appointmentRoutes.post(
 // ---------------------------------------------------------------- tablero
 export const dashboardRoutes = Router()
 dashboardRoutes.get('/', authenticate, authorize('agenda:leer'), DashboardController.index)
+dashboardRoutes.get('/tablero', authenticate, authorize('agenda:leer'), DashboardController.tablero)

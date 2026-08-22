@@ -22,6 +22,9 @@ export function cita(c) {
     estado: c.status,
     estadoLegible: ETIQUETAS[c.status] ?? c.status,
     siguientesEstados: transicionesDesde(c.status),
+    consentSigned: c.consentSigned ?? false,
+    consentSignedDocumentUrl: c.consentSignedDocumentUrl,
+    consentSignedAt: c.consentSignedAt,
     motivoCancelacion: c.cancelReason,
     reprogramadaA: c.rescheduledToId,
     profesional: c.professional

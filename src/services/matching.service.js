@@ -15,42 +15,96 @@ import { franjaDe, diaDeLaSemana } from './timezone.service.js'
 
 const DIAS_A_MIRAR = 14
 
+const PESO_EXPERIENCIA = {
+  MAS_DE_5: 4,
+  ENTRE_3_Y_5: 3,
+  ENTRE_1_Y_3: 2,
+  MENOS_DE_1: 1,
+}
+
+const ETIQUETAS_EXP = {
+  MAS_DE_5: '+5 años de experiencia',
+  ENTRE_3_Y_5: '3 a 5 años de experiencia',
+  ENTRE_1_Y_3: '1 a 3 años de experiencia',
+  MENOS_DE_1: '< 1 año de experiencia',
+}
+
+function normalizar(texto) {
+  if (!texto) return ''
+  return texto
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]/g, ' ')
+    .trim()
+}
+
+function esMismaCiudad(ciudadA, ciudadB) {
+  const normA = normalizar(ciudadA)
+  const normB = normalizar(ciudadB)
+  if (!normA || !normB) return false
+  if (normA === normB || normA.includes(normB) || normB.includes(normA)) return true
+
+  const palabrasA = normA.split(/\s+/).filter((w) => w.length > 3 && !['valle', 'norte', 'santander', 'cundinamarca', 'antioquia'].includes(w))
+  const palabrasB = normB.split(/\s+/).filter((w) => w.length > 3 && !['valle', 'norte', 'santander', 'cundinamarca', 'antioquia'].includes(w))
+  return palabrasA.some((p) => normB.includes(p)) || palabrasB.some((p) => normA.includes(p))
+}
+
 /**
  * Puntúa qué tan bien encaja un profesional con una persona.
- * No es una nota académica: solo sirve para ordenar la lista.
+ * Prioriza fuertemente la coincidencia geográfica (si es presencial),
+ * la tarjeta profesional verificada, los años de experiencia y la disponibilidad.
  */
 function puntuar({ profesional, paciente, carga, coincidenciaHorario, tieneHueco }) {
   let puntos = 0
   const razones = []
 
+  // 1. Verificación Legal de Tarjeta Profesional
+  if (profesional.professionalCardVerified) {
+    puntos += 35
+    razones.push('Tarjeta Profesional / Soporte Verificado')
+  }
+
+  // 2. Coincidencia geográfica para atención presencial
+  const mismaCiudad = esMismaCiudad(paciente.city, profesional.city)
+  const seDesplaza = profesional.travelsTo && esMismaCiudad(paciente.city, profesional.travelsTo)
+
+  if (paciente.preferredModality === 'PRESENCIAL') {
+    if (mismaCiudad) {
+      puntos += 50
+      razones.push(`Atención presencial en ${profesional.city}`)
+    } else if (seDesplaza) {
+      puntos += 30
+      razones.push(`Se desplaza a ${paciente.city}`)
+    }
+  } else if (paciente.preferredModality === 'VIRTUAL') {
+    puntos += 15
+    razones.push('Disponible para atención virtual')
+  }
+
+  // 3. Puntos por años de experiencia clínica
+  const pesoExp = PESO_EXPERIENCIA[profesional.yearsExperience] ?? 0
+  if (pesoExp > 0) {
+    puntos += pesoExp * 15 // +60 por +5 años, +45 por 3-5 años, +30 por 1-3 años, +15 por <1 año
+    razones.push(ETIQUETAS_EXP[profesional.yearsExperience])
+  }
+
+  // 4. Disponibilidad en agenda
   if (tieneHueco) {
-    puntos += 40
-    razones.push('Tiene un hueco libre pronto')
+    puntos += 30
+    razones.push('Tiene huecos de agenda libres pronto')
   }
 
   if (coincidenciaHorario) {
-    puntos += 25
-    razones.push('Coincide con los días y franjas que pidió la persona')
+    puntos += 20
+    razones.push('Coincide con los días y franjas solicitadas')
   }
 
-  if (
-    paciente.city &&
-    profesional.city &&
-    profesional.city.toLowerCase() === paciente.city.toLowerCase()
-  ) {
-    puntos += 15
-    razones.push('Está en la misma ciudad')
-  }
-
+  // 5. Cupo y balance de carga
   const cupo = profesional.maxActiveCases - carga
   if (cupo > 0) {
-    // Se prefiere a quien está menos cargado, para repartir el trabajo.
-    puntos += Math.min(15, cupo * 5)
-    razones.push(`Lleva ${carga} de ${profesional.maxActiveCases} casos`)
-  }
-
-  if (profesional.yearsExperience === 'MAS_DE_5' || profesional.yearsExperience === 'ENTRE_3_Y_5') {
-    puntos += 5
+    puntos += Math.min(10, cupo * 4)
+    razones.push(`Lleva ${carga} de ${profesional.maxActiveCases} casos activos`)
   }
 
   return { puntos, razones }
@@ -81,7 +135,6 @@ export async function candidatosPara({ patientId, poblaciones, desde, hasta }) {
   const candidatos = await ProfessionalModel.findCandidatos({
     populations: poblaciones,
     modality: paciente.preferredModality,
-    // La ciudad no filtra: si es virtual, da igual. Solo puntúa.
   })
 
   if (candidatos.length === 0) return { paciente, candidatos: [] }
@@ -102,7 +155,6 @@ export async function candidatosPara({ patientId, poblaciones, desde, hasta }) {
       })
 
       // Huecos que además caen en un día y una franja que la persona pidió.
-      // Si no declaró preferencias, cualquier hueco sirve.
       const sinPreferencias =
         paciente.availableDays.length === 0 && paciente.availableSlots.length === 0
 
@@ -144,7 +196,35 @@ export async function candidatosPara({ patientId, poblaciones, desde, hasta }) {
     }),
   )
 
-  conHuecos.sort((a, b) => b.puntos - a.puntos || a.carga - b.carga)
+  const esPresencial = paciente.preferredModality === 'PRESENCIAL'
+
+  // Ordenamiento inteligente del Top:
+  // 1. Quien tiene cupo disponible va primero
+  // 2. Si es PRESENCIAL -> profesionales en la misma ciudad o que se desplazan
+  // 3. Profesionales con Tarjeta Profesional Verificada (TP) primero
+  // 4. Años de experiencia clínica (+5 años primero)
+  // 5. Puntos globales de coincidencia horaria
+  // 6. Menor carga actual
+  conHuecos.sort((a, b) => {
+    if (a.sinCupo !== b.sinCupo) return a.sinCupo ? 1 : -1
+
+    if (esPresencial && paciente.city) {
+      const matchA = esMismaCiudad(paciente.city, a.profesional.city) || (a.profesional.travelsTo && esMismaCiudad(paciente.city, a.profesional.travelsTo))
+      const matchB = esMismaCiudad(paciente.city, b.profesional.city) || (b.profesional.travelsTo && esMismaCiudad(paciente.city, b.profesional.travelsTo))
+      if (matchA !== matchB) return matchA ? -1 : 1
+    }
+
+    const tpA = a.profesional.professionalCardVerified === true
+    const tpB = b.profesional.professionalCardVerified === true
+    if (tpA !== tpB) return tpA ? -1 : 1
+
+    const expA = PESO_EXPERIENCIA[a.profesional.yearsExperience] ?? 0
+    const expB = PESO_EXPERIENCIA[b.profesional.yearsExperience] ?? 0
+    if (expB !== expA) return expB - expA
+
+    if (b.puntos !== a.puntos) return b.puntos - a.puntos
+    return a.carga - b.carga
+  })
 
   return { paciente, candidatos: conHuecos }
 }

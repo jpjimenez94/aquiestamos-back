@@ -37,17 +37,25 @@ export const ProfessionalModel = {
   },
 
   /**
-   * Candidatos para atender a una persona. El filtro fino (cupo y huecos) lo
-   * hace el servicio de emparejamiento: aquí solo se reduce el conjunto.
+   * Candidatos para atender a una persona.
+   * Filtra estrictamente por modalidad:
+   * - Si la persona pide PRESENCIAL -> solo profesionales PRESENCIAL o AMBAS
+   * - Si la persona pide VIRTUAL -> solo profesionales VIRTUAL o AMBAS
+   * - Si es AMBAS o INDIFERENTE -> no restringe modalidad
    */
   findCandidatos({ populations, modality, city }) {
+    let modalidadFiltro = undefined
+    if (modality === 'PRESENCIAL') {
+      modalidadFiltro = { in: ['PRESENCIAL', 'AMBAS'] }
+    } else if (modality === 'VIRTUAL') {
+      modalidadFiltro = { in: ['VIRTUAL', 'AMBAS'] }
+    }
+
     return prisma.professional.findMany({
       where: {
         ...vivos,
         status: 'ACTIVO',
-        ...(modality && modality !== 'INDIFERENTE'
-          ? { modality: { in: [modality, 'AMBAS'] } }
-          : {}),
+        ...(modalidadFiltro ? { modality: modalidadFiltro } : {}),
         ...(populations?.length ? { populations: { hasSome: populations } } : {}),
         ...(city ? { city: { contains: city, mode: 'insensitive' } } : {}),
       },

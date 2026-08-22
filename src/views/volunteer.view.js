@@ -42,6 +42,11 @@ export function volunteerAdmin(volunteer) {
 
     status: volunteer.status,
     createdAt: volunteer.createdAt,
+    // Si ya fue promovido, el id del profesional y estado de su tarjeta profesional
+    professionalId: volunteer.professional?.id ?? null,
+    professionalCardVerified: volunteer.professional?.professionalCardVerified ?? false,
+    professionalCardNumber: volunteer.professional?.professionalCardNumber ?? null,
+    professionalCardDocumentUrl: volunteer.professional?.professionalCardDocumentUrl ?? null,
   }
 }
 

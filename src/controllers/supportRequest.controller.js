@@ -1,5 +1,5 @@
 import { SupportRequestModel } from '../models/supportRequest.model.js'
-import { created, ok } from '../views/response.view.js'
+import { created, ok, failure } from '../views/response.view.js'
 import { solicitudRecibida } from '../notifications/eventos.js'
 import { registrar, ACCION } from '../services/audit.service.js'
 import {
@@ -79,4 +79,36 @@ export const SupportRequestController = {
       next(error)
     }
   },
+
+  /**
+   * DELETE /api/support-requests/:id
+   * Borrado lógico — solo ADMIN.
+   * El registro permanece en base de datos para auditoría; únicamente se
+   * establece `deletedAt` para que desaparezca de todas las consultas normales.
+   */
+  async destroy(req, res, next) {
+    try {
+      const { id } = req.params
+      const existente = await SupportRequestModel.findById(id)
+
+      if (!existente) {
+        return res.status(404).json(failure('La solicitud no existe o ya fue eliminada'))
+      }
+
+      await SupportRequestModel.softDelete(id)
+
+      await registrar({
+        req,
+        action: ACCION.BORRAR,
+        entity: 'solicitud',
+        entityId: id,
+        before: { status: existente.status, name: existente.name },
+      })
+
+      return res.json(ok(null, 'Solicitud eliminada correctamente'))
+    } catch (error) {
+      next(error)
+    }
+  },
 }
+

@@ -21,3 +21,11 @@ supportRequestRoutes.get(
   authorize('solicitud:leer'),
   SupportRequestController.index,
 )
+
+// Portal: eliminar solicitud — solo ADMIN (borrado lógico, registro queda para auditoría)
+supportRequestRoutes.delete(
+  '/:id',
+  authenticate,
+  authorize('solicitud:eliminar'),
+  SupportRequestController.destroy,
+)

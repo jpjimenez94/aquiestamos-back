@@ -82,4 +82,146 @@ export const DashboardController = {
       next(error)
     }
   },
+
+  /**
+   * GET /api/dashboard/tablero
+   *
+   * Devuelve todos los casos activos agrupados en las 5 columnas del pipeline
+   * de gestión. Incluye la asignación activa del profesional y el estado de
+   * verificación de la tarjeta profesional, para poder separar la columna 2
+   * (asignados sin TP verificada) de la columna 3 (listos para agendar).
+   */
+  async tablero(req, res, next) {
+    try {
+      const ahora = new Date()
+      const hace24h = new Date(ahora.getTime() - 24 * 3600 * 1000)
+
+      // 1. Pacientes activos con su asignación activa (incluye profesional y su TP)
+      const pacientes = await prisma.patient.findMany({
+        where: {
+          deletedAt: null,
+          status: { not: 'CERRADO' },
+        },
+        orderBy: [{ priority: 'desc' }, { createdAt: 'asc' }],
+        include: {
+          assignments: {
+            where: { status: 'ACTIVA', deletedAt: null },
+            take: 1,
+            include: {
+              professional: {
+                select: {
+                  id: true,
+                  fullName: true,
+                  phone: true,
+                  professionalCardVerified: true,
+                  professionalCardNumber: true,
+                  professionalCardDocumentUrl: true,
+                },
+              },
+            },
+          },
+        },
+      })
+
+      // 2. Citas abiertas (desde 24h atrás para incluir citas en curso)
+      const citasAbiertas = await prisma.appointment.findMany({
+        where: {
+          startsAt: { gte: hace24h },
+          status: { in: ['PROGRAMADA', 'CONFIRMADA'] },
+        },
+        select: {
+          id: true,
+          startsAt: true,
+          endsAt: true,
+          status: true,
+          modality: true,
+          consentSigned: true,
+          consentSignedDocumentUrl: true,
+          patient: {
+            select: { id: true, fullName: true, phone: true },
+          },
+          professional: {
+            select: { id: true, fullName: true },
+          },
+        },
+        orderBy: { startsAt: 'asc' },
+      })
+
+      // Aplanar estructura para el frontend
+      const mapearPaciente = (p) => {
+        const asignacion = p.assignments[0] ?? null
+        return {
+          id: p.id,
+          fullName: p.fullName,
+          city: p.city,
+          status: p.status,
+          priority: p.priority,
+          isMinor: p.isMinor,
+          createdAt: p.createdAt,
+          diasEsperando: Math.floor((Date.now() - new Date(p.createdAt).getTime()) / 86400000),
+          asignacion: asignacion
+            ? {
+                id: asignacion.id,
+                desde: asignacion.startedAt,
+                profesional: {
+                  id: asignacion.professional.id,
+                  nombre: asignacion.professional.fullName,
+                  telefono: asignacion.professional.phone,
+                  professionalCardVerified: asignacion.professional.professionalCardVerified ?? false,
+                  professionalCardNumber: asignacion.professional.professionalCardNumber,
+                  professionalCardDocumentUrl: asignacion.professional.professionalCardDocumentUrl,
+                },
+              }
+            : null,
+        }
+      }
+
+      // IDs de pacientes con cita activa
+      const pacientesConCita = new Set(citasAbiertas.map((c) => c.patient.id))
+
+      // Columnas del pipeline
+      const porAsignar = pacientes
+        .filter((p) => (p.status === 'NUEVO' || p.status === 'EN_ADMISION') && p.assignments.length === 0)
+        .map(mapearPaciente)
+
+      const enVerificacionTP = pacientes
+        .filter((p) => p.assignments.length > 0 && !p.assignments[0].professional.professionalCardVerified)
+        .map(mapearPaciente)
+
+      const listasParaAgendar = pacientes
+        .filter(
+          (p) =>
+            p.assignments.length > 0 &&
+            p.assignments[0].professional.professionalCardVerified &&
+            !pacientesConCita.has(p.id),
+        )
+        .map(mapearPaciente)
+
+      const enAcompanamiento = pacientes
+        .filter((p) => p.status === 'EN_ACOMPANAMIENTO')
+        .map(mapearPaciente)
+
+      return res.json(
+        ok({
+          porAsignar,
+          enVerificacionTP,
+          listasParaAgendar,
+          citasAbiertas: citasAbiertas.map((c) => ({
+            id: c.id,
+            inicio: c.startsAt,
+            fin: c.endsAt,
+            estado: c.status,
+            modalidad: c.modality,
+            consentSigned: c.consentSigned,
+            consentSignedDocumentUrl: c.consentSignedDocumentUrl,
+            paciente: { id: c.patient.id, nombre: c.patient.fullName, telefono: c.patient.phone },
+            profesional: { id: c.professional.id, nombre: c.professional.fullName },
+          })),
+          enAcompanamiento,
+        }),
+      )
+    } catch (error) {
+      next(error)
+    }
+  },
 }

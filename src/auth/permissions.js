@@ -6,7 +6,12 @@
  * si la regla se reparte, añadir un rol obliga a revisar todo el backend.
  */
 
-/** Permisos por rol. `*` significa «todo». */
+/**
+ * Permisos por rol. `*` significa «todo».
+ *
+ * Permisos exclusivos de ADMIN (cubiertos por `*`):
+ *   - solicitud:eliminar  → borrado lógico de una solicitud de acompañamiento
+ */
 export const PERMISOS = {
   ADMIN: ['*'],
 

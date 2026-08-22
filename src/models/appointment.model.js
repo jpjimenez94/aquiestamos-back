@@ -31,6 +31,38 @@ export const AppointmentModel = {
     })
   },
 
+  /** Historial completo con filtros avanzados de búsqueda y orden descendente */
+  findHistorial({ desde, hasta, professionalId, patientId, status, search, skip = 0, take = 200 } = {}) {
+    return prisma.appointment.findMany({
+      where: {
+        ...(desde || hasta
+          ? {
+              startsAt: {
+                ...(desde ? { gte: desde } : {}),
+                ...(hasta ? { lte: hasta } : {}),
+              },
+            }
+          : {}),
+        ...(professionalId ? { professionalId } : {}),
+        ...(patientId ? { patientId } : {}),
+        ...(status ? { status: { in: Array.isArray(status) ? status : [status] } } : {}),
+        ...(search
+          ? {
+              OR: [
+                { patient: { fullName: { contains: search, mode: 'insensitive' } } },
+                { patient: { phone: { contains: search } } },
+                { professional: { fullName: { contains: search, mode: 'insensitive' } } },
+              ],
+            }
+          : {}),
+      },
+      include: CON_PERSONAS,
+      orderBy: { startsAt: 'desc' },
+      skip,
+      take,
+    })
+  },
+
   /** Todas las citas de un paciente, de la más próxima a la más lejana. */
   findDePaciente(patientId) {
     return prisma.appointment.findMany({

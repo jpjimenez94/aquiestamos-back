@@ -25,6 +25,12 @@ export const PatientModel = {
         ...(status ? { status } : {}),
         ...(city ? { city: { contains: city, mode: 'insensitive' } } : {}),
       },
+      include: {
+        assignments: {
+          where: { status: 'ACTIVA', deletedAt: null },
+          include: { professional: true },
+        },
+      },
       // Los que llevan más tiempo esperando, primero.
       orderBy: [{ status: 'asc' }, { createdAt: 'asc' }],
       skip,
@@ -40,9 +46,13 @@ export const PatientModel = {
         status: { in: ['NUEVO', 'EN_ADMISION'] },
         assignments: { none: { status: 'ACTIVA', deletedAt: null } },
       },
+      include: {
+        assignments: {
+          where: { status: 'ACTIVA', deletedAt: null },
+          include: { professional: true },
+        },
+      },
       // Primero lo urgente y, dentro de cada nivel, quien lleva más esperando.
-      // Sin el segundo criterio un caso de prioridad baja podría quedarse
-      // al final de la cola para siempre.
       orderBy: [{ priority: 'desc' }, { createdAt: 'asc' }],
     })
   },

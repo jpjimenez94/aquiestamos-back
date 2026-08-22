@@ -129,6 +129,49 @@ export const ProfessionalController = {
     }
   },
 
+  /** PATCH /api/professionals/:id/tarjeta-profesional */
+  async actualizarTarjetaProfesional(req, res, next) {
+    try {
+      const anterior = await ProfessionalModel.findById(req.params.id)
+      if (!anterior) return res.status(404).json(failure('Profesional no encontrado'))
+
+      const { professionalCardNumber, professionalCardDocumentUrl, professionalCardVerified } = req.validated
+
+      const dataToUpdate = {
+        ...(professionalCardNumber !== undefined ? { professionalCardNumber } : {}),
+        ...(professionalCardDocumentUrl !== undefined ? { professionalCardDocumentUrl } : {}),
+        ...(professionalCardVerified !== undefined ? { professionalCardVerified } : {}),
+        ...(professionalCardVerified === true
+          ? {
+              professionalCardVerifiedAt: new Date(),
+              professionalCardVerifiedBy: req.usuario?.email ?? req.usuario?.name ?? 'Admin',
+            }
+          : {}),
+      }
+
+      const profesional = await ProfessionalModel.update(req.params.id, dataToUpdate)
+
+      await registrar({
+        req,
+        action: ACCION.EDITAR,
+        entity: 'profesional_tarjeta',
+        entityId: profesional.id,
+        before: {
+          numero: anterior.professionalCardNumber,
+          verificada: anterior.professionalCardVerified,
+        },
+        after: {
+          numero: profesional.professionalCardNumber,
+          verificada: profesional.professionalCardVerified,
+        },
+      })
+
+      return res.json(ok(profesionalSegunRol(profesional, req.usuario), 'Tarjeta profesional actualizada con éxito'))
+    } catch (error) {
+      next(error)
+    }
+  },
+
   /** DELETE /api/professionals/:id */
   async destroy(req, res, next) {
     try {

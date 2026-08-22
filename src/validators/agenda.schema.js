@@ -94,12 +94,26 @@ export const admitirSolicitudSchema = z.object({
   city: z.string().trim().max(160).optional(),
 })
 
+export const actualizarTarjetaProfesionalSchema = z.object({
+  professionalCardNumber: z.string().trim().max(60).optional().or(z.literal('')),
+  professionalCardDocumentUrl: z.string().trim().max(500).optional().or(z.literal('')),
+  professionalCardVerified: z.boolean().optional(),
+})
+
+export const actualizarConsentimientoSchema = z.object({
+  consentSigned: z.boolean(),
+  consentSignedDocumentUrl: z.string().trim().max(500).optional().or(z.literal('')),
+})
+
 export const editarProfesionalSchema = z.object({
   fullName: z.string().trim().min(1).max(160).optional(),
   email: z.string().trim().toLowerCase().email('Correo no valido').max(160).optional(),
   phone: z.string().trim().max(40).optional(),
   city: z.string().trim().max(160).optional(),
   profession: z.string().trim().max(160).optional(),
+  professionalCardNumber: z.string().trim().max(60).optional().or(z.literal('')),
+  professionalCardDocumentUrl: z.string().trim().max(500).optional().or(z.literal('')),
+  professionalCardVerified: z.boolean().optional(),
   populations: z.array(z.string().max(80)).max(20).optional(),
   modality: choice(['PRESENCIAL', 'VIRTUAL', 'AMBAS']).optional(),
   travelsTo: z.string().trim().max(200).optional().or(z.literal('')),

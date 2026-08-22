@@ -536,6 +536,11 @@ model Professional {
   profession       String                  @db.VarChar(160)
   yearsExperience  YearsExperience?        @map("years_experience")
   professionalCard ProfessionalCardStatus? @map("professional_card")
+  professionalCardNumber String?           @map("professional_card_number") @db.VarChar(60)
+  professionalCardDocumentUrl String?      @map("professional_card_document_url") @db.VarChar(500)
+  professionalCardVerified Boolean         @default(false) @map("professional_card_verified")
+  professionalCardVerifiedAt DateTime?     @map("professional_card_verified_at") @db.Timestamptz(3)
+  professionalCardVerifiedBy String?       @map("professional_card_verified_by") @db.VarChar(160)
   populations      String[]
   modality         Modality
   travelsTo        String?                 @map("travels_to") @db.VarChar(200)
@@ -767,6 +772,10 @@ model Appointment {
 
   modality Modality
   status   AppointmentStatus @default(PROGRAMADA)
+
+  consentSigned Boolean @default(false) @map("consent_signed")
+  consentSignedDocumentUrl String? @map("consent_signed_document_url") @db.VarChar(500)
+  consentSignedAt DateTime? @map("consent_signed_at") @db.Timestamptz(3)
 
   /// Al reprogramar, la cita no se edita: se cierra y apunta a la nueva.
   rescheduledToId String?      @unique @map("rescheduled_to_id") @db.Uuid

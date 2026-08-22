@@ -3,6 +3,7 @@ import { created, ok } from '../views/response.view.js'
 import { registrar, ACCION } from '../services/audit.service.js'
 import { postulacionRecibida } from '../notifications/eventos.js'
 import { volunteerReceipt, volunteerAdminList } from '../views/volunteer.view.js'
+import { aprobarPostulacion } from '../services/promotion.service.js'
 
 /**
  * CONTROLADOR: orquesta la petición HTTP, pide datos al modelo y delega
@@ -43,6 +44,20 @@ export const VolunteerController = {
         sensitiveDataConsent: soloVirtual ? false : input.sensitiveDataConsent,
         communicationsConsent: input.communicationsConsent,
       })
+
+      // Auto-aprobación: los psicólogos voluntarios entran directamente como
+      // ACTIVOS. No hay paso de aprobación manual; la verificación de la
+      // Tarjeta Profesional se gestiona por separado antes de asignar casos.
+      try {
+        await aprobarPostulacion({
+          volunteerId: volunteer.id,
+          ajustes: { status: 'ACTIVO' },
+        })
+      } catch (errorAprobacion) {
+        // Si falla la auto-aprobación (ej. ya existía el profesional),
+        // se ignora silenciosamente — el registro de postulación ya quedó.
+        console.error('[auto-aprobacion] no se pudo crear el profesional:', errorAprobacion.message)
+      }
 
       // Encolar el aviso no puede hacer fallar el registro.
       await postulacionRecibida(volunteer)

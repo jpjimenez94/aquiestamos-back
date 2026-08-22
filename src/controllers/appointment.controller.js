@@ -49,6 +49,62 @@ export const AppointmentController = {
     }
   },
 
+  /** GET /api/appointments/historial — listado histórico completo con métricas */
+  async historial(req, res, next) {
+    try {
+      const desde = req.query.desde ? new Date(req.query.desde) : undefined
+      const hasta = req.query.hasta ? new Date(req.query.hasta) : undefined
+      const professionalId = req.query.professionalId || undefined
+      const patientId = req.query.patientId || undefined
+      const status = req.query.estado || undefined
+      const search = req.query.q || undefined
+
+      const citas = await AppointmentModel.findHistorial({
+        desde,
+        hasta,
+        professionalId,
+        patientId,
+        status,
+        search,
+      })
+
+      // Cálculo de métricas agregadas del conjunto filtrado
+      let realizadas = 0
+      let canceladas = 0
+      let noAsistio = 0
+      let programadas = 0
+      let confirmadas = 0
+
+      for (const c of citas) {
+        if (c.status === 'REALIZADA') realizadas++
+        else if (c.status === 'CANCELADA') canceladas++
+        else if (c.status === 'NO_ASISTIO') noAsistio++
+        else if (c.status === 'PROGRAMADA') programadas++
+        else if (c.status === 'CONFIRMADA') confirmadas++
+      }
+
+      const terminadas = realizadas + noAsistio + canceladas
+      const tasaAsistencia = terminadas > 0 ? Math.round((realizadas / terminadas) * 100) : 100
+
+      return res.json(
+        ok(citaLista(citas), {
+          total: citas.length,
+          metricas: {
+            total: citas.length,
+            realizadas,
+            confirmadas,
+            programadas,
+            canceladas,
+            noAsistio,
+            tasaAsistencia,
+          },
+        }),
+      )
+    } catch (error) {
+      next(error)
+    }
+  },
+
   /** GET /api/appointments/mias — lo que ve un profesional de si mismo */
   async mias(req, res, next) {
     try {
@@ -138,6 +194,37 @@ export const AppointmentController = {
       })
 
       return res.json(ok(cita(actualizada)))
+    } catch (error) {
+      next(error)
+    }
+  },
+
+  /** PATCH /api/appointments/:id/consentimiento */
+  async actualizarConsentimiento(req, res, next) {
+    try {
+      const anterior = await AppointmentModel.findById(req.params.id)
+      if (!anterior) return res.status(404).json(failure('Cita no encontrada'))
+
+      const { consentSigned, consentSignedDocumentUrl } = req.validated
+
+      const dataToUpdate = {
+        consentSigned,
+        ...(consentSignedDocumentUrl !== undefined ? { consentSignedDocumentUrl } : {}),
+        ...(consentSigned ? { consentSignedAt: new Date() } : { consentSignedAt: null }),
+      }
+
+      const actualizada = await AppointmentModel.update(req.params.id, dataToUpdate)
+
+      await registrar({
+        req,
+        action: ACCION.EDITAR,
+        entity: 'cita_consentimiento',
+        entityId: actualizada.id,
+        before: { consentSigned: anterior.consentSigned },
+        after: { consentSigned: actualizada.consentSigned },
+      })
+
+      return res.json(ok(cita(actualizada), 'Consentimiento informado actualizado'))
     } catch (error) {
       next(error)
     }
