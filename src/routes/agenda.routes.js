@@ -42,9 +42,12 @@ professionalRoutes.patch(
   validateBody(editarProfesionalSchema),
   ProfessionalController.update,
 )
+// Verificar la tarjeta tiene permiso propio y no va con `profesional:editar`:
+// quien lleva el WhatsApp con el profesional sube su soporte, pero no le toca
+// el cupo de casos ni le enlaza una cuenta del portal.
 professionalRoutes.patch(
   '/:id/tarjeta-profesional',
-  authorize('profesional:editar'),
+  authorize('profesional:verificar-tarjeta'),
   validateBody(actualizarTarjetaProfesionalSchema),
   ProfessionalController.actualizarTarjetaProfesional,
 )

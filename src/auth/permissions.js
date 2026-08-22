@@ -21,16 +21,24 @@ export const PERMISOS = {
   // su prioridad (paciente:crear): es quien opera la entrada, y sin eso cada
   // aprobación tenía que esperar a la administración.
   //
-  // NO ve el módulo de profesionales ni el directorio de voluntariado de
-  // apoyo: son datos maestros y decisión expresa de la red. El emparejamiento
-  // no lo necesita —va por asignacion:crear— así que puede asignar sin poder
-  // hojear la lista completa.
+  // SÍ ve las fichas de los profesionales y verifica sus tarjetas. Antes no:
+  // se consideraban datos maestros. Resultó que en la operación real es este
+  // rol quien lleva el WhatsApp con cada profesional y quien le pide y sube el
+  // soporte de su tarjeta, así que negárselo solo conseguía que tuviera que
+  // pedirle a la administración que hiciera clic por él.
+  //
+  // Lo que sigue sin poder: `profesional:editar` —cupo de casos, notas
+  // internas, enlazar una cuenta del portal— y `profesional:borrar`. Verificar
+  // una tarjeta tiene permiso propio justo para no tener que abrir todo eso.
+  // Las notas internas tampoco le llegan: la vista solo se las da a ADMIN.
   AGENDADOR: [
     'postulacion:leer',
     'solicitud:leer',
     'paciente:leer',
     'paciente:crear',
     'profesional:crear',
+    'profesional:leer',
+    'profesional:verificar-tarjeta',
     'agenda:leer',
     'disponibilidad:leer',
     'asignacion:crear',

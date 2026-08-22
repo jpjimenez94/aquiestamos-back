@@ -27,12 +27,39 @@ describe('matriz de permisos', () => {
     expect(puede(agendador, 'paciente:crear')).toBe(true)
   })
 
-  it('el agendador no ve profesionales ni el voluntariado de apoyo', () => {
-    // Decisión expresa de la red: puede aprobar y asignar, pero los datos
-    // maestros no son suyos. El emparejamiento va por asignacion:crear.
-    expect(puede(agendador, 'profesional:leer')).toBe(false)
+  /**
+   * Esto cambió: antes el agendador no veía las fichas. En la operación real
+   * es quien lleva el WhatsApp con cada profesional y quien le pide y sube el
+   * soporte de su tarjeta, así que negárselo solo conseguía que tuviera que
+   * pedirle a la administración que hiciera clic por él.
+   */
+  it('el agendador ve las fichas y verifica tarjetas, porque es quien las pide', () => {
+    expect(puede(agendador, 'profesional:leer')).toBe(true)
+    expect(puede(agendador, 'profesional:verificar-tarjeta')).toBe(true)
+    expect(puede(agendador, 'documento:subir')).toBe(true)
+  })
+
+  /**
+   * Pero verificar una tarjeta tiene permiso propio justo para que abrirle la
+   * ficha no le abra tambien el cupo de casos, las notas internas o enlazar
+   * una cuenta del portal. Si alguien alguna vez sustituye
+   * `profesional:verificar-tarjeta` por `profesional:editar` "porque es lo
+   * mismo", esta prueba tiene que fallar.
+   */
+  it('ver la ficha no es poder editarla', () => {
+    expect(puede(agendador, 'profesional:editar')).toBe(false)
+    expect(puede(agendador, 'profesional:borrar')).toBe(false)
+  })
+
+  it('el agendador sigue sin ver el voluntariado de apoyo', () => {
     expect(puede(agendador, 'colaborador:leer')).toBe(false)
     expect(puede(agendador, 'asignacion:crear')).toBe(true)
+  })
+
+  /** Solo lectura ve la ficha, pero no puede verificar nada. */
+  it('el rol de lectura no verifica tarjetas', () => {
+    expect(puede({ role: 'LECTURA' }, 'profesional:leer')).toBe(true)
+    expect(puede({ role: 'LECTURA' }, 'profesional:verificar-tarjeta')).toBe(false)
   })
 
   it('el rol de lectura ve todo y no toca nada', () => {
