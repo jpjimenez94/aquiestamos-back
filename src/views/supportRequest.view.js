@@ -1,3 +1,5 @@
+import { tamizajeResumen, tamizajeCompleto } from './triage.view.js'
+
 /**
  * VISTA: SupportRequest
  */
@@ -29,6 +31,19 @@ export function supportRequestAgendador(request) {
     availableSlots: request.availableSlots,
     status: request.status,
     createdAt: request.createdAt,
+    /**
+     * El tamizaje: por dónde mandárselo y, si ya respondió, qué prioridad
+     * salió y por qué. Van las RAZONES, no las respuestas pregunta por
+     * pregunta: la razón es lo que hace falta para decidir, y el detalle es
+     * dato de salud que solo se abre para la administración.
+     */
+    tamizaje: request.tamizaje
+      ? {
+          ruta: request.tamizaje.ruta,
+          respuesta: tamizajeResumen(request.tamizaje.respuesta),
+          diasParaAdmisionAutomatica: request.tamizaje.diasParaAdmisionAutomatica,
+        }
+      : null,
   }
 }
 
@@ -36,6 +51,13 @@ export function supportRequestAgendador(request) {
 export function supportRequestAdmin(request) {
   return {
     ...supportRequestAgendador(request),
+    tamizaje: request.tamizaje
+      ? {
+          ruta: request.tamizaje.ruta,
+          respuesta: tamizajeCompleto(request.tamizaje.respuesta),
+          diasParaAdmisionAutomatica: request.tamizaje.diasParaAdmisionAutomatica,
+        }
+      : null,
     contactName: request.contactName,
     relationship: request.relationship,
     message: request.message,

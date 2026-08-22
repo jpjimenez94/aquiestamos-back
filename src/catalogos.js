@@ -70,3 +70,22 @@ export const ETIQUETAS_PRIORIDAD = {
   MEDIA: 'Media',
   BAJA: 'Baja',
 }
+
+/// Respuestas del tamizaje previo a la admision.
+export const ETIQUETAS_TAMIZAJE_GRADO = {
+  SI: 'Si',
+  MAS_O_MENOS: 'Mas o menos',
+  NO: 'No',
+}
+
+export const ETIQUETAS_TAMIZAJE_CAPACIDAD = {
+  SI: 'Si',
+  CON_DIFICULTAD: 'Con dificultad',
+  NO: 'No',
+}
+
+export const ETIQUETAS_TAMIZAJE_URGENCIA = {
+  HOY: 'Hoy',
+  ESTA_SEMANA: 'Esta semana',
+  PUEDO_ESPERAR: 'Puedo esperar',
+}

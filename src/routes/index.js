@@ -9,6 +9,7 @@ import { supportRequestRoutes } from './supportRequest.routes.js'
 import { collaboratorRoutes } from './collaborator.routes.js'
 import { resourceRoutes } from './resource.routes.js'
 import sharedCaseRoutes from './sharedCase.routes.js'
+import { triageRoutes } from './triage.routes.js'
 import {
   professionalRoutes,
   patientRoutes,
@@ -39,6 +40,9 @@ apiRoutes.use('/collaborators', formLimiter, collaboratorRoutes)
 
 // --- Casos compartidos (acceso por enlace + correo) ---
 apiRoutes.use('/shared-cases', sharedCaseRoutes)
+
+// --- Tamizaje: la persona responde su propio enlace, sin sesión ---
+apiRoutes.use('/triage', triageRoutes)
 
 // --- Portal ---
 apiRoutes.use('/auth', authRoutes)

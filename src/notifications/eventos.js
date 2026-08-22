@@ -157,13 +157,21 @@ export async function postulacionAprobada(profesional) {
   })
 }
 
-/** Se admitió a alguien y falta asignarle profesional. */
-export async function pacienteAdmitido(paciente) {
+/**
+ * Se admitió a alguien y falta asignarle profesional.
+ *
+ * `sinRespuesta` cambia lo que hay que hacer con ese aviso, no solo cómo se
+ * lee: significa que la persona nunca contestó el tamizaje y que la prioridad
+ * es una suposición del sistema. A esa hay que llamarla, no solo asignarle
+ * profesional.
+ */
+export async function pacienteAdmitido(paciente, { sinRespuesta = false } = {}) {
   await avisarACoordinacion({
     plantilla: 'COORD_PACIENTE_ADMITIDO',
     payload: {
       prioridad: paciente.priority,
       ciudad: paciente.city,
+      sinRespuesta,
       ruta: `/portal/personas/${paciente.id}`,
     },
     entidad: 'paciente',
@@ -235,4 +243,34 @@ export async function reporteRecibido({ reporte, asignacion }) {
 /** En un saludo, el apellido sobra. */
 function primerNombre(nombreCompleto) {
   return String(nombreCompleto ?? '').trim().split(/\s+/)[0] || 'hola'
+}
+
+/**
+ * La persona respondió el tamizaje y contó algo que no puede esperar.
+ *
+ * Se dispara por la RESPUESTA, no por la prioridad: la admisión ya manda su
+ * propio aviso con la prioridad puesta, y avisar dos veces de lo mismo
+ * convierte la bandeja en ruido. Este es el otro asunto —alguien dijo que ha
+ * pensado en hacerse daño, o que no tiene dónde estar— y merece un correo que
+ * se distinga del "entró alguien nuevo a la cola".
+ *
+ * Como siempre: el aviso NO dice quién es ni qué respondió. Dice que hay algo
+ * urgente y dónde mirarlo. Con datos de salud de por medio eso no es un
+ * escrúpulo, es la regla de la red.
+ */
+export async function tamizajeRespondido({ solicitud, respuesta }) {
+  const urgente = respuesta.selfHarmThoughts === true || respuesta.safePlace === false
+  if (!urgente) return
+
+  await avisarACoordinacion({
+    plantilla: 'COORD_TAMIZAJE_ALTA',
+    payload: {
+      ciudad: solicitud.city ?? solicitud.place ?? 'sin especificar',
+      esMenor: solicitud.isMinor === true,
+      ruta: '/portal/solicitudes',
+    },
+    entidad: 'tamizaje',
+    entidadId: respuesta.id,
+    clave: `coord-tamizaje-alta:${respuesta.id}`,
+  })
 }

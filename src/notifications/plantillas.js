@@ -136,15 +136,48 @@ export const PLANTILLAS = {
       boton: { texto: 'Ver las solicitudes', url: urlDelSitio('/portal/solicitudes') },
     }),
 
+  /**
+   * A coordinación: alguien respondió el tamizaje y salió ALTA.
+   *
+   * Este es el aviso más urgente que manda el sistema, y por eso mismo es el
+   * que menos cuenta: detrás puede haber alguien que dijo que ha pensado en
+   * hacerse daño. Eso no viaja por correo. Va el enlace, y quien tenga que
+   * verlo entra al portal y se identifica.
+   */
+  COORD_TAMIZAJE_ALTA: (p) =>
+    armar('URGENTE · alguien necesita acompañamiento hoy', {
+      titulo: 'Hay una solicitud de prioridad alta',
+      parrafos: [
+        'Una persona respondió las preguntas previas y sus respuestas la ponen en prioridad alta.',
+        'Los datos y el motivo están en el portal. Este correo no los incluye a propósito.',
+      ],
+      datos: [
+        `<strong>Desde:</strong> ${p.ciudad}`,
+        p.esMenor ? '<strong>Es menor de edad.</strong>' : null,
+      ].filter(Boolean),
+      boton: { texto: 'Ver la solicitud', url: urlDelSitio(p.ruta) },
+    }),
+
   /** A coordinación: se admitió a alguien y falta asignarle profesional. */
   COORD_PACIENTE_ADMITIDO: (p) =>
     armar(
-      `Persona admitida · prioridad ${(ETIQUETAS_PRIORIDAD[p.prioridad] ?? p.prioridad).toLowerCase()}`,
+      p.sinRespuesta
+        ? 'Persona admitida sin haber respondido · hay que llamarla'
+        : `Persona admitida · prioridad ${(ETIQUETAS_PRIORIDAD[p.prioridad] ?? p.prioridad).toLowerCase()}`,
       {
         titulo: 'Hay alguien esperando profesional',
-        parrafos: ['Se admitió una solicitud y está pendiente de que se le asigne profesional.'],
+        parrafos: [
+          'Se admitió una solicitud y está pendiente de que se le asigne profesional.',
+          // Esto cambia lo que hay que hacer, no solo el tono: la prioridad de
+          // esta persona no la dijo ella, la supuso el sistema.
+          p.sinRespuesta
+            ? 'Nunca respondió las preguntas, así que la entramos igual para que no se quedara fuera de la cola. <strong>No sabemos cómo está</strong>: la prioridad de abajo es una suposición. Vale la pena llamarla antes de asignarle a alguien.'
+            : null,
+        ].filter(Boolean),
         datos: [
-          `<strong>Prioridad:</strong> ${ETIQUETAS_PRIORIDAD[p.prioridad] ?? p.prioridad}`,
+          `<strong>Prioridad:</strong> ${ETIQUETAS_PRIORIDAD[p.prioridad] ?? p.prioridad}${
+            p.sinRespuesta ? ' (supuesta, no respondió)' : ''
+          }`,
           `<strong>Ciudad:</strong> ${p.ciudad}`,
         ],
         boton: { texto: 'Buscarle profesional', url: urlDelSitio(p.ruta) },

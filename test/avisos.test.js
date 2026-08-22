@@ -31,7 +31,8 @@ const CASOS = {
   COORD_POSTULACION: { nombre: 'Ana María Pérez', ciudad: 'Ibagué', profesion: 'Psicología' },
   COORD_APOYO: { nombre: 'Camila Restrepo', disciplina: 'Logística', ciudad: 'Cali' },
   COORD_SOLICITUD: { ciudad: 'Ibagué' },
-  COORD_PACIENTE_ADMITIDO: { prioridad: 'ALTA', ciudad: 'Ibagué', ruta: '/portal/personas/abc' },
+  COORD_PACIENTE_ADMITIDO: { prioridad: 'ALTA', ciudad: 'Ibagué', sinRespuesta: false, ruta: '/portal/personas/abc' },
+  COORD_TAMIZAJE_ALTA: { ciudad: 'Ibagué', esMenor: true, ruta: '/portal/solicitudes' },
 }
 
 describe('plantillas de avisos', () => {
@@ -92,6 +93,28 @@ describe('plantillas de avisos', () => {
     )
   })
 
+  /**
+   * Este es el aviso más delicado del sistema: detrás puede haber alguien que
+   * acaba de decir que ha pensado en hacerse daño. Se distingue en el asunto
+   * —para que no se pierda entre los demás— y no cuenta nada de la persona.
+   */
+  it('el aviso urgente del tamizaje se nota en el asunto y no dice quién es', () => {
+    const { asunto, texto, html } = construir('COORD_TAMIZAJE_ALTA', CASOS.COORD_TAMIZAJE_ALTA)
+    expect(asunto).toContain('URGENTE')
+    expect(texto).toContain('Este correo no los incluye a propósito')
+    expect(html).toContain('/portal/solicitudes')
+    // Ni las respuestas ni la pregunta que las disparó viajan por correo.
+    expect(texto.toLowerCase()).not.toContain('hacerse daño')
+    expect(texto.toLowerCase()).not.toContain('hacerte daño')
+  })
+
+  it('el aviso urgente avisa si es menor de edad, porque cambia a quién se llama', () => {
+    expect(construir('COORD_TAMIZAJE_ALTA', { ...CASOS.COORD_TAMIZAJE_ALTA, esMenor: true }).texto)
+      .toContain('menor de edad')
+    expect(construir('COORD_TAMIZAJE_ALTA', { ...CASOS.COORD_TAMIZAJE_ALTA, esMenor: false }).texto)
+      .not.toContain('menor de edad')
+  })
+
   it('avisa si le piden una plantilla que no existe', () => {
     expect(() => construir('NO_EXISTE', {})).toThrow(/NO_EXISTE/)
   })
@@ -120,5 +143,33 @@ describe('remitente para la API de Brevo', () => {
       name: 'Red Aquí Estamos',
       email: 'no-responder@x.org',
     })
+  })
+})
+
+/**
+ * El aviso de una admisión por silencio no es el mismo aviso con otro tono:
+ * dice que hay que hacer algo distinto. A esa persona nadie le ha preguntado
+ * cómo está, así que su prioridad es una suposición del sistema y hay que
+ * llamarla antes de asignarle profesional.
+ */
+describe('admisión de quien nunca respondió', () => {
+  const base = { prioridad: 'MEDIA', ciudad: 'Ibagué', ruta: '/portal/personas/abc' }
+
+  it('el asunto avisa que hay que llamarla', () => {
+    const { asunto } = construir('COORD_PACIENTE_ADMITIDO', { ...base, sinRespuesta: true })
+    expect(asunto).toContain('sin haber respondido')
+    expect(asunto).toContain('llamarla')
+  })
+
+  it('deja claro que la prioridad es una suposición', () => {
+    const { texto } = construir('COORD_PACIENTE_ADMITIDO', { ...base, sinRespuesta: true })
+    expect(texto).toContain('No sabemos cómo está')
+    expect(texto).toContain('suposición')
+  })
+
+  it('el aviso normal no dice nada de eso', () => {
+    const { asunto, texto } = construir('COORD_PACIENTE_ADMITIDO', { ...base, sinRespuesta: false })
+    expect(asunto).not.toContain('sin haber respondido')
+    expect(texto).not.toContain('No sabemos cómo está')
   })
 })

@@ -16,10 +16,20 @@ export const SupportRequestModel = {
     return prisma.supportRequest.findFirst({ where: { id, ...vivos } })
   },
 
+  /**
+   * La bandeja, con lo que falta por atender arriba.
+   *
+   * El orden es por estado y no por fecha porque esto es una cola de trabajo:
+   * lo que llegó hace una semana y sigue en NUEVO importa más que lo que llegó
+   * ayer y ya se admitió. `SubmissionStatus` está declarado en ese mismo orden
+   * —NUEVO, EN_REVISION, CONTACTADO, ACTIVO, DESCARTADO—, así que `asc` sobre
+   * el enum ya deja lo pendiente primero; dentro de cada estado, lo más
+   * reciente arriba.
+   */
   findAll({ skip = 0, take = 50, status } = {}) {
     return prisma.supportRequest.findMany({
       where: { ...vivos, ...(status ? { status } : {}) },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
       skip,
       take,
     })

@@ -23,7 +23,8 @@
     "db:purgar": "node prisma/purgar.js",
     "db:importar": "node prisma/importarPostulaciones.js",
     "correo:probar": "node prisma/probarCorreo.js",
-    "avisos:despachar": "node prisma/despacharAvisos.js"
+    "avisos:despachar": "node prisma/despacharAvisos.js",
+    "admision:rescatar": "node prisma/admitirSinRespuesta.js"
   },
   "prisma": {
     "seed": "node prisma/seed.js"

@@ -39,6 +39,13 @@ export const env = {
   // Cuanto dura un enlace de caso compartido antes de pedir el correo otra vez.
   sharedCaseTtlHours: Number(process.env.SHARED_CASE_TTL_HOURS ?? 12),
 
+  // Cuanto dura el enlace del tamizaje. Es mucho mas largo que el del caso a
+  // proposito: quien esta en crisis no responde un formulario en el momento en
+  // que le llega el mensaje, y un enlace vencido al dia siguiente significa
+  // que hay que volver a escribirle. Firma con el mismo secreto que el enlace
+  // de caso; lo que separa a los dos es el campo `tipo` del token.
+  triageTtlHours: Number(process.env.TRIAGE_TTL_HOURS ?? 24 * 7),
+
   // Envío de avisos por correo. Se habla SMTP y no la API del proveedor a
   // propósito: cambiar de Brevo a otro es cambiar estas variables, no código.
   // Si SMTP_HOST viene vacío, los avisos se siguen encolando pero no se

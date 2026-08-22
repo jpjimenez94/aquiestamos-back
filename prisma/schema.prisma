@@ -375,8 +375,14 @@ model SupportRequest {
   updatedAt DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
   deletedAt DateTime?        @map("deleted_at") @db.Timestamptz(3)
 
+  /// Lo que respondió en el tamizaje, si lo respondió.
+  triageResponses TriageResponse[]
+
   @@index([createdAt])
   @@index([deletedAt])
+  /// La bandeja se lee por estado: lo NUEVO primero, y dentro de eso lo más
+  /// reciente. Sin este índice esa consulta ordena la tabla entera en memoria.
+  @@index([status, createdAt])
   @@map("support_requests")
 }
 
@@ -533,17 +539,17 @@ model Professional {
   phone    String @db.VarChar(40)
   city     String @db.VarChar(160)
 
-  profession       String                  @db.VarChar(160)
-  yearsExperience  YearsExperience?        @map("years_experience")
-  professionalCard ProfessionalCardStatus? @map("professional_card")
-  professionalCardNumber String?           @map("professional_card_number") @db.VarChar(60)
-  professionalCardDocumentUrl String?      @map("professional_card_document_url") @db.VarChar(500)
-  professionalCardVerified Boolean         @default(false) @map("professional_card_verified")
-  professionalCardVerifiedAt DateTime?     @map("professional_card_verified_at") @db.Timestamptz(3)
-  professionalCardVerifiedBy String?       @map("professional_card_verified_by") @db.VarChar(160)
-  populations      String[]
-  modality         Modality
-  travelsTo        String?                 @map("travels_to") @db.VarChar(200)
+  profession                  String                  @db.VarChar(160)
+  yearsExperience             YearsExperience?        @map("years_experience")
+  professionalCard            ProfessionalCardStatus? @map("professional_card")
+  professionalCardNumber      String?                 @map("professional_card_number") @db.VarChar(60)
+  professionalCardDocumentUrl String?                 @map("professional_card_document_url") @db.VarChar(500)
+  professionalCardVerified    Boolean                 @default(false) @map("professional_card_verified")
+  professionalCardVerifiedAt  DateTime?               @map("professional_card_verified_at") @db.Timestamptz(3)
+  professionalCardVerifiedBy  String?                 @map("professional_card_verified_by") @db.VarChar(160)
+  populations                 String[]
+  modality                    Modality
+  travelsTo                   String?                 @map("travels_to") @db.VarChar(200)
 
   status         ProfessionalStatus @default(PENDIENTE_VALIDACION)
   /// Cuántos acompañamientos simultáneos acepta.
@@ -773,9 +779,9 @@ model Appointment {
   modality Modality
   status   AppointmentStatus @default(PROGRAMADA)
 
-  consentSigned Boolean @default(false) @map("consent_signed")
-  consentSignedDocumentUrl String? @map("consent_signed_document_url") @db.VarChar(500)
-  consentSignedAt DateTime? @map("consent_signed_at") @db.Timestamptz(3)
+  consentSigned            Boolean   @default(false) @map("consent_signed")
+  consentSignedDocumentUrl String?   @map("consent_signed_document_url") @db.VarChar(500)
+  consentSignedAt          DateTime? @map("consent_signed_at") @db.Timestamptz(3)
 
   /// Al reprogramar, la cita no se edita: se cierra y apunta a la nueva.
   rescheduledToId String?      @unique @map("rescheduled_to_id") @db.Uuid
@@ -793,4 +799,80 @@ model Appointment {
   @@index([patientId, startsAt])
   @@index([status, startsAt])
   @@map("appointments")
+}
+
+// ===========================================================================
+// Tamizaje previo a la admisión
+// ===========================================================================
+
+/// Respuestas de tres pasos. Van en enum y no en texto porque son lo que
+/// alimenta el cálculo de la prioridad.
+enum TriageDegree {
+  SI
+  MAS_O_MENOS
+  NO
+}
+
+enum TriageCapacity {
+  SI
+  CON_DIFICULTAD
+  NO
+}
+
+enum TriageUrgency {
+  HOY
+  ESTA_SEMANA
+  PUEDO_ESPERAR
+}
+
+/// Lo que la persona respondió antes de que la admitieran.
+///
+/// Existe porque elegir prioridad al admitir se hacía con lo único que trae el
+/// formulario público —nombre, ciudad y cuándo puede—, que no dice nada de
+/// cómo está hoy. Así la prioridad acababa siendo MEDIA casi siempre y la cola
+/// se ordenaba por fecha de llegada, que es justo lo que la prioridad venía a
+/// evitar.
+///
+/// Es una bitácora, igual que `CaseReport`: se añade, no se corrige. Si alguien
+/// responde otra vez porque su situación cambió, son dos hechos con su fecha,
+/// no una corrección del primero.
+///
+/// Son datos de SALUD. Llevan su propia autorización, aparte de la del
+/// formulario, y no salen nunca en un correo: el aviso lleva un enlace.
+model TriageResponse {
+  id               String         @id @default(uuid()) @db.Uuid
+  supportRequestId String         @map("support_request_id") @db.Uuid
+  supportRequest   SupportRequest @relation(fields: [supportRequestId], references: [id], onDelete: Cascade)
+
+  /// 1. ¿Está en un lugar seguro y tiene lo básico?
+  safePlace        Boolean        @map("safe_place")
+  /// 2. Del 1 al 5, qué tan mal la está pasando. La base exige que esté en rango.
+  distress         Int
+  /// 3. ¿Ha podido dormir y comer?
+  sleepAndEat      TriageDegree   @map("sleep_and_eat")
+  /// 4. ¿Puede con sus cosas del día?
+  dailyFunction    TriageCapacity @map("daily_function")
+  /// 5. ¿Tiene cerca a alguien que la acompañe?
+  hasSupport       Boolean        @map("has_support")
+  /// 6. Pensamientos de hacerse daño. Esta sola respuesta manda el caso a ALTA.
+  selfHarmThoughts Boolean        @map("self_harm_thoughts")
+  /// 7. Qué tan pronto siente que necesita hablar con alguien.
+  howSoon          TriageUrgency  @map("how_soon")
+
+  /// La prioridad que sale de esas respuestas.
+  ///
+  /// Se GUARDA en vez de recalcularse al mostrarla: si mañana se afinan las
+  /// reglas, hay que poder seguir viendo con qué criterio se admitió cada caso.
+  suggestedPriority CasePriority @map("suggested_priority")
+  /// Por qué salió esa prioridad, en frases listas para mostrar en el portal.
+  reasons           String[]
+
+  /// Autorización propia, porque esto es dato de salud.
+  consentVersion       String  @map("consent_version") @db.VarChar(20)
+  sensitiveDataConsent Boolean @default(true) @map("sensitive_data_consent")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([supportRequestId, createdAt])
+  @@map("triage_responses")
 }

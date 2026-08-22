@@ -1,4 +1,7 @@
 import { SupportRequestModel } from '../models/supportRequest.model.js'
+import { TriageResponseModel } from '../models/triageResponse.model.js'
+import { crearEnlaceTamizaje } from '../auth/enlaceTamizaje.js'
+import { DIAS_SIN_RESPUESTA } from '../services/promotion.service.js'
 import { created, ok, failure } from '../views/response.view.js'
 import { solicitudRecibida } from '../notifications/eventos.js'
 import { registrar, ACCION } from '../services/audit.service.js'
@@ -63,6 +66,33 @@ export const SupportRequestController = {
         SupportRequestModel.count({ status }),
       ])
 
+      // El tamizaje de cada fila: el enlace para mandárselo y, si ya respondió,
+      // con qué prioridad salió. El enlace se firma aquí y no se guarda: es
+      // deducible del id de la solicitud, así que almacenarlo sería una copia
+      // más de lo mismo que puede quedar desactualizada.
+      const ultimas = await TriageResponseModel.ultimaDeCada(requests.map((r) => r.id))
+      const porSolicitud = new Map(ultimas.map((t) => [t.supportRequestId, t]))
+
+      const ahora = new Date()
+
+      const conTamizaje = requests.map((request) => {
+        // Cuántos días le quedan antes de que el barrido la admita sola. Va
+        // calculado aquí y no en el portal para que el número salga del mismo
+        // umbral que usa el rescate: dos sitios contando días es un sitio
+        // diciéndole al equipo algo que no va a pasar.
+        const transcurridos = (ahora.getTime() - request.createdAt.getTime()) / 86400000
+        const faltan = Math.max(0, Math.ceil(DIAS_SIN_RESPUESTA - transcurridos))
+
+        return {
+          ...request,
+          tamizaje: {
+            ruta: `/tamizaje/${crearEnlaceTamizaje(request.id)}`,
+            respuesta: porSolicitud.get(request.id) ?? null,
+            diasParaAdmisionAutomatica: faltan,
+          },
+        }
+      })
+
       // Con datos de salud interesa saber también quién CONSULTA, no solo
       // quién edita. Se guarda el hecho y el filtro, nunca el contenido.
       await registrar({
@@ -73,7 +103,7 @@ export const SupportRequestController = {
       })
 
       return res.json(
-        ok(supportRequestListaSegunRol(requests, req.usuario), { page, perPage, total }),
+        ok(supportRequestListaSegunRol(conTamizaje, req.usuario), { page, perPage, total }),
       )
     } catch (error) {
       next(error)

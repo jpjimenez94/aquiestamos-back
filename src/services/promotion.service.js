@@ -124,3 +124,73 @@ export async function admitirSolicitud({ supportRequestId, ajustes = {} }) {
     return paciente
   })
 }
+
+/**
+ * Admisión automática a partir del tamizaje.
+ *
+ * Antes esto lo hacía una persona: abría la bandeja, miraba la solicitud y
+ * elegía prioridad a ojo. Ahora la prioridad sale de lo que respondió quien
+ * pidió ayuda, así que no queda nada que decidir, y esperar a que un
+ * voluntario abra el portal solo añade horas de espera a alguien que ya dijo
+ * cómo está.
+ *
+ * Si ya estaba admitida no se duplica: se le actualiza la prioridad. Quien
+ * responde por segunda vez casi siempre lo hace porque está peor que antes, y
+ * ese es justamente el caso en el que la cola tiene que reordenarse.
+ */
+export async function admitirPorTamizaje({ supportRequestId, prioridad }) {
+  const yaExiste = await PatientModel.findBySupportRequestId(supportRequestId)
+
+  if (yaExiste) {
+    if (yaExiste.priority === prioridad) {
+      return { paciente: yaExiste, nuevo: false, prioridadAnterior: null }
+    }
+    const actualizado = await PatientModel.update(yaExiste.id, { priority: prioridad })
+    return { paciente: actualizado, nuevo: false, prioridadAnterior: yaExiste.priority }
+  }
+
+  const paciente = await admitirSolicitud({
+    supportRequestId,
+    ajustes: { priority: prioridad },
+  })
+  return { paciente, nuevo: true, prioridadAnterior: null }
+}
+
+/**
+ * Cuántos días se espera la respuesta al tamizaje antes de admitir igual.
+ *
+ * Son dos y no tres a propósito. La prioridad que se le pone es MEDIA, que
+ * significa «en los próximos días»: si el rescate tardara tres, alguien que
+ * pidió ayuda estaría a casi una semana de que le busquen profesional. Errar
+ * por admitir de más cuesta una llamada; errar por admitir de menos cuesta que
+ * la persona nunca aparezca en la cola.
+ */
+export const DIAS_SIN_RESPUESTA = Number(process.env.ADMISION_AUTOMATICA_DIAS ?? 2)
+
+/**
+ * Con qué prioridad entra quien nunca respondió el tamizaje.
+ *
+ * MEDIA, porque no sabemos cómo está: ponerla en BAJA sería decidir que puede
+ * esperar sin que nadie lo haya comprobado, y en ALTA sería llenar de urgencias
+ * falsas la cola y volver la etiqueta inútil.
+ *
+ * La excepción es la misma que en el tamizaje: en un menor de edad, MEDIA sube
+ * a ALTA. No puede gestionar su propia espera, y quien responde por él puede
+ * no estar viendo lo mismo.
+ */
+export function prioridadPorSilencio(solicitud) {
+  return solicitud?.isMinor === true ? 'ALTA' : 'MEDIA'
+}
+
+/**
+ * ¿Le toca ya el rescate a esta solicitud?
+ *
+ * Se mide desde que llegó y no desde que se le mandó el enlace, porque el
+ * enlace no deja rastro de cuándo se envió: se firma en el momento de pintar
+ * la fila. Medir desde la llegada además es lo correcto para el caso que de
+ * verdad importa, que es el de la solicitud a la que nadie le mandó nada.
+ */
+export function toca(solicitud, { ahora = new Date(), dias = DIAS_SIN_RESPUESTA } = {}) {
+  const transcurridos = (ahora.getTime() - new Date(solicitud.createdAt).getTime()) / 86400000
+  return transcurridos >= dias
+}
