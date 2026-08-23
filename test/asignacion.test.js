@@ -119,3 +119,26 @@ describe('la respuesta del profesional', () => {
     expect(respuestaPropuestaSchema.safeParse({}).success).toBe(false)
   })
 })
+
+describe('las franjas del profesional, en palabras', () => {
+  /**
+   * El error de "fuera de franja" tiene que decir cuáles SÍ son las franjas.
+   * Estas pruebas fijan el formato: día en palabras, hora de 12, orden de la
+   * semana y no del enum.
+   */
+  it('convierte las reglas a algo que se pueda leer en un mensaje', async () => {
+    const { describirFranjas } = await import('../src/services/scheduling.service.js')
+    expect(
+      describirFranjas([
+        { weekday: 'MIERCOLES', startMinute: 840, endMinute: 1080 },
+        { weekday: 'LUNES', startMinute: 480, endMinute: 720 },
+      ]),
+    ).toBe('lunes de 8:00 a. m. a 12:00 p. m., miércoles de 2:00 p. m. a 6:00 p. m.')
+  })
+
+  it('sin reglas devuelve null, para que el mensaje diga que no hay ninguna', async () => {
+    const { describirFranjas } = await import('../src/services/scheduling.service.js')
+    expect(describirFranjas([])).toBeNull()
+    expect(describirFranjas(null)).toBeNull()
+  })
+})

@@ -168,6 +168,48 @@ export async function dentroDeDisponibilidad({ professionalId, inicio, fin }) {
   return excepcion ? { cabe: false, motivo: 'BLOQUEO' } : { cabe: true }
 }
 
+const DIA_LARGO = {
+  LUNES: 'lunes', MARTES: 'martes', MIERCOLES: 'miércoles', JUEVES: 'jueves',
+  VIERNES: 'viernes', SABADO: 'sábados', DOMINGO: 'domingos',
+}
+
+/** 870 → "2:30 p. m.". Los minutos de las reglas son hora local de Bogotá. */
+function horaLegible(minutos) {
+  const h24 = Math.floor(minutos / 60)
+  const m = minutos % 60
+  const sufijo = h24 < 12 ? 'a. m.' : 'p. m.'
+  const h12 = h24 % 12 === 0 ? 12 : h24 % 12
+  return `${h12}:${String(m).padStart(2, '0')} ${sufijo}`
+}
+
+/**
+ * Las franjas declaradas de un profesional, en palabras: "lunes de 8:00 a. m.
+ * a 12:00 p. m., miércoles de 2:00 p. m. a 6:00 p. m.".
+ *
+ * Existe para los mensajes de error: decirle a quien coordina "está fuera de
+ * las franjas" sin decirle cuáles son las franjas la obliga a irse a otra
+ * pantalla a averiguar lo que el sistema ya sabía.
+ */
+export async function franjasEnPalabras(professionalId) {
+  const reglas = await prisma.availabilityRule.findMany({
+    where: { professionalId, active: true },
+  })
+  return describirFranjas(reglas)
+}
+
+/** La parte pura, para poder probarla sin base de datos. */
+export function describirFranjas(reglas) {
+  if (!reglas?.length) return null
+
+  // En el orden de la semana, no en el del enum de la base.
+  const ORDEN = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO', 'DOMINGO']
+  return reglas
+    .slice()
+    .sort((a, b) => ORDEN.indexOf(a.weekday) - ORDEN.indexOf(b.weekday) || a.startMinute - b.startMinute)
+    .map((r) => `${DIA_LARGO[r.weekday] ?? r.weekday} de ${horaLegible(r.startMinute)} a ${horaLegible(r.endMinute)}`)
+    .join(', ')
+}
+
 /** Cuántos casos activos lleva cada profesional. Se calcula, no se guarda. */
 export async function cargaActual(professionalIds) {
   const filas = await prisma.caseAssignment.groupBy({

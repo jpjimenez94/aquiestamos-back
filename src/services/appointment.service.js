@@ -7,7 +7,7 @@ import { CaseAssignmentModel } from '../models/caseAssignment.model.js'
 import { DomainError } from '../errors/DomainError.js'
 import { exigirTransicion, ESTADOS } from './appointmentState.service.js'
 import { exigirTransicion as exigirTransicionAsignacion } from './assignmentState.service.js'
-import { dentroDeDisponibilidad, DURACION_MINIMA, DESCANSO } from './scheduling.service.js'
+import { dentroDeDisponibilidad, franjasEnPalabras, DURACION_MINIMA, DESCANSO } from './scheduling.service.js'
 
 /**
  * SERVICIO: citas.
@@ -116,11 +116,21 @@ export async function crearCita({
   const saltable = permitirFueraDeFranja && disponibilidad.motivo === 'FUERA_DE_FRANJA'
 
   if (!disponibilidad.cabe && !saltable) {
+    if (disponibilidad.motivo === 'BLOQUEO') {
+      throw new DomainError(
+        'BLOQUEO_DE_AGENDA',
+        `${profesional.fullName} tiene ese rato bloqueado en su agenda.`,
+      )
+    }
+
+    // El error dice cuáles SÍ son sus franjas: sin eso, quien coordina tiene
+    // que irse a otra pantalla a averiguar lo que el sistema ya sabía.
+    const franjas = await franjasEnPalabras(professionalId)
     throw new DomainError(
-      disponibilidad.motivo === 'BLOQUEO' ? 'BLOQUEO_DE_AGENDA' : 'FUERA_DE_FRANJA',
-      disponibilidad.motivo === 'BLOQUEO'
-        ? `${profesional.fullName} tiene ese rato bloqueado en su agenda.`
-        : `Ese horario está fuera de las franjas que declaró ${profesional.fullName}.`,
+      'FUERA_DE_FRANJA',
+      franjas
+        ? `Ese horario está fuera de las franjas que declaró ${profesional.fullName}. Declaró: ${franjas}.`
+        : `Ese horario está fuera de las franjas de ${profesional.fullName}, que no tiene ninguna franja cargada.`,
     )
   }
 
