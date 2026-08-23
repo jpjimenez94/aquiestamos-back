@@ -1,6 +1,8 @@
 import { PatientModel } from '../models/patient.model.js'
 import { CaseAssignmentModel } from '../models/caseAssignment.model.js'
 import { CaseReportModel } from '../models/caseReport.model.js'
+import { AppointmentModel } from '../models/appointment.model.js'
+import { cita } from '../views/appointment.view.js'
 import { admitirSolicitud } from '../services/promotion.service.js'
 import { reporte } from '../views/caseReport.view.js'
 import { pacienteAdmitido } from '../notifications/eventos.js'
@@ -51,6 +53,11 @@ export const PatientController = {
       // ver si un caso se quedó estancado.
       const reportes = await CaseReportModel.findDePaciente(paciente.id)
 
+      // Las citas van en la misma ficha: quien coordina no debería tener que
+      // irse a la agenda a buscar cuándo es. La vista ya trae la hora en
+      // Bogotá y quién es el profesional.
+      const citas = await AppointmentModel.findDePaciente(paciente.id)
+
       await registrar({
         req,
         action: ACCION.CONSULTAR,
@@ -94,6 +101,7 @@ export const PatientController = {
             ...reporte(r),
             profesional: r.assignment?.professional?.fullName ?? null,
           })),
+          citas: citas.map(cita),
         }),
       )
     } catch (error) {
