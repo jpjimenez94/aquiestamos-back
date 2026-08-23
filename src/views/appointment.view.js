@@ -28,7 +28,14 @@ export function cita(c) {
     motivoCancelacion: c.cancelReason,
     reprogramadaA: c.rescheduledToId,
     profesional: c.professional
-      ? { id: c.professional.id, nombre: c.professional.fullName, telefono: c.professional.phone }
+      ? {
+          id: c.professional.id,
+          nombre: c.professional.fullName,
+          telefono: c.professional.phone,
+          professionalCardVerified: c.professional.professionalCardVerified ?? false,
+          professionalCardNumber: c.professional.professionalCardNumber ?? null,
+          professionalCardDocumentUrl: c.professional.professionalCardDocumentUrl ?? null,
+        }
       : { id: c.professionalId },
     paciente: c.patient
       ? {

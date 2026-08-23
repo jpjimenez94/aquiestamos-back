@@ -17,6 +17,8 @@ import { ok, created, failure } from '../views/response.view.js'
 import { cita as citaVista, citaLista, citaListaParaProfesional } from '../views/appointment.view.js'
 import { huecoLista } from '../views/availability.view.js'
 import { DomainError } from '../errors/DomainError.js'
+import { crearEnlaceConsentimiento } from '../auth/enlaceConsentimiento.js'
+import { env } from '../config/env.js'
 
 /** Lee un rango de fechas de la query, con valores por defecto sensatos. */
 function rangoDe(query, diasPorDefecto = 7) {
@@ -131,7 +133,20 @@ export const AppointmentController = {
     try {
       const encontrada = await AppointmentModel.findById(req.params.id)
       if (!encontrada) return res.status(404).json(failure('Cita no encontrada'))
-      return res.json(ok(citaVista(encontrada)))
+
+      /**
+       * El enlace de firma va COMPLETO y sale de SITIO_URL, como el del
+       * tamizaje y por la misma cicatriz: armado en el navegador, quien
+       * trabaja en local le manda a una persona un enlace a localhost.
+       */
+      return res.json(
+        ok({
+          ...citaVista(encontrada),
+          consentimiento: {
+            enlace: `${env.sitioUrl.replace(/\/$/, '')}/consentimiento/${crearEnlaceConsentimiento(encontrada.id)}`,
+          },
+        }),
+      )
     } catch (error) {
       next(error)
     }

@@ -1,7 +1,19 @@
 import { prisma } from '../config/database.js'
 
 const CON_PERSONAS = {
-  professional: { select: { id: true, fullName: true, phone: true, email: true } },
+  professional: {
+    select: {
+      id: true,
+      fullName: true,
+      phone: true,
+      email: true,
+      // El detalle de la cita enseña el paso legal de la tarjeta. Sin estos
+      // campos el portal decía "Sin verificar" siempre, verificada o no.
+      professionalCardVerified: true,
+      professionalCardNumber: true,
+      professionalCardDocumentUrl: true,
+    },
+  },
   patient: { select: { id: true, fullName: true, phone: true, email: true, isMinor: true } },
 }
 
