@@ -7,7 +7,14 @@ import { CaseAssignmentModel } from '../models/caseAssignment.model.js'
 import { DomainError } from '../errors/DomainError.js'
 import { exigirTransicion, ESTADOS } from './appointmentState.service.js'
 import { exigirTransicion as exigirTransicionAsignacion } from './assignmentState.service.js'
-import { dentroDeDisponibilidad, franjasEnPalabras, DURACION_MINIMA, DESCANSO } from './scheduling.service.js'
+import {
+  dentroDeDisponibilidad,
+  dentroDeLoOfrecido,
+  franjasEnPalabras,
+  ofertaEnPalabras,
+  DURACION_MINIMA,
+  DESCANSO,
+} from './scheduling.service.js'
 
 /**
  * SERVICIO: citas.
@@ -109,11 +116,32 @@ export async function crearCita({
 
   const disponibilidad = await dentroDeDisponibilidad({ professionalId, inicio, fin })
 
-  // Un BLOQUEO no se salta nunca: si dijo "estas dos semanas no estoy", no
-  // está. Lo que sí se puede saltar es la franja declarada, y solo cuando
-  // quien coordina lo marca a mano porque el profesional aceptó ese horario
-  // concreto: eso es un dato más fresco que sus reglas de disponibilidad.
-  const saltable = permitirFueraDeFranja && disponibilidad.motivo === 'FUERA_DE_FRANJA'
+  // Si ya existe una asignación activa, la cita cuelga de ella. Se busca
+  // antes de validar porque trae la otra fuente de disponibilidad: lo que el
+  // profesional ofreció PARA ESTE CASO desde su enlace.
+  const asignacion = await CaseAssignmentModel.findAbiertaDePaciente(patientId)
+
+  /**
+   * Un BLOQUEO no se salta nunca: si dijo "estas dos semanas no estoy", no
+   * está. La franja de su agenda de perfil sí se puede saltar, por dos vías:
+   *
+   * - El horario cae en lo que él ofreció para este caso. Eso no es saltarse
+   *   nada: es su palabra más reciente, y frenar aquí sería pedirle permiso a
+   *   quien coordina para hacer lo que el profesional ya autorizó.
+   * - Quien coordina lo marca a mano, porque el profesional aceptó ese
+   *   horario concreto por fuera de todo lo que había dicho.
+   */
+  const ofrecido =
+    asignacion != null &&
+    dentroDeLoOfrecido({
+      dias: asignacion.acceptedDays ?? [],
+      franjas: asignacion.acceptedSlots ?? [],
+      inicio,
+      fin,
+    })
+
+  const saltable =
+    (permitirFueraDeFranja || ofrecido) && disponibilidad.motivo === 'FUERA_DE_FRANJA'
 
   if (!disponibilidad.cabe && !saltable) {
     if (disponibilidad.motivo === 'BLOQUEO') {
@@ -123,19 +151,19 @@ export async function crearCita({
       )
     }
 
-    // El error dice cuáles SÍ son sus franjas: sin eso, quien coordina tiene
-    // que irse a otra pantalla a averiguar lo que el sistema ya sabía.
+    // El error enseña las dos fuentes: la agenda del perfil y lo ofrecido
+    // para el caso. Sin eso, quien coordina ve una contradicción («el mensaje
+    // dice miércoles noche y esto dice lunes mañana») sin saber de dónde sale.
     const franjas = await franjasEnPalabras(professionalId)
-    throw new DomainError(
-      'FUERA_DE_FRANJA',
+    const oferta = ofertaEnPalabras(asignacion?.acceptedDays, asignacion?.acceptedSlots)
+    const partes = [
       franjas
-        ? `Ese horario está fuera de las franjas que declaró ${profesional.fullName}. Declaró: ${franjas}.`
-        : `Ese horario está fuera de las franjas de ${profesional.fullName}, que no tiene ninguna franja cargada.`,
-    )
+        ? `Ese horario está por fuera de la agenda de ${profesional.fullName} (declaró: ${franjas})`
+        : `Ese horario está por fuera de la agenda de ${profesional.fullName}, que no tiene franjas cargadas`,
+      oferta ? ` y de lo que ofreció para este caso (${oferta}).` : '.',
+    ]
+    throw new DomainError('FUERA_DE_FRANJA', partes.join(''))
   }
-
-  // Si ya existe una asignación activa, la cita cuelga de ella.
-  const asignacion = await CaseAssignmentModel.findAbiertaDePaciente(patientId)
 
   try {
     const cita = await AppointmentModel.create({

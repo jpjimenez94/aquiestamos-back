@@ -142,3 +142,65 @@ describe('las franjas del profesional, en palabras', () => {
     expect(describirFranjas(null)).toBeNull()
   })
 })
+
+describe('lo que el profesional ofreció para el caso', () => {
+  /**
+   * La agenda del perfil puede estar vieja; lo que respondió al aceptar no.
+   * Si la cita cae en lo que él ofreció, no hay nada que confirmar a mano.
+   * Las horas son de Bogotá: el 26-08-2026 es miércoles y las 7 p. m. caen
+   * en la franja NOCHE (6 a 9).
+   */
+  it('la cita del miércoles a las 7 p. m. cae en «miércoles en la noche»', async () => {
+    const { dentroDeLoOfrecido } = await import('../src/services/scheduling.service.js')
+    expect(
+      dentroDeLoOfrecido({
+        dias: ['MIERCOLES'],
+        franjas: ['NOCHE'],
+        inicio: new Date('2026-08-27T00:00:00Z'), // mié 7:00 p. m. en Bogotá
+        fin: new Date('2026-08-27T00:45:00Z'),
+      }),
+    ).toBe(true)
+  })
+
+  it('el lunes en la mañana NO cae en «miércoles en la noche»', async () => {
+    const { dentroDeLoOfrecido } = await import('../src/services/scheduling.service.js')
+    expect(
+      dentroDeLoOfrecido({
+        dias: ['MIERCOLES'],
+        franjas: ['NOCHE'],
+        inicio: new Date('2026-08-24T14:00:00Z'), // lun 9:00 a. m. en Bogotá
+        fin: new Date('2026-08-24T14:45:00Z'),
+      }),
+    ).toBe(false)
+  })
+
+  it('si solo dio días, cualquier hora de esos días cuenta', async () => {
+    const { dentroDeLoOfrecido } = await import('../src/services/scheduling.service.js')
+    expect(
+      dentroDeLoOfrecido({
+        dias: ['MIERCOLES'],
+        franjas: [],
+        inicio: new Date('2026-08-26T14:00:00Z'), // mié 9:00 a. m. en Bogotá
+        fin: new Date('2026-08-26T14:45:00Z'),
+      }),
+    ).toBe(true)
+  })
+
+  it('si no dio nada, no ofreció nada: la casilla sigue mandando', async () => {
+    const { dentroDeLoOfrecido } = await import('../src/services/scheduling.service.js')
+    expect(
+      dentroDeLoOfrecido({
+        dias: [],
+        franjas: [],
+        inicio: new Date('2026-08-27T00:00:00Z'),
+        fin: new Date('2026-08-27T00:45:00Z'),
+      }),
+    ).toBe(false)
+  })
+
+  it('la oferta se puede decir en palabras para el mensaje de error', async () => {
+    const { ofertaEnPalabras } = await import('../src/services/scheduling.service.js')
+    expect(ofertaEnPalabras(['MIERCOLES'], ['NOCHE'])).toBe('miércoles en la noche')
+    expect(ofertaEnPalabras([], [])).toBeNull()
+  })
+})

@@ -1,5 +1,5 @@
 import { prisma } from '../config/database.js'
-import { deLocalAUtc, diaDeLaSemana, diasEntre, partesLocales } from './timezone.service.js'
+import { deLocalAUtc, diaDeLaSemana, diasEntre, minutosDelDia, partesLocales, FRANJAS } from './timezone.service.js'
 import { DomainError } from '../errors/DomainError.js'
 import { VIVOS } from './assignmentState.service.js'
 
@@ -168,6 +168,32 @@ export async function dentroDeDisponibilidad({ professionalId, inicio, fin }) {
   return excepcion ? { cabe: false, motivo: 'BLOQUEO' } : { cabe: true }
 }
 
+/**
+ * ¿Cae este horario dentro de lo que el profesional ofreció PARA ESTE CASO?
+ *
+ * Es la otra fuente de disponibilidad, y la más fresca: los días y franjas
+ * que él mismo dejó en su enlace al aceptar. Si dijo «miércoles en la noche»
+ * y la cita es el miércoles a las 7, frenar con «fuera de franja» es pedirle
+ * permiso a quien coordina para hacer lo que el profesional ya autorizó por
+ * escrito. Su agenda de perfil puede estar vieja; esta respuesta no.
+ *
+ * Si solo dio días, cualquier hora de esos días cuenta; si solo dio franjas,
+ * cualquier día en esas franjas. Si no dio nada, no ofreció nada.
+ */
+export function dentroDeLoOfrecido({ dias = [], franjas = [], inicio, fin }) {
+  if (dias.length === 0 && franjas.length === 0) return false
+
+  const diaOk = dias.length === 0 || dias.includes(diaDeLaSemana(inicio))
+  const franjaOk =
+    franjas.length === 0 ||
+    franjas.some((f) => {
+      const rango = FRANJAS[f]
+      return rango && minutosDelDia(inicio) >= rango.desde && minutosDelDia(fin) <= rango.hasta
+    })
+
+  return diaOk && franjaOk
+}
+
 const DIA_LARGO = {
   LUNES: 'lunes', MARTES: 'martes', MIERCOLES: 'miércoles', JUEVES: 'jueves',
   VIERNES: 'viernes', SABADO: 'sábados', DOMINGO: 'domingos',
@@ -208,6 +234,16 @@ export function describirFranjas(reglas) {
     .sort((a, b) => ORDEN.indexOf(a.weekday) - ORDEN.indexOf(b.weekday) || a.startMinute - b.startMinute)
     .map((r) => `${DIA_LARGO[r.weekday] ?? r.weekday} de ${horaLegible(r.startMinute)} a ${horaLegible(r.endMinute)}`)
     .join(', ')
+}
+
+const FRANJA_LARGA = { MANANA: 'en la mañana', TARDE: 'en la tarde', NOCHE: 'en la noche' }
+
+/** «miércoles y jueves en la noche» — lo ofrecido para el caso, en palabras. */
+export function ofertaEnPalabras(dias = [], franjas = []) {
+  if (dias.length === 0 && franjas.length === 0) return null
+  const d = dias.map((x) => DIA_LARGO[x] ?? x.toLowerCase()).join(' y ')
+  const f = franjas.map((x) => FRANJA_LARGA[x] ?? x.toLowerCase()).join(' y ')
+  return [d, f].filter(Boolean).join(' ')
 }
 
 /** Cuántos casos activos lleva cada profesional. Se calcula, no se guarda. */
