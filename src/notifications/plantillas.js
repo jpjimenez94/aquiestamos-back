@@ -191,6 +191,19 @@ export const PLANTILLAS = {
       boton: { texto: 'Buscarle otro profesional', url: urlDelSitio(p.ruta) },
     }),
 
+  /** A coordinación: el barrido liberó una asignación vencida por silencio. */
+  COORD_ASIGNACION_VENCIDA: (p) =>
+    armar('Un caso volvió a la cola por falta de respuesta', {
+      titulo: 'Hay que proponérselo a otro profesional',
+      parrafos: [
+        p.tramo === 'profesional'
+          ? `<strong>${p.profesional}</strong> no respondió a la propuesta a tiempo, así que el sistema liberó el caso.`
+          : `La persona no confirmó horario con <strong>${p.profesional}</strong> a tiempo, así que el sistema liberó el caso.`,
+        'El cupo del profesional quedó libre y la persona volvió a la cola de pendientes por asignar.',
+      ],
+      boton: { texto: 'Buscarle otro profesional', url: urlDelSitio(p.ruta) },
+    }),
+
   /** A coordinación: se admitió a alguien y falta asignarle profesional. */
   COORD_PACIENTE_ADMITIDO: (p) =>
     armar(

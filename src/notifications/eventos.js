@@ -285,6 +285,24 @@ export async function tamizajeRespondido({ solicitud, respuesta }) {
  *
  * Como siempre, el aviso no dice a quién acompaña: lleva un enlace.
  */
+/**
+ * El barrido liberó una asignación que se murió de silencio. A coordinación,
+ * que es quien tiene que proponerle el caso a otro profesional.
+ */
+export async function asignacionVencida({ asignacion, profesional, tramo }) {
+  await avisarACoordinacion({
+    plantilla: 'COORD_ASIGNACION_VENCIDA',
+    payload: {
+      profesional: profesional.fullName,
+      tramo,
+      ruta: `/portal/personas/${asignacion.patientId}`,
+    },
+    entidad: 'asignacion',
+    entidadId: asignacion.id,
+    clave: `coord-vencida:${asignacion.id}`,
+  })
+}
+
 export async function propuestaRespondida({ asignacion, profesional }) {
   await avisarACoordinacion({
     plantilla: asignacion.status === 'ACEPTADA' ? 'COORD_PROPUESTA_ACEPTADA' : 'COORD_PROPUESTA_RECHAZADA',

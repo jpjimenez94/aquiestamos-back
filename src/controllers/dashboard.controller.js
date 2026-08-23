@@ -1,5 +1,6 @@
 import { prisma } from '../config/database.js'
 import { VIVOS } from '../services/assignmentState.service.js'
+import { PROPUESTA_VENCE_DIAS, ACEPTADA_VENCE_DIAS } from '../asignacion/barrido.js'
 import { ok } from '../views/response.view.js'
 import { formatearLocal } from '../services/timezone.service.js'
 
@@ -87,10 +88,20 @@ export const DashboardController = {
   /**
    * GET /api/dashboard/tablero
    *
-   * Devuelve todos los casos activos agrupados en las 5 columnas del pipeline
-   * de gestión. Incluye la asignación activa del profesional y el estado de
-   * verificación de la tarjeta profesional, para poder separar la columna 2
-   * (asignados sin TP verificada) de la columna 3 (listos para agendar).
+   * Devuelve todos los casos activos agrupados en las 5 columnas del pipeline,
+   * que siguen la máquina de estados de la asignación — no la verificación de
+   * la tarjeta profesional, que es un trámite del profesional (vive en
+   * postulaciones) y no una etapa del caso:
+   *
+   *   1. porAsignar          sin negociación abierta
+   *   2. esperandoProfesional PROPUESTA: le llegó el enlace, no ha respondido
+   *   3. porCuadrarHorario    ACEPTADA: dijo sí, falta que la persona confirme
+   *   4. citasAbiertas        PROGRAMADA (horario propuesto) / CONFIRMADA
+   *   5. enAcompanamiento     ACTIVA
+   *
+   * Las columnas 2 y 3 llevan cuántos días faltan para que el barrido libere
+   * la asignación, con el mismo umbral que usa el barrido: dos sitios contando
+   * días es un sitio mintiendo. La TP sin verificar va como aviso en la card.
    */
   async tablero(req, res, next) {
     try {
@@ -164,6 +175,33 @@ export const DashboardController = {
             ? {
                 id: asignacion.id,
                 desde: asignacion.startedAt,
+                estado: asignacion.status,
+                // Lo que el profesional ofreció al aceptar, para que quien
+                // coordina lo vea sin abrir la ficha.
+                diasOfrecidos: asignacion.acceptedDays ?? [],
+                franjasOfrecidas: asignacion.acceptedSlots ?? [],
+                notaDisponibilidad: asignacion.availabilityNote ?? null,
+                // Cuántos días faltan para que el barrido libere el caso. El
+                // reloj de la PROPUESTA corre desde que se propuso; el de la
+                // ACEPTADA, desde que el profesional respondió.
+                venceEnDias:
+                  asignacion.status === 'PROPUESTA'
+                    ? Math.max(
+                        0,
+                        Math.ceil(
+                          PROPUESTA_VENCE_DIAS -
+                            (Date.now() - new Date(asignacion.startedAt).getTime()) / 86400000,
+                        ),
+                      )
+                    : asignacion.status === 'ACEPTADA' && asignacion.respondedAt
+                      ? Math.max(
+                          0,
+                          Math.ceil(
+                            ACEPTADA_VENCE_DIAS -
+                              (Date.now() - new Date(asignacion.respondedAt).getTime()) / 86400000,
+                          ),
+                        )
+                      : null,
                 profesional: {
                   id: asignacion.professional.id,
                   nombre: asignacion.professional.fullName,
@@ -177,25 +215,19 @@ export const DashboardController = {
         }
       }
 
-      // IDs de pacientes con cita activa
-      const pacientesConCita = new Set(citasAbiertas.map((c) => c.patient.id))
-
-      // Columnas del pipeline
+      // Columnas del pipeline: la 1 por ausencia de negociación, la 2 y la 3
+      // por el estado de la asignación, la 4 por las citas y la 5 por el
+      // estado del paciente.
       const porAsignar = pacientes
         .filter((p) => (p.status === 'NUEVO' || p.status === 'EN_ADMISION') && p.assignments.length === 0)
         .map(mapearPaciente)
 
-      const enVerificacionTP = pacientes
-        .filter((p) => p.assignments.length > 0 && !p.assignments[0].professional.professionalCardVerified)
+      const esperandoProfesional = pacientes
+        .filter((p) => p.assignments[0]?.status === 'PROPUESTA')
         .map(mapearPaciente)
 
-      const listasParaAgendar = pacientes
-        .filter(
-          (p) =>
-            p.assignments.length > 0 &&
-            p.assignments[0].professional.professionalCardVerified &&
-            !pacientesConCita.has(p.id),
-        )
+      const porCuadrarHorario = pacientes
+        .filter((p) => p.assignments[0]?.status === 'ACEPTADA')
         .map(mapearPaciente)
 
       const enAcompanamiento = pacientes
@@ -205,8 +237,8 @@ export const DashboardController = {
       return res.json(
         ok({
           porAsignar,
-          enVerificacionTP,
-          listasParaAgendar,
+          esperandoProfesional,
+          porCuadrarHorario,
           citasAbiertas: citasAbiertas.map((c) => ({
             id: c.id,
             inicio: c.startsAt,

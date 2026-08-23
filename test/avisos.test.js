@@ -45,6 +45,11 @@ const CASOS = {
     motivo: 'Me queda muy lejos',
     ruta: '/portal/personas/abc',
   },
+  COORD_ASIGNACION_VENCIDA: {
+    profesional: 'Ana María Pérez',
+    tramo: 'profesional',
+    ruta: '/portal/personas/abc',
+  },
 }
 
 describe('plantillas de avisos', () => {
@@ -216,5 +221,33 @@ describe('avisos de la propuesta', () => {
       expect(texto).not.toMatch(/d{7,}/)
       expect(texto).toContain('/portal/personas/abc')
     }
+  })
+})
+
+describe('aviso de asignación vencida', () => {
+  /**
+   * El barrido cancela por dos silencios distintos y el aviso tiene que decir
+   * cuál fue: no es lo mismo un profesional que no contesta —dato para el
+   * emparejamiento— que una persona que no confirmó.
+   */
+  it('dice que fue el profesional el que no respondió', () => {
+    const { html } = construir('COORD_ASIGNACION_VENCIDA', {
+      profesional: 'Ana María Pérez',
+      tramo: 'profesional',
+      ruta: '/portal/personas/abc',
+    })
+    expect(html).toContain('no respondió a la propuesta')
+    expect(html).toContain('volvió a la cola')
+  })
+
+  it('dice que fue la persona la que no confirmó, sin nombrarla', () => {
+    const { html, texto } = construir('COORD_ASIGNACION_VENCIDA', {
+      profesional: 'Ana María Pérez',
+      tramo: 'persona',
+      ruta: '/portal/personas/abc',
+    })
+    expect(html).toContain('no confirmó horario')
+    // El nombre que sale es el del profesional; la persona va como enlace.
+    expect(texto).not.toMatch(/paciente:/i)
   })
 })
