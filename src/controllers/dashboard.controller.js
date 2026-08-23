@@ -97,7 +97,8 @@ export const DashboardController = {
    *   2. esperandoProfesional PROPUESTA: le llegó el enlace, no ha respondido
    *   3. porCuadrarHorario    ACEPTADA: dijo sí, falta que la persona confirme
    *   4. citasAbiertas        PROGRAMADA (horario propuesto) / CONFIRMADA
-   *   5. enAcompanamiento     ACTIVA
+   *   5. enAcompanamiento     ACTIVA y sin cita abierta: la cita ya pasó,
+   *                           toca seguimiento
    *   6. cerrados             los últimos 15, para que cerrar no sea desaparecer
    *
    * Las columnas 2 y 3 llevan cuántos días faltan para que el barrido libere
@@ -237,11 +238,19 @@ export const DashboardController = {
         .filter((p) => p.assignments[0]?.status === 'ACEPTADA')
         .map(mapearPaciente)
 
-      // ACTIVA en la asignación, no EN_ACOMPANAMIENTO en el paciente: la
-      // máquina de estados es la fuente de verdad, y los casos legacy tienen
-      // el paciente en ASIGNADO con la asignación perfectamente activa.
+      /**
+       * ACTIVA en la asignación, no EN_ACOMPANAMIENTO en el paciente: la
+       * máquina de estados es la fuente de verdad, y los casos legacy tienen
+       * el paciente en ASIGNADO con la asignación perfectamente activa.
+       *
+       * Y sin cita abierta: mientras hay una cita sobre la mesa el caso vive
+       * en la columna 4, no en las dos a la vez. A esta columna se llega
+       * cuando la cita ya pasó o se marcó realizada — que es cuando de verdad
+       * toca el seguimiento: leer el reporte, agendar la siguiente o cerrar.
+       */
+      const conCitaAbierta = new Set(citasAbiertas.map((c) => c.patient.id))
       const enAcompanamiento = pacientes
-        .filter((p) => p.assignments[0]?.status === 'ACTIVA')
+        .filter((p) => p.assignments[0]?.status === 'ACTIVA' && !conCitaAbierta.has(p.id))
         .map(mapearPaciente)
 
       // Los cerrados recientes, para que cerrar no sea desaparecer: quien
