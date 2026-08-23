@@ -152,22 +152,21 @@ export async function crearCita({
     }
 
     /**
-     * El error enseña las dos fuentes, y EN ESE ORDEN: primero lo que ofreció
-     * para este caso —que es el dato que manda—, después su agenda general.
-     * Al revés se leía como «el profesional dijo lunes», cuando lo que dijo
-     * para esta persona fue otra cosa.
+     * El error solo enseña lo que el profesional respondió al aceptar ESTE
+     * caso: esa es su palabra para esta persona y el único dato contra el que
+     * quien coordina debe cuadrar. Su agenda general de perfil no se mienta
+     * aquí —puede estar vieja y mezclarla es lo que hacía que el error dijera
+     * «lunes» cuando para este caso él dijo «miércoles»—. Solo cuando no hay
+     * oferta (una cita sin negociación de por medio) se cae a la agenda,
+     * porque no queda otra fuente.
      */
-    const franjas = await franjasEnPalabras(professionalId)
     const oferta = ofertaEnPalabras(asignacion?.acceptedDays, asignacion?.acceptedSlots)
 
     let mensaje
     if (oferta) {
-      mensaje =
-        `Ese horario no está en lo que ${profesional.fullName} ofreció para este caso (${oferta})` +
-        (franjas
-          ? `, ni en su agenda general (${franjas}).`
-          : `; tampoco tiene franjas cargadas en su agenda.`)
+      mensaje = `Ese horario no está en lo que ${profesional.fullName} ofreció para este caso. Ofreció: ${oferta}.`
     } else {
+      const franjas = await franjasEnPalabras(professionalId)
       mensaje = franjas
         ? `Ese horario está por fuera de la agenda de ${profesional.fullName} (declaró: ${franjas}).`
         : `Ese horario está por fuera de la agenda de ${profesional.fullName}, que no tiene franjas cargadas.`
