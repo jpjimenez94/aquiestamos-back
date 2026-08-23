@@ -151,18 +151,28 @@ export async function crearCita({
       )
     }
 
-    // El error enseña las dos fuentes: la agenda del perfil y lo ofrecido
-    // para el caso. Sin eso, quien coordina ve una contradicción («el mensaje
-    // dice miércoles noche y esto dice lunes mañana») sin saber de dónde sale.
+    /**
+     * El error enseña las dos fuentes, y EN ESE ORDEN: primero lo que ofreció
+     * para este caso —que es el dato que manda—, después su agenda general.
+     * Al revés se leía como «el profesional dijo lunes», cuando lo que dijo
+     * para esta persona fue otra cosa.
+     */
     const franjas = await franjasEnPalabras(professionalId)
     const oferta = ofertaEnPalabras(asignacion?.acceptedDays, asignacion?.acceptedSlots)
-    const partes = [
-      franjas
-        ? `Ese horario está por fuera de la agenda de ${profesional.fullName} (declaró: ${franjas})`
-        : `Ese horario está por fuera de la agenda de ${profesional.fullName}, que no tiene franjas cargadas`,
-      oferta ? ` y de lo que ofreció para este caso (${oferta}).` : '.',
-    ]
-    throw new DomainError('FUERA_DE_FRANJA', partes.join(''))
+
+    let mensaje
+    if (oferta) {
+      mensaje =
+        `Ese horario no está en lo que ${profesional.fullName} ofreció para este caso (${oferta})` +
+        (franjas
+          ? `, ni en su agenda general (${franjas}).`
+          : `; tampoco tiene franjas cargadas en su agenda.`)
+    } else {
+      mensaje = franjas
+        ? `Ese horario está por fuera de la agenda de ${profesional.fullName} (declaró: ${franjas}).`
+        : `Ese horario está por fuera de la agenda de ${profesional.fullName}, que no tiene franjas cargadas.`
+    }
+    throw new DomainError('FUERA_DE_FRANJA', mensaje)
   }
 
   try {
