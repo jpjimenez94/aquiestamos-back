@@ -1,4 +1,4 @@
-import { ETIQUETAS_RESULTADO } from '../catalogos.js'
+import { ETIQUETAS_RESULTADO, ETIQUETAS_QUE_SIGUE } from '../catalogos.js'
 
 /**
  * VISTA: CaseReport
@@ -12,6 +12,8 @@ export function reporte(r) {
     meetsAt: r.meetsAt,
     contactDifficulties: r.contactDifficulties,
     notes: r.notes,
+    followUp: r.followUp,
+    queSigueLegible: r.followUp ? ETIQUETAS_QUE_SIGUE[r.followUp] ?? r.followUp : null,
     reportedByEmail: r.reportedByEmail,
     createdAt: r.createdAt,
   }

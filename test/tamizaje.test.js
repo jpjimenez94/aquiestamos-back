@@ -244,3 +244,26 @@ describe('rescate de solicitudes sin respuesta', () => {
     expect(prioridadPorSilencio({ isMinor: true })).toBe('ALTA')
   })
 })
+
+describe('reporte del profesional: qué sigue', () => {
+  const base = {
+    outcome: 'YA_ATENDIDA',
+    modality: 'VIRTUAL',
+    followUp: 'SUFICIENTE',
+  }
+
+  it('«ya la acompañé» exige decir qué sigue', async () => {
+    const { caseReportCreateSchema } = await import('../src/validators/caseReport.schema.js')
+    expect(caseReportCreateSchema.safeParse(base).success).toBe(true)
+    const { followUp, ...sin } = base
+    const r = caseReportCreateSchema.safeParse(sin)
+    expect(r.success).toBe(false)
+  })
+
+  it('«no se presentó» es un resultado válido y no pide qué sigue', async () => {
+    const { caseReportCreateSchema } = await import('../src/validators/caseReport.schema.js')
+    expect(
+      caseReportCreateSchema.safeParse({ outcome: 'NO_ASISTIO' }).success,
+    ).toBe(true)
+  })
+})

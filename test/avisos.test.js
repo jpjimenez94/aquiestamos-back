@@ -251,3 +251,28 @@ describe('aviso de asignación vencida', () => {
     expect(texto).not.toMatch(/paciente:/i)
   })
 })
+
+describe('el reporte que dice qué sigue', () => {
+  it('el aviso lleva la línea que decide: agendar otra o cerrar', () => {
+    const { html } = construir('REPORTE_RECIBIDO', {
+      profesional: 'Ana María Pérez',
+      resultado: 'YA_ATENDIDA',
+      queSigue: 'SUFICIENTE',
+      dificultades: null,
+      ruta: '/portal/personas/abc',
+    })
+    expect(html).toContain('Qué sigue:')
+    expect(html).toContain('Con esta fue suficiente')
+  })
+
+  it('sin qué sigue, la línea simplemente no sale', () => {
+    const { html } = construir('REPORTE_RECIBIDO', {
+      profesional: 'Ana María Pérez',
+      resultado: 'NO_CONTESTA',
+      queSigue: null,
+      dificultades: null,
+      ruta: '/portal/personas/abc',
+    })
+    expect(html).not.toContain('Qué sigue:')
+  })
+})

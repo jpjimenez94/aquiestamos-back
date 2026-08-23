@@ -222,6 +222,9 @@ export async function reportarCaso(req, res, next) {
       meetsAt: hubo ? (input.meetsAt ?? null) : null,
       contactDifficulties: input.contactDifficulties || null,
       notes: input.notes || null,
+      // Qué sigue solo aplica a una sesión hecha: en los demás resultados se
+      // descarta aunque llegue, para que el dato no mienta.
+      followUp: input.outcome === 'YA_ATENDIDA' ? (input.followUp ?? null) : null,
       reportedByEmail: asignacion.professional.email,
     })
 

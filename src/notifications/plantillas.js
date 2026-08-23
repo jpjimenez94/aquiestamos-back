@@ -2,6 +2,7 @@ import { envolver, envolverTexto, urlDelSitio } from './envoltura.js'
 import {
   ETIQUETAS_PRIORIDAD,
   ETIQUETAS_RESULTADO,
+  ETIQUETAS_QUE_SIGUE,
   ETIQUETAS_DIA,
   ETIQUETAS_FRANJA,
 } from '../catalogos.js'
@@ -92,6 +93,8 @@ export const PLANTILLAS = {
       ],
       datos: [
         `<strong>Respondió:</strong> ${ETIQUETAS_RESULTADO[p.resultado] ?? p.resultado}`,
+        // La línea que decide: con esto se agenda la siguiente o se cierra.
+        p.queSigue ? `<strong>Qué sigue:</strong> ${ETIQUETAS_QUE_SIGUE[p.queSigue] ?? p.queSigue}` : null,
         p.dificultades ? `<strong>Dificultades:</strong> ${p.dificultades}` : null,
       ].filter(Boolean),
       boton: { texto: 'Ver el caso en el portal', url: urlDelSitio(p.ruta) },

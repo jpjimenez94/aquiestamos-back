@@ -61,7 +61,15 @@ export const ETIQUETAS_RESULTADO = {
   DATOS_ERRADOS: 'Los datos no corresponden',
   NO_QUIERE: 'No quiere el acompanamiento',
   SIGO_INTENTANDO: 'Sigo intentando',
+  NO_ASISTIO: 'Teníamos sesión y no se presentó',
   OTRO: 'Otra cosa',
+}
+
+/// Qué sigue después de una sesión hecha. Lo dice el profesional en su reporte.
+export const ETIQUETAS_QUE_SIGUE = {
+  NECESITA_MAS: 'Necesita más sesiones',
+  SUFICIENTE: 'Con esta fue suficiente',
+  NO_SABE: 'Aún no lo sabe',
 }
 
 /// Urgencia del caso, la elige quien admite.

@@ -692,6 +692,9 @@ enum CaseOutcome {
   NO_QUIERE
   /// Sigo intentando contactarla.
   SIGO_INTENTANDO
+  /// Teniamos sesion y no se presento. Distinto de NO_CONTESTA: aqui SI
+  /// habia cita, y para coordinacion son dos conversaciones diferentes.
+  NO_ASISTIO
   OTRO
 }
 
@@ -754,6 +757,18 @@ model AvailabilityException {
 /// Es una bitácora: se añaden reportes, no se corrigen. "No contesta" el
 /// lunes y "cita acordada" el jueves son dos hechos, no una correccion del
 /// primero.
+/// Lo que el profesional cree que sigue despues de una sesion hecha. Es LA
+/// pregunta que le permite a coordinacion decidir si agenda otra o cierra el
+/// caso sin llamar a nadie; sin esto, "ya la acompane" no decia si termino.
+enum CaseFollowUp {
+  /// Necesita mas sesiones.
+  NECESITA_MAS
+  /// Con esta fue suficiente.
+  SUFICIENTE
+  /// Todavia no lo se.
+  NO_SABE
+}
+
 model CaseReport {
   id           String         @id @default(uuid()) @db.Uuid
   assignmentId String         @map("assignment_id") @db.Uuid
@@ -770,6 +785,9 @@ model CaseReport {
   contactDifficulties String? @map("contact_difficulties") @db.VarChar(600)
   /// En qué quedó, en una línea. NO es para contenido de la sesión.
   notes               String? @db.VarChar(1000)
+
+  /// Qué sigue, cuando la sesión ya se hizo. Nulo en los demás resultados.
+  followUp CaseFollowUp? @map("follow_up")
 
   /// Quién lo reportó. No hay sesión: el correo sale del token del enlace.
   reportedByEmail String   @map("reported_by_email") @db.VarChar(160)

@@ -210,6 +210,7 @@ export async function reporteRecibido({ reporte, asignacion }) {
   const payload = {
     profesional: asignacion.professional.fullName,
     resultado: reporte.outcome,
+    queSigue: reporte.followUp || null,
     dificultades: reporte.contactDifficulties || null,
     ruta: `/portal/personas/${asignacion.patientId}`,
   }
