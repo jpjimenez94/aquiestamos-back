@@ -98,6 +98,7 @@ export const DashboardController = {
    *   3. porCuadrarHorario    ACEPTADA: dijo sí, falta que la persona confirme
    *   4. citasAbiertas        PROGRAMADA (horario propuesto) / CONFIRMADA
    *   5. enAcompanamiento     ACTIVA
+   *   6. cerrados             los últimos 15, para que cerrar no sea desaparecer
    *
    * Las columnas 2 y 3 llevan cuántos días faltan para que el barrido libere
    * la asignación, con el mismo umbral que usa el barrido: dos sitios contando
@@ -218,8 +219,14 @@ export const DashboardController = {
       // Columnas del pipeline: la 1 por ausencia de negociación, la 2 y la 3
       // por el estado de la asignación, la 4 por las citas y la 5 por el
       // estado del paciente.
+      /**
+       * Sin negociación viva = por asignar. A propósito no se mira el estado
+       * del paciente: los casos de antes de que asignar fuera una negociación
+       * quedaron con el estado viejo ASIGNADO, y filtrar por estado los hacía
+       * invisibles en todas las columnas a la vez.
+       */
       const porAsignar = pacientes
-        .filter((p) => (p.status === 'NUEVO' || p.status === 'EN_ADMISION') && p.assignments.length === 0)
+        .filter((p) => p.assignments.length === 0)
         .map(mapearPaciente)
 
       const esperandoProfesional = pacientes
@@ -230,9 +237,37 @@ export const DashboardController = {
         .filter((p) => p.assignments[0]?.status === 'ACEPTADA')
         .map(mapearPaciente)
 
+      // ACTIVA en la asignación, no EN_ACOMPANAMIENTO en el paciente: la
+      // máquina de estados es la fuente de verdad, y los casos legacy tienen
+      // el paciente en ASIGNADO con la asignación perfectamente activa.
       const enAcompanamiento = pacientes
-        .filter((p) => p.status === 'EN_ACOMPANAMIENTO')
+        .filter((p) => p.assignments[0]?.status === 'ACTIVA')
         .map(mapearPaciente)
+
+      // Los cerrados recientes, para que cerrar no sea desaparecer: quien
+      // coordina puede ver qué se cerró, cuándo y por qué sin ir a auditoría.
+      const cerradosCrudos = await prisma.patient.findMany({
+        where: { deletedAt: null, status: 'CERRADO' },
+        orderBy: { updatedAt: 'desc' },
+        take: 15,
+        include: {
+          assignments: {
+            where: { deletedAt: null },
+            orderBy: { endedAt: 'desc' },
+            take: 1,
+            include: { professional: { select: { id: true, fullName: true } } },
+          },
+        },
+      })
+
+      const cerrados = cerradosCrudos.map((p) => ({
+        id: p.id,
+        fullName: p.fullName,
+        city: p.city,
+        cerradoEl: p.assignments[0]?.endedAt ?? p.updatedAt,
+        motivo: p.assignments[0]?.closeReason ?? null,
+        profesional: p.assignments[0]?.professional?.fullName ?? null,
+      }))
 
       return res.json(
         ok({
@@ -251,6 +286,7 @@ export const DashboardController = {
             profesional: { id: c.professional.id, nombre: c.professional.fullName },
           })),
           enAcompanamiento,
+          cerrados,
         }),
       )
     } catch (error) {
