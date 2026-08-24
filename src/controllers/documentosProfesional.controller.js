@@ -132,10 +132,13 @@ export const DocumentosProfesionalController = {
         return res.json(ok(vista(profesional), 'Tu perfil ya está verificado. Todo en orden.'))
       }
 
-      const { claveTarjeta, claveIdentidad, numeroTarjeta } = req.validated
+      const { claveTarjeta, claveIdentidad, claveIdentidadRespaldo, numeroTarjeta } = req.validated
 
       if (!esClaveDeAlmacenamiento(claveTarjeta) || !esClaveDeAlmacenamiento(claveIdentidad)) {
         return res.status(400).json(failure('Falta alguno de los archivos. Súbelos y vuelve a enviar.'))
+      }
+      if (claveIdentidadRespaldo && !esClaveDeAlmacenamiento(claveIdentidadRespaldo)) {
+        return res.status(400).json(failure('El respaldo de la cédula no se subió bien. Súbelo de nuevo.'))
       }
 
       const actualizado = await prisma.professional.update({
@@ -143,6 +146,7 @@ export const DocumentosProfesionalController = {
         data: {
           professionalCardDocumentUrl: claveTarjeta,
           identityDocumentUrl: claveIdentidad,
+          identityDocumentBackUrl: claveIdentidadRespaldo || null,
           ...(numeroTarjeta ? { professionalCardNumber: numeroTarjeta } : {}),
           documentsSubmittedAt: new Date(),
         },

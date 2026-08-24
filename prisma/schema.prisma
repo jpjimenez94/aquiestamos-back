@@ -562,6 +562,8 @@ model Professional {
   /// Documento de identidad, subido por el propio profesional desde su
   /// enlace. Mismo bucket privado que la tarjeta; solo lo ve el equipo.
   identityDocumentUrl String? @map("identity_document_url") @db.VarChar(500)
+  /// El respaldo de la cédula. Opcional: un PDF con ambas caras no lo necesita.
+  identityDocumentBackUrl String? @map("identity_document_back_url") @db.VarChar(500)
   /// Cuándo envió sus documentos por el enlace. Es lo que separa "por
   /// notificar" de "pendiente de aprobación" en la pantalla de verificaciones.
   documentsSubmittedAt DateTime? @map("documents_submitted_at") @db.Timestamptz(3)

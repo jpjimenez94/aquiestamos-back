@@ -20,6 +20,7 @@ export function profesionalBase(p) {
     professionalCardVerifiedAt: p.professionalCardVerifiedAt,
     professionalCardVerifiedBy: p.professionalCardVerifiedBy,
     identityDocumentUrl: p.identityDocumentUrl ?? null,
+    identityDocumentBackUrl: p.identityDocumentBackUrl ?? null,
     documentsSubmittedAt: p.documentsSubmittedAt ?? null,
     populations: p.populations,
     modality: p.modality,
