@@ -4,6 +4,7 @@ import { CaseAssignmentModel } from '../models/caseAssignment.model.js'
 import { DomainError } from '../errors/DomainError.js'
 import { huecosDisponibles, cargaActual } from './scheduling.service.js'
 import { franjaDe, diaDeLaSemana } from './timezone.service.js'
+import { prisma } from '../config/database.js'
 
 /**
  * SERVICIO: emparejamiento.
@@ -55,9 +56,21 @@ function esMismaCiudad(ciudadA, ciudadB) {
  * Prioriza fuertemente la coincidencia geográfica (si es presencial),
  * la tarjeta profesional verificada, los años de experiencia y la disponibilidad.
  */
-function puntuar({ profesional, paciente, carga, coincidenciaHorario, tieneHueco }) {
+function puntuar({ profesional, paciente, carga, coincidenciaHorario, tieneHueco, vencidas = 0 }) {
   let puntos = 0
   const razones = []
+
+  /**
+   * El emparejamiento aprende de los silencios: quien dejó vencer propuestas
+   * sin responder baja en la lista. No lo saca —la gente cambia, y a veces el
+   * silencio fue una mala semana—, pero el top deja de proponerle primero al
+   * que nunca contesta. La razón sale en la card para que coordinación sepa
+   * por qué está abajo.
+   */
+  if (vencidas > 0) {
+    puntos -= Math.min(45, vencidas * 15)
+    razones.push(`Dejó vencer ${vencidas} ${vencidas === 1 ? 'propuesta' : 'propuestas'} sin responder (últimos 90 días)`)
+  }
 
   // 1. Verificación Legal de Tarjeta Profesional
   if (profesional.professionalCardVerified) {
@@ -107,7 +120,9 @@ function puntuar({ profesional, paciente, carga, coincidenciaHorario, tieneHueco
     razones.push(`Lleva ${carga} de ${profesional.maxActiveCases} casos activos`)
   }
 
-  return { puntos, razones }
+  // El castigo por silencios no puede dejar a nadie en negativo: cero ya
+  // significa "al final de la lista", y ahi es donde debe quedar.
+  return { puntos: Math.max(0, puntos), razones }
 }
 
 /**
@@ -140,6 +155,21 @@ export async function candidatosPara({ patientId, poblaciones, desde, hasta }) {
   if (candidatos.length === 0) return { paciente, candidatos: [] }
 
   const carga = await cargaActual(candidatos.map((c) => c.id))
+
+  // Propuestas que el barrido canceló por silencio, últimos 90 días. El
+  // closeReason es el rastro que dejó la liberación automática.
+  const vencidasPorProfesional = await prisma.caseAssignment.groupBy({
+    by: ['professionalId'],
+    where: {
+      professionalId: { in: candidatos.map((c) => c.id) },
+      status: 'CANCELADA',
+      closeReason: { startsWith: 'Liberada: el profesional no respondió' },
+      endedAt: { gte: new Date(Date.now() - 90 * 24 * 3600 * 1000) },
+      deletedAt: null,
+    },
+    _count: { _all: true },
+  })
+  const vencidasDe = new Map(vencidasPorProfesional.map((v) => [v.professionalId, v._count._all]))
 
   const conHuecos = await Promise.all(
     candidatos.map(async (profesional) => {
@@ -174,6 +204,7 @@ export async function candidatosPara({ patientId, poblaciones, desde, hasta }) {
         carga: cargaActualDelProfesional,
         coincidenciaHorario: huecosQueLeSirven.length > 0,
         tieneHueco: huecos.length > 0,
+        vencidas: vencidasDe.get(profesional.id) ?? 0,
       })
 
       return {

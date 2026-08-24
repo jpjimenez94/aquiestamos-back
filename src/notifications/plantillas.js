@@ -20,6 +20,23 @@ import {
  * identifica. Hay una prueba que falla si alguien mete un teléfono.
  */
 
+/** Fecha ISO → «lunes, 25 de agosto, 7:30 p. m.» en hora de Bogotá. */
+function cuandoLegible(iso) {
+  try {
+    return new Intl.DateTimeFormat('es-CO', {
+      timeZone: 'America/Bogota',
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    }).format(new Date(iso))
+  } catch {
+    return String(iso)
+  }
+}
+
 function armar(asunto, contenido) {
   return {
     asunto,
@@ -205,6 +222,66 @@ export const PLANTILLAS = {
         'El cupo del profesional quedó libre y la persona volvió a la cola de pendientes por asignar.',
       ],
       boton: { texto: 'Buscarle otro profesional', url: urlDelSitio(p.ruta) },
+    }),
+
+  // ------------------------------------------------------------- citas (barrido)
+
+  /** Fecha ISO → «lunes 25 de agosto, 7:30 p. m.» en hora de Bogotá. */
+  RECORDATORIO_CITA_PROFESIONAL: (p) =>
+    armar(`Recordatorio: tienes sesión ${cuandoLegible(p.cuando)}`, {
+      titulo: `Hola ${p.nombre}, tu sesión se acerca`,
+      parrafos: [
+        `Te recordamos que tienes una sesión de acompañamiento <strong>${cuandoLegible(p.cuando)}</strong> (${String(p.modalidad ?? '').toLowerCase()}).`,
+        'Los datos de contacto de la persona están en tu enlace del caso, como siempre.',
+      ],
+      boton: { texto: 'Abrir mi caso', url: urlDelSitio(p.ruta) },
+    }),
+
+  RECORDATORIO_CITA_PERSONA: (p) =>
+    armar(`Recordatorio: tu acompañamiento es ${cuandoLegible(p.cuando)}`, {
+      titulo: `Hola ${p.nombre}, tu espacio se acerca`,
+      parrafos: [
+        `Te recordamos tu sesión de acompañamiento con <strong>${p.profesional}</strong>: <strong>${cuandoLegible(p.cuando)}</strong> (${String(p.modalidad ?? '').toLowerCase()}).`,
+        `${p.profesional} se pondrá en contacto contigo para ese momento. No tienes que hacer nada más.`,
+        'Si te surge algo y no puedes, respóndenos por WhatsApp con tiempo y lo movemos. No pasa nada.',
+        'Si en este momento estás en peligro o sientes que puedes hacerte daño, no esperes: llama al 123 (emergencias) o al 106 (salud mental). Son gratuitas y atienden a toda hora.',
+      ],
+    }),
+
+  /** Al profesional, un rato después de la hora de la sesión. */
+  PIDE_REPORTE: (p) =>
+    armar('¿Cómo te fue? Cuéntanos desde tu enlace', {
+      titulo: `Hola ${p.nombre}, pasó la hora de tu sesión`,
+      parrafos: [
+        `Tu sesión estaba agendada para ${cuandoLegible(p.cuando)}. Entra a tu enlace del caso y cuéntanos tres cosas: si se pudo hacer, cómo te fue, y si crees que la persona necesita más sesiones o con esta fue suficiente.`,
+        'Con eso cerramos esta cita y cuadramos la siguiente si hace falta, sin tener que escribirte a preguntar.',
+      ],
+      boton: { texto: 'Contar cómo me fue', url: urlDelSitio(p.ruta) },
+    }),
+
+  /** A coordinación: el teléfono de una admisión ya existe en otra ficha. */
+  COORD_POSIBLE_DUPLICADO: (p) =>
+    armar('Posible ficha duplicada', {
+      titulo: 'El mismo teléfono está en dos fichas',
+      parrafos: [
+        `Se admitió a una persona en ${p.ciudad} cuyo teléfono ya aparece en otra ficha activa. Puede ser la misma persona pidiendo ayuda dos veces.`,
+        'Revisa las dos y, si son la misma, cierra una con motivo: dos fichas de la misma persona son dos profesionales llamando al mismo teléfono.',
+      ],
+      datos: [
+        `<strong>Ficha nueva:</strong> ${urlDelSitio(p.rutaNueva)}`,
+        `<strong>Ficha existente:</strong> ${urlDelSitio(p.rutaExistente)}`,
+      ],
+    }),
+
+  /** A coordinación: una ALTA lleva días en la cola sin profesional. */
+  COORD_SLA_ALTA: (p) =>
+    armar(`Prioridad ALTA sin asignar hace ${p.dias} días`, {
+      titulo: 'Un caso urgente se está quedando en la cola',
+      parrafos: [
+        `Una persona admitida con <strong>prioridad alta</strong> en ${p.ciudad} lleva <strong>${p.dias} días</strong> sin profesional asignado.`,
+        'Cuanto antes se le proponga a alguien, menos espera quien peor está.',
+      ],
+      boton: { texto: 'Buscarle profesional', url: urlDelSitio(p.ruta) },
     }),
 
   /** A coordinación: se admitió a alguien y falta asignarle profesional. */

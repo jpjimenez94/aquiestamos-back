@@ -45,6 +45,29 @@ const CASOS = {
     motivo: 'Me queda muy lejos',
     ruta: '/portal/personas/abc',
   },
+  RECORDATORIO_CITA_PROFESIONAL: {
+    nombre: 'Ana',
+    cuando: '2026-08-25T19:30:00-05:00',
+    modalidad: 'VIRTUAL',
+    ruta: '/portal/caso/abc',
+  },
+  RECORDATORIO_CITA_PERSONA: {
+    nombre: 'Camilo',
+    profesional: 'Ana',
+    cuando: '2026-08-25T19:30:00-05:00',
+    modalidad: 'VIRTUAL',
+  },
+  PIDE_REPORTE: {
+    nombre: 'Ana',
+    cuando: '2026-08-25T19:30:00-05:00',
+    ruta: '/portal/caso/abc',
+  },
+  COORD_SLA_ALTA: { ciudad: 'Cali', dias: 4, ruta: '/portal/personas/abc' },
+  COORD_POSIBLE_DUPLICADO: {
+    ciudad: 'Cali',
+    rutaNueva: '/portal/personas/abc',
+    rutaExistente: '/portal/personas/def',
+  },
   COORD_ASIGNACION_VENCIDA: {
     profesional: 'Ana María Pérez',
     tramo: 'profesional',
@@ -274,5 +297,41 @@ describe('el reporte que dice qué sigue', () => {
       ruta: '/portal/personas/abc',
     })
     expect(html).not.toContain('Qué sigue:')
+  })
+})
+
+describe('los correos del barrido de citas', () => {
+  it('el recordatorio a la persona lleva las líneas de crisis', () => {
+    const { html } = construir('RECORDATORIO_CITA_PERSONA', {
+      nombre: 'Camilo',
+      profesional: 'Ana',
+      cuando: '2026-08-25T19:30:00-05:00',
+      modalidad: 'VIRTUAL',
+    })
+    expect(html).toContain('123')
+    expect(html).toContain('106')
+    // y la fecha sale legible en hora de Bogotá, no en ISO
+    expect(html).toContain('agosto')
+    expect(html).not.toContain('2026-08-25T')
+  })
+
+  it('pedir el reporte pregunta las tres cosas del cierre', () => {
+    const { html } = construir('PIDE_REPORTE', {
+      nombre: 'Ana',
+      cuando: '2026-08-25T19:30:00-05:00',
+      ruta: '/portal/caso/abc',
+    })
+    expect(html).toContain('si se pudo hacer')
+    expect(html).toContain('necesita más sesiones')
+  })
+
+  it('la alarma de SLA dice los días y no dice quién es', () => {
+    const { html, texto } = construir('COORD_SLA_ALTA', {
+      ciudad: 'Cali',
+      dias: 4,
+      ruta: '/portal/personas/abc',
+    })
+    expect(html).toContain('4 días')
+    expect(texto).not.toMatch(/paciente:/i)
   })
 })

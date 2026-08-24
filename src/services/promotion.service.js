@@ -4,6 +4,7 @@ import { PatientModel } from '../models/patient.model.js'
 import { VolunteerModel } from '../models/volunteer.model.js'
 import { SupportRequestModel } from '../models/supportRequest.model.js'
 import { DomainError } from '../errors/DomainError.js'
+import { avisoPosibleDuplicado } from '../notifications/eventos.js'
 
 /**
  * SERVICIO: promoción de un formulario a entidad operativa.
@@ -95,7 +96,27 @@ export async function admitirSolicitud({ supportRequestId, ajustes = {} }) {
     })
   }
 
-  return prisma.$transaction(async (tx) => {
+  /**
+   * La misma persona en crisis puede llenar el formulario dos veces. No se
+   * bloquea la admisión —el tamizaje admite solo y aquí no hay nadie a quien
+   * preguntarle—, pero coordinación se entera para unir en vez de duplicar:
+   * dos fichas de la misma persona son dos profesionales llamando al mismo
+   * teléfono.
+   */
+  // La comparación es en JS y no en el where: el teléfono guardado puede
+  // traer espacios o indicativo, y `contains` sobre texto formateado falla.
+  const soloDigitos = (v) => String(v ?? '').replace(/\D/g, '').slice(-10)
+  const telefono = soloDigitos(solicitud.phone)
+  let duplicadaDe = null
+  if (telefono.length >= 7) {
+    const activas = await prisma.patient.findMany({
+      where: { deletedAt: null, status: { not: 'CERRADO' } },
+      select: { id: true, city: true, phone: true },
+    })
+    duplicadaDe = activas.find((a) => soloDigitos(a.phone) === telefono) ?? null
+  }
+
+  const admitida = await prisma.$transaction(async (tx) => {
     const paciente = await tx.patient.create({
       data: {
         supportRequestId,
@@ -126,6 +147,12 @@ export async function admitirSolicitud({ supportRequestId, ajustes = {} }) {
 
     return paciente
   })
+
+  if (duplicadaDe) {
+    await avisoPosibleDuplicado({ nueva: admitida, existente: duplicadaDe })
+  }
+
+  return admitida
 }
 
 /**

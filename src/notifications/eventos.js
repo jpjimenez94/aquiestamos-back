@@ -304,6 +304,44 @@ export async function asignacionVencida({ asignacion, profesional, tramo }) {
   })
 }
 
+/**
+ * Una prioridad ALTA lleva demasiados días en la cola sin profesional. A
+ * coordinación, una sola vez por persona (la dedupeKey lo garantiza).
+ */
+/**
+ * Se admitió a alguien cuyo teléfono ya está en otra ficha activa. A
+ * coordinación, para unir en vez de duplicar: dos fichas de la misma persona
+ * son dos profesionales llamando al mismo teléfono.
+ */
+export async function avisoPosibleDuplicado({ nueva, existente }) {
+  await avisarACoordinacion({
+    plantilla: 'COORD_POSIBLE_DUPLICADO',
+    payload: {
+      ciudad: nueva.city,
+      rutaNueva: `/portal/personas/${nueva.id}`,
+      rutaExistente: `/portal/personas/${existente.id}`,
+    },
+    entidad: 'paciente',
+    entidadId: nueva.id,
+    clave: `duplicado:${nueva.id}`,
+  })
+}
+
+export async function avisoSlaAlta({ paciente, dias }) {
+  await avisarACoordinacion({
+    plantilla: 'COORD_SLA_ALTA',
+    payload: {
+      ciudad: paciente.city,
+      dias,
+      ruta: `/portal/personas/${paciente.id}`,
+    },
+    entidad: 'paciente',
+    entidadId: paciente.id,
+    clave: `sla-alta:${paciente.id}`,
+  })
+  return true
+}
+
 export async function propuestaRespondida({ asignacion, profesional }) {
   await avisarACoordinacion({
     plantilla: asignacion.status === 'ACEPTADA' ? 'COORD_PROPUESTA_ACEPTADA' : 'COORD_PROPUESTA_RECHAZADA',

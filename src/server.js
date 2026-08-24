@@ -7,6 +7,7 @@ import {
   arrancarBarridoAsignaciones,
   detenerBarridoAsignaciones,
 } from './asignacion/barrido.js'
+import { arrancarBarridoCitas, detenerBarridoCitas } from './citas/barrido.js'
 
 const app = createApp()
 
@@ -25,6 +26,10 @@ const server = app.listen(env.port, () => {
   // no respondió, la persona que no confirmó horario. El caso vuelve a la
   // cola y el cupo del profesional queda libre.
   arrancarBarridoAsignaciones()
+
+  // Recordatorios de sesión, pedir el reporte después, y la alarma de una
+  // prioridad ALTA que se está quedando en la cola.
+  arrancarBarridoCitas()
 })
 
 async function shutdown(signal) {
@@ -32,6 +37,7 @@ async function shutdown(signal) {
   detenerDespachador()
   detenerBarrido()
   detenerBarridoAsignaciones()
+  detenerBarridoCitas()
   server.close(async () => {
     await disconnectDatabase()
     process.exit(0)

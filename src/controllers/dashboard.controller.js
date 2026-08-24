@@ -1,6 +1,7 @@
 import { prisma } from '../config/database.js'
 import { VIVOS } from '../services/assignmentState.service.js'
 import { PROPUESTA_VENCE_DIAS, ACEPTADA_VENCE_DIAS } from '../asignacion/barrido.js'
+import { SLA_ALTA_DIAS } from '../citas/barrido.js'
 import { ok } from '../views/response.view.js'
 import { formatearLocal } from '../services/timezone.service.js'
 
@@ -228,7 +229,15 @@ export const DashboardController = {
        */
       const porAsignar = pacientes
         .filter((p) => p.assignments.length === 0)
-        .map(mapearPaciente)
+        .map((p) => {
+          const base = mapearPaciente(p)
+          return {
+            ...base,
+            // El mismo umbral que usa la alarma del barrido: la card grita
+            // cuando una ALTA lleva demasiados días sin profesional.
+            slaVencido: p.priority === 'ALTA' && base.diasEsperando >= SLA_ALTA_DIAS,
+          }
+        })
 
       const esperandoProfesional = pacientes
         .filter((p) => p.assignments[0]?.status === 'PROPUESTA')
