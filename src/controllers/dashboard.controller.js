@@ -287,22 +287,29 @@ export const DashboardController = {
         profesional: p.assignments[0]?.professional?.fullName ?? null,
       }))
 
+      const citasMapeadas = citasAbiertas.map((c) => ({
+        id: c.id,
+        inicio: c.startsAt,
+        fin: c.endsAt,
+        estado: c.status,
+        modalidad: c.modality,
+        consentSigned: c.consentSigned,
+        consentSignedDocumentUrl: c.consentSignedDocumentUrl,
+        paciente: { id: c.patient.id, nombre: c.patient.fullName, telefono: c.patient.phone },
+        profesional: { id: c.professional.id, nombre: c.professional.fullName },
+      }))
+
+      const citasPropuestas = citasMapeadas.filter((c) => c.estado === 'PROGRAMADA')
+      const citasConfirmadas = citasMapeadas.filter((c) => c.estado === 'CONFIRMADA')
+
       return res.json(
         ok({
           porAsignar,
           esperandoProfesional,
           porCuadrarHorario,
-          citasAbiertas: citasAbiertas.map((c) => ({
-            id: c.id,
-            inicio: c.startsAt,
-            fin: c.endsAt,
-            estado: c.status,
-            modalidad: c.modality,
-            consentSigned: c.consentSigned,
-            consentSignedDocumentUrl: c.consentSignedDocumentUrl,
-            paciente: { id: c.patient.id, nombre: c.patient.fullName, telefono: c.patient.phone },
-            profesional: { id: c.professional.id, nombre: c.professional.fullName },
-          })),
+          citasAbiertas: citasMapeadas,
+          citasPropuestas,
+          citasConfirmadas,
           enAcompanamiento,
           cerrados,
         }),
