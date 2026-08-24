@@ -21,7 +21,6 @@ export const PatientModel = {
           include: { professional: true },
         },
         appointments: {
-          where: { deletedAt: null },
           orderBy: { startsAt: 'desc' },
           include: { professional: true },
         },
@@ -47,7 +46,6 @@ export const PatientModel = {
           include: { professional: true },
         },
         appointments: {
-          where: { deletedAt: null },
           orderBy: { startsAt: 'desc' },
           include: { professional: true },
         },
@@ -74,7 +72,6 @@ export const PatientModel = {
           include: { professional: true },
         },
         appointments: {
-          where: { deletedAt: null },
           orderBy: { startsAt: 'desc' },
           include: { professional: true },
         },

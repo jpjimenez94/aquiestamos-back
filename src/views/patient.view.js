@@ -39,8 +39,7 @@ export function pacienteParaAgendador(p) {
           estado: ultimaCita.status,
           estadoLegible: ETIQUETAS_CITA[ultimaCita.status] ?? ultimaCita.status,
           profesional: ultimaCita.professional?.fullName ?? null,
-          notas: ultimaCita.notes ?? null,
-          motivoCancelacion: ultimaCita.cancellationReason ?? null,
+          motivoCancelacion: ultimaCita.cancelReason ?? null,
         }
       : null,
     asignacion: ultimaAsignacion
