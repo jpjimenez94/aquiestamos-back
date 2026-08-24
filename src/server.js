@@ -8,6 +8,10 @@ import {
   detenerBarridoAsignaciones,
 } from './asignacion/barrido.js'
 import { arrancarBarridoCitas, detenerBarridoCitas } from './citas/barrido.js'
+import { vigilarProceso } from './monitoreo/errores.js'
+
+// Antes de todo: si algo revienta fuera de Express, que alguien se entere.
+vigilarProceso()
 
 const app = createApp()
 

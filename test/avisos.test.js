@@ -63,6 +63,11 @@ const CASOS = {
     ruta: '/portal/caso/abc',
   },
   COORD_SLA_ALTA: { ciudad: 'Cali', dias: 4, ruta: '/portal/personas/abc' },
+  COORD_ERROR: {
+    origen: 'GET /api/patients',
+    mensaje: 'column does not exist',
+    donde: 'at PatientModel.findAll (src/models/patient.model.js:20)',
+  },
   COORD_POSIBLE_DUPLICADO: {
     ciudad: 'Cali',
     rutaNueva: '/portal/personas/abc',

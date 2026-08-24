@@ -259,6 +259,20 @@ export const PLANTILLAS = {
       boton: { texto: 'Contar cómo me fue', url: urlDelSitio(p.ruta) },
     }),
 
+  /** A coordinación: algo falló en el servidor. Uno por error y por día. */
+  COORD_ERROR: (p) =>
+    armar(`Error en la plataforma: ${p.origen}`, {
+      titulo: 'Algo falló en el servidor',
+      parrafos: [
+        'La plataforma registró un error. Si los correos de este tipo se repiten en días distintos, hay que mirarlo con quien desarrolla.',
+      ],
+      datos: [
+        `<strong>Dónde:</strong> ${p.origen}`,
+        `<strong>Mensaje:</strong> ${p.mensaje}`,
+        p.donde ? `<strong>Rastro:</strong> ${p.donde}` : null,
+      ].filter(Boolean),
+    }),
+
   /** A coordinación: el teléfono de una admisión ya existe en otra ficha. */
   COORD_POSIBLE_DUPLICADO: (p) =>
     armar('Posible ficha duplicada', {

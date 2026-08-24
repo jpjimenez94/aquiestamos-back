@@ -311,4 +311,153 @@ export const DashboardController = {
       next(error)
     }
   },
+
+  /**
+   * GET /api/dashboard/metricas — las métricas de impacto de la red.
+   *
+   * Para el informe mensual y para pedir recursos: el embudo con sus tiempos,
+   * qué tan seguido aceptan los profesionales, en qué terminan los casos y
+   * qué dice la gente en la encuesta del cierre. Solo lectura: nada de aquí
+   * se edita, y por eso el permiso es `metricas:leer` (ADMIN y LECTURA).
+   */
+  async metricas(req, res, next) {
+    try {
+      const DIA = 24 * 3600 * 1000
+      const prom = (valores) =>
+        valores.length ? Math.round((valores.reduce((a, b) => a + b, 0) / valores.length) * 10) / 10 : null
+
+      // ---------- personas ----------
+      const personas = await prisma.patient.findMany({
+        where: { deletedAt: null },
+        select: {
+          id: true,
+          status: true,
+          priority: true,
+          createdAt: true,
+          supportRequest: { select: { createdAt: true } },
+        },
+      })
+
+      const porEstado = {}
+      const porPrioridad = {}
+      for (const p of personas) {
+        porEstado[p.status] = (porEstado[p.status] ?? 0) + 1
+        porPrioridad[p.priority] = (porPrioridad[p.priority] ?? 0) + 1
+      }
+
+      // ---------- asignaciones: el embudo y la tasa de respuesta ----------
+      const asignaciones = await prisma.caseAssignment.findMany({
+        where: { deletedAt: null },
+        select: {
+          patientId: true,
+          professionalId: true,
+          status: true,
+          startedAt: true,
+          respondedAt: true,
+          patientConfirmedAt: true,
+          closeReason: true,
+          professional: { select: { fullName: true } },
+          patient: { select: { createdAt: true } },
+        },
+      })
+
+      let aceptadas = 0
+      let rechazadas = 0
+      let vencidasSinRespuesta = 0
+      let canceladasOtras = 0
+      const motivosDeCierre = {}
+      const porProfesional = {}
+      const diasHastaPrimeraPropuesta = []
+      const diasPropuestaARespuesta = []
+
+      const primeraPropuestaDe = {}
+      for (const a of asignaciones) {
+        const antes = primeraPropuestaDe[a.patientId]
+        if (!antes || a.startedAt < antes) primeraPropuestaDe[a.patientId] = a.startedAt
+
+        if (['ACEPTADA', 'ACTIVA', 'CERRADA'].includes(a.status)) aceptadas += 1
+        else if (a.status === 'RECHAZADA') rechazadas += 1
+        else if (a.status === 'CANCELADA') {
+          if (String(a.closeReason ?? '').startsWith('Liberada: el profesional no respondió')) {
+            vencidasSinRespuesta += 1
+          } else {
+            canceladasOtras += 1
+          }
+        }
+
+        if (a.status === 'CERRADA' && a.closeReason) {
+          // El motivo sin el matiz después de los dos puntos, para agrupar.
+          const motivo = a.closeReason.split(':')[0].trim()
+          motivosDeCierre[motivo] = (motivosDeCierre[motivo] ?? 0) + 1
+        }
+
+        if (['ACTIVA', 'CERRADA'].includes(a.status)) {
+          const nombre = a.professional?.fullName ?? 'Sin nombre'
+          porProfesional[nombre] = (porProfesional[nombre] ?? 0) + 1
+        }
+
+        if (a.respondedAt) {
+          diasPropuestaARespuesta.push((a.respondedAt - a.startedAt) / DIA)
+        }
+      }
+
+      const personaPorId = new Map(personas.map((p) => [p.id, p]))
+      for (const [patientId, primera] of Object.entries(primeraPropuestaDe)) {
+        const persona = personaPorId.get(patientId)
+        if (persona) diasHastaPrimeraPropuesta.push((primera - persona.createdAt) / DIA)
+      }
+
+      // ---------- citas ----------
+      const citasPorEstado = await prisma.appointment.groupBy({
+        by: ['status'],
+        _count: { _all: true },
+      })
+      const citas = {}
+      for (const c of citasPorEstado) citas[c.status] = c._count._all
+      const realizadas = citas.REALIZADA ?? 0
+      const noAsistio = citas.NO_ASISTIO ?? 0
+      const tasaAsistencia =
+        realizadas + noAsistio > 0 ? Math.round((realizadas / (realizadas + noAsistio)) * 100) : null
+
+      // ---------- encuesta del cierre ----------
+      const encuestas = await prisma.closureSurvey.findMany({
+        select: { helped: true, wouldRecommend: true },
+      })
+      const encuesta = {
+        respondidas: encuestas.length,
+        leSirvio: encuestas.filter((e) => e.helped === 'SI').length,
+        algoLeSirvio: encuestas.filter((e) => e.helped === 'ALGO').length,
+        noLeSirvio: encuestas.filter((e) => e.helped === 'NO').length,
+        recomendaria: encuestas.filter((e) => e.wouldRecommend).length,
+      }
+
+      return res.json(
+        ok({
+          personas: { total: personas.length, porEstado, porPrioridad },
+          embudo: {
+            diasPromedioHastaPrimeraPropuesta: prom(diasHastaPrimeraPropuesta),
+            diasPromedioRespuestaDelProfesional: prom(diasPropuestaARespuesta),
+          },
+          asignaciones: {
+            total: asignaciones.length,
+            aceptadas,
+            rechazadas,
+            vencidasSinRespuesta,
+            canceladasOtras,
+            tasaAceptacion:
+              asignaciones.length > 0 ? Math.round((aceptadas / asignaciones.length) * 100) : null,
+          },
+          motivosDeCierre,
+          casosPorProfesional: Object.entries(porProfesional)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 10)
+            .map(([nombre, casos]) => ({ nombre, casos })),
+          citas: { porEstado: citas, tasaAsistencia },
+          encuesta,
+        }),
+      )
+    } catch (error) {
+      next(error)
+    }
+  },
 }

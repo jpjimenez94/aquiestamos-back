@@ -1,0 +1,50 @@
+# La suite completa, CON base de datos: 81 pruebas se saltan sin Postgres, y
+# un bug de barrido no puede llegar a produccion sin que ningun test lo vea.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  pruebas:
+    name: Pruebas con Postgres
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: aqui_estamos_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/aqui_estamos_test
+      NODE_ENV: test
+      CORS_ORIGINS: http://localhost:3000
+      SITIO_URL: http://localhost:3000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Aplicar migraciones
+        run: npx prisma migrate deploy
+
+      - name: Pruebas
+        run: npm test

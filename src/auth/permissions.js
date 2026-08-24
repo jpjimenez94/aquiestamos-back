@@ -69,6 +69,9 @@ export const PERMISOS = {
     'usuario:leer',
     'auditoria:leer',
     'documento:leer',
+    // Las métricas de impacto: para leer, no para operar. El AGENDADOR no
+    // las tiene a propósito — pedido explícito: solo administración y lectura.
+    'metricas:leer',
   ],
 
   // Profesional de la red: su agenda y sus propias franjas de disponibilidad.

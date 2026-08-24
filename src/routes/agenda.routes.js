@@ -157,3 +157,4 @@ appointmentRoutes.post(
 export const dashboardRoutes = Router()
 dashboardRoutes.get('/', authenticate, authorize('agenda:leer'), DashboardController.index)
 dashboardRoutes.get('/tablero', authenticate, authorize('agenda:leer'), DashboardController.tablero)
+dashboardRoutes.get('/metricas', authenticate, authorize('metricas:leer'), DashboardController.metricas)
