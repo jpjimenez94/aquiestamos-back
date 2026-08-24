@@ -334,7 +334,6 @@ export const DashboardController = {
           status: true,
           priority: true,
           createdAt: true,
-          supportRequest: { select: { createdAt: true } },
         },
       })
 

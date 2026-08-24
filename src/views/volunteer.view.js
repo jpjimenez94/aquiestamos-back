@@ -1,6 +1,7 @@
-/**
 import { crearEnlaceDocumentos } from '../auth/enlaceDocumentos.js'
 import { env } from '../config/env.js'
+
+/**
  * VISTA: Volunteer
  * Nunca devolvemos el registro crudo de la base de datos: aquí se decide
  * qué campos son públicos y cuáles solo se exponen al panel administrativo.
