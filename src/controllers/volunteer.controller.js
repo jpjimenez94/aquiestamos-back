@@ -77,12 +77,17 @@ export const VolunteerController = {
 
   async index(req, res, next) {
     try {
+      const all = req.query.all === 'true' || req.query.todos === 'true' || req.query.perPage === 'all'
       const page = Math.max(1, Number(req.query.page ?? 1))
-      const perPage = Math.min(100, Math.max(1, Number(req.query.perPage ?? 50)))
+      const perPage = all ? undefined : Math.min(500, Math.max(1, Number(req.query.perPage ?? 50)))
       const status = req.query.status || undefined
 
       const [volunteers, total] = await Promise.all([
-        VolunteerModel.findAll({ skip: (page - 1) * perPage, take: perPage, status }),
+        VolunteerModel.findAll({
+          skip: all ? undefined : (page - 1) * perPage,
+          take: all ? undefined : perPage,
+          status,
+        }),
         VolunteerModel.count({ status }),
       ])
 
@@ -92,11 +97,11 @@ export const VolunteerController = {
         req,
         action: ACCION.CONSULTAR,
         entity: 'postulacion',
-        after: { page, perPage, total, status: status ?? 'todos' },
+        after: { page, perPage: perPage ?? total, total, status: status ?? 'todos' },
       })
 
       return res.json(
-        ok(volunteerAdminList(volunteers), { page, perPage, total }),
+        ok(volunteerAdminList(volunteers), { page: all ? 1 : page, perPage: all ? total : perPage, total }),
       )
     } catch (error) {
       next(error)

@@ -73,8 +73,9 @@ export const CollaboratorController = {
   /** GET /api/collaborators — el directorio, desde el portal. */
   async index(req, res, next) {
     try {
+      const all = req.query.all === 'true' || req.query.todos === 'true' || req.query.perPage === 'all'
       const page = Math.max(1, Number(req.query.page ?? 1))
-      const perPage = Math.min(100, Math.max(1, Number(req.query.perPage ?? 25)))
+      const perPage = all ? undefined : Math.min(500, Math.max(1, Number(req.query.perPage ?? 25)))
 
       const filtros = {
         area: req.query.area || undefined,
@@ -84,7 +85,11 @@ export const CollaboratorController = {
       }
 
       const [colaboradores, total, porArea] = await Promise.all([
-        CollaboratorModel.findAll({ ...filtros, skip: (page - 1) * perPage, take: perPage }),
+        CollaboratorModel.findAll({
+          ...filtros,
+          skip: all ? undefined : (page - 1) * perPage,
+          take: all ? undefined : perPage,
+        }),
         CollaboratorModel.count(filtros),
         CollaboratorModel.contarPorArea(),
       ])
@@ -95,13 +100,13 @@ export const CollaboratorController = {
         req,
         action: ACCION.CONSULTAR,
         entity: 'colaborador',
-        after: { page, perPage, total, ...filtros },
+        after: { page, perPage: perPage ?? total, total, ...filtros },
       })
 
       return res.json(
         ok(collaboratorAdminList(colaboradores), {
-          page,
-          perPage,
+          page: all ? 1 : page,
+          perPage: all ? total : perPage,
           total,
           porArea: resumenPorArea(porArea),
         }),

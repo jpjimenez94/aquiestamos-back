@@ -26,7 +26,7 @@ export const CollaboratorModel = {
    * El listado del portal. Los filtros son los tres con los que de verdad se
    * busca a alguien: por área, por ciudad y por si puede ir presencial.
    */
-  findAll({ skip = 0, take = 50, area, city, modality, status } = {}) {
+  findAll({ skip, take, area, city, modality, status } = {}) {
     return prisma.collaborator.findMany({
       where: {
         ...vivos,
@@ -38,8 +38,8 @@ export const CollaboratorModel = {
         ...(status ? { status } : {}),
       },
       orderBy: { createdAt: 'desc' },
-      skip,
-      take,
+      ...(skip !== undefined ? { skip } : {}),
+      ...(take !== undefined ? { take } : {}),
     })
   },
 

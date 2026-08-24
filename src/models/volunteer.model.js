@@ -16,12 +16,12 @@ export const VolunteerModel = {
     return prisma.volunteer.findFirst({ where: { id, ...vivos } })
   },
 
-  async findAll({ skip = 0, take = 50, status } = {}) {
+  async findAll({ skip, take, status } = {}) {
     const volunteers = await prisma.volunteer.findMany({
       where: { ...vivos, ...(status ? { status } : {}) },
       orderBy: { createdAt: 'desc' },
-      skip,
-      take,
+      ...(skip !== undefined ? { skip } : {}),
+      ...(take !== undefined ? { take } : {}),
     })
 
     const volunteerIds = volunteers.map((v) => v.id)

@@ -26,12 +26,12 @@ export const SupportRequestModel = {
    * el enum ya deja lo pendiente primero; dentro de cada estado, lo más
    * reciente arriba.
    */
-  findAll({ skip = 0, take = 50, status } = {}) {
+  findAll({ skip, take, status } = {}) {
     return prisma.supportRequest.findMany({
       where: { ...vivos, ...(status ? { status } : {}) },
       orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
-      skip,
-      take,
+      ...(skip !== undefined ? { skip } : {}),
+      ...(take !== undefined ? { take } : {}),
     })
   },
 
