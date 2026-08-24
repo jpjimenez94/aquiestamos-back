@@ -12,7 +12,21 @@ export const PatientModel = {
   },
 
   findById(id) {
-    return prisma.patient.findFirst({ where: { id, ...vivos } })
+    return prisma.patient.findFirst({
+      where: { id, ...vivos },
+      include: {
+        assignments: {
+          where: { deletedAt: null },
+          orderBy: { createdAt: 'desc' },
+          include: { professional: true },
+        },
+        appointments: {
+          where: { deletedAt: null },
+          orderBy: { startsAt: 'desc' },
+          include: { professional: true },
+        },
+      },
+    })
   },
 
   findBySupportRequestId(supportRequestId) {
@@ -28,7 +42,13 @@ export const PatientModel = {
       },
       include: {
         assignments: {
-          where: { status: { in: VIVOS }, deletedAt: null },
+          where: { deletedAt: null },
+          orderBy: { createdAt: 'desc' },
+          include: { professional: true },
+        },
+        appointments: {
+          where: { deletedAt: null },
+          orderBy: { startsAt: 'desc' },
           include: { professional: true },
         },
       },
@@ -49,7 +69,13 @@ export const PatientModel = {
       },
       include: {
         assignments: {
-          where: { status: { in: VIVOS }, deletedAt: null },
+          where: { deletedAt: null },
+          orderBy: { createdAt: 'desc' },
+          include: { professional: true },
+        },
+        appointments: {
+          where: { deletedAt: null },
+          orderBy: { startsAt: 'desc' },
           include: { professional: true },
         },
       },

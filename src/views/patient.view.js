@@ -1,4 +1,6 @@
 import { ETIQUETAS_ESTADO_PACIENTE, ETIQUETAS_PRIORIDAD } from '../catalogos.js'
+import { ETIQUETAS as ETIQUETAS_CITA } from '../services/appointmentState.service.js'
+import { formatearLocal } from '../services/timezone.service.js'
 
 /**
  * VISTA: Patient
@@ -7,6 +9,9 @@ import { ETIQUETAS_ESTADO_PACIENTE, ETIQUETAS_PRIORIDAD } from '../catalogos.js'
  * su correo ni el detalle de quien la acompana en casa.
  */
 export function pacienteParaAgendador(p) {
+  const ultimaCita = p.appointments?.[0]
+  const ultimaAsignacion = p.assignments?.[0]
+
   return {
     id: p.id,
     fullName: p.fullName,
@@ -23,18 +28,41 @@ export function pacienteParaAgendador(p) {
     prioridadLegible: ETIQUETAS_PRIORIDAD[p.priority] ?? p.priority,
     createdAt: p.createdAt,
     diasEsperando: Math.floor((Date.now() - new Date(p.createdAt).getTime()) / 86400000),
-    asignacion: p.assignments?.[0]
+    cita: ultimaCita
       ? {
-          id: p.assignments[0].id,
-          desde: p.assignments[0].startedAt,
+          id: ultimaCita.id,
+          inicio: ultimaCita.startsAt,
+          fin: ultimaCita.endsAt,
+          inicioLocal: formatearLocal(ultimaCita.startsAt),
+          finLocal: formatearLocal(ultimaCita.endsAt),
+          modalidad: ultimaCita.modality,
+          estado: ultimaCita.status,
+          estadoLegible: ETIQUETAS_CITA[ultimaCita.status] ?? ultimaCita.status,
+          profesional: ultimaCita.professional?.fullName ?? null,
+          notas: ultimaCita.notes ?? null,
+          motivoCancelacion: ultimaCita.cancellationReason ?? null,
+        }
+      : null,
+    asignacion: ultimaAsignacion
+      ? {
+          id: ultimaAsignacion.id,
+          desde: ultimaAsignacion.startedAt,
+          estado: ultimaAsignacion.status,
+          notaDisponibilidad: ultimaAsignacion.availabilityNote ?? null,
+          motivoCierre: ultimaAsignacion.closeReason ?? null,
           profesional: {
-            id: p.assignments[0].professional?.id,
-            nombre: p.assignments[0].professional?.fullName,
-            telefono: p.assignments[0].professional?.phone,
-            email: p.assignments[0].professional?.email,
+            id: ultimaAsignacion.professional?.id,
+            nombre: ultimaAsignacion.professional?.fullName,
+            telefono: ultimaAsignacion.professional?.phone,
+            email: ultimaAsignacion.professional?.email,
           },
         }
       : null,
+    comentarios:
+      ultimaCita?.notes ||
+      ultimaAsignacion?.availabilityNote ||
+      ultimaAsignacion?.closeReason ||
+      null,
   }
 }
 

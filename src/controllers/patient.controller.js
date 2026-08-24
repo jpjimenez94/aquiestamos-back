@@ -193,9 +193,16 @@ export const PatientController = {
 
       const asignacion = await CaseAssignmentModel.findAbiertaDePaciente(paciente.id)
       if (asignacion) {
-        return res
-          .status(409)
-          .json(failure('Cierra primero el acompanamiento activo de esta persona.'))
+        if (req.usuario?.role === 'ADMIN') {
+          await CaseAssignmentModel.cancelar(
+            asignacion.id,
+            'Registro eliminado por administración',
+          )
+        } else {
+          return res
+            .status(409)
+            .json(failure('Cierra primero el acompañamiento activo de esta persona.'))
+        }
       }
 
       await PatientModel.softDelete(paciente.id)
