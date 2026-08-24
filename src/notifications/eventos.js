@@ -313,6 +313,20 @@ export async function asignacionVencida({ asignacion, profesional, tramo }) {
  * coordinación, para unir en vez de duplicar: dos fichas de la misma persona
  * son dos profesionales llamando al mismo teléfono.
  */
+/** El profesional subió sus documentos por su enlace. A coordinación, a aprobar. */
+export async function documentosRecibidos({ profesional }) {
+  await avisarACoordinacion({
+    plantilla: 'COORD_DOCUMENTOS_RECIBIDOS',
+    payload: {
+      profesional: profesional.fullName,
+      ruta: '/portal/verificaciones',
+    },
+    entidad: 'profesional',
+    entidadId: profesional.id,
+    clave: `documentos:${profesional.id}:${profesional.documentsSubmittedAt?.toISOString?.() ?? 'x'}`,
+  })
+}
+
 export async function avisoPosibleDuplicado({ nueva, existente }) {
   await avisarACoordinacion({
     plantilla: 'COORD_POSIBLE_DUPLICADO',

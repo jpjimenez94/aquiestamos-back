@@ -7,6 +7,8 @@ import { cargaActual } from '../services/scheduling.service.js'
 import { registrar, ACCION } from '../services/audit.service.js'
 import { ok, created, failure } from '../views/response.view.js'
 import { profesionalLista, profesionalSegunRol } from '../views/professional.view.js'
+import { crearEnlaceDocumentos } from '../auth/enlaceDocumentos.js'
+import { env } from '../config/env.js'
 
 export const ProfessionalController = {
   /** GET /api/professionals */
@@ -19,9 +21,15 @@ export const ProfessionalController = {
       })
 
       const carga = await cargaActual(profesionales.map((p) => p.id))
+      const sitio = env.sitioUrl.replace(/\/$/, '')
       const lista = profesionalLista(profesionales, req.usuario).map((p) => ({
         ...p,
         carga: carga(p.id),
+        // El enlace por el que ÉL sube sus documentos. Solo mientras falte:
+        // verificado, no hay nada que pedir.
+        enlaceDocumentos: p.professionalCardVerified
+          ? null
+          : `${sitio}/documentos/${crearEnlaceDocumentos(p.id)}`,
       }))
 
       return res.json(ok(lista, { total: lista.length }))
@@ -41,6 +49,9 @@ export const ProfessionalController = {
       return res.json(
         ok({
           ...profesionalSegunRol(profesional, req.usuario),
+          enlaceDocumentos: profesional.professionalCardVerified
+            ? null
+            : `${env.sitioUrl.replace(/\/$/, '')}/documentos/${crearEnlaceDocumentos(profesional.id)}`,
           carga: casos.length,
           casos: casos.map((c) => ({
             id: c.id,

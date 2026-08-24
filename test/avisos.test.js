@@ -63,6 +63,10 @@ const CASOS = {
     ruta: '/portal/caso/abc',
   },
   COORD_SLA_ALTA: { ciudad: 'Cali', dias: 4, ruta: '/portal/personas/abc' },
+  COORD_DOCUMENTOS_RECIBIDOS: {
+    profesional: 'Ana Maria Perez',
+    ruta: '/portal/verificaciones',
+  },
   COORD_ERROR: {
     origen: 'GET /api/patients',
     mensaje: 'column does not exist',

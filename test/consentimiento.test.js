@@ -75,3 +75,16 @@ describe('lo que se manda en la encuesta', () => {
     expect(responderEncuestaSchema.safeParse({ wouldRecommend: true }).success).toBe(false)
   })
 })
+
+describe('enlace de documentos del profesional', () => {
+  it('lo que se crea se puede leer, y trae al profesional', async () => {
+    const { crearEnlaceDocumentos, leerEnlaceDocumentos } = await import('../src/auth/enlaceDocumentos.js')
+    expect(leerEnlaceDocumentos(crearEnlaceDocumentos('prof-1'))?.profesional).toBe('prof-1')
+  })
+
+  it('un token de encuesta no abre la puerta de documentos', async () => {
+    const { leerEnlaceDocumentos } = await import('../src/auth/enlaceDocumentos.js')
+    const { crearEnlaceEncuesta } = await import('../src/auth/enlaceEncuesta.js')
+    expect(leerEnlaceDocumentos(crearEnlaceEncuesta('x'))).toBeNull()
+  })
+})

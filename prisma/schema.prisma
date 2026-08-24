@@ -558,6 +558,13 @@ model Professional {
   professionalCardVerified    Boolean                 @default(false) @map("professional_card_verified")
   professionalCardVerifiedAt  DateTime?               @map("professional_card_verified_at") @db.Timestamptz(3)
   professionalCardVerifiedBy  String?                 @map("professional_card_verified_by") @db.VarChar(160)
+
+  /// Documento de identidad, subido por el propio profesional desde su
+  /// enlace. Mismo bucket privado que la tarjeta; solo lo ve el equipo.
+  identityDocumentUrl String? @map("identity_document_url") @db.VarChar(500)
+  /// Cuándo envió sus documentos por el enlace. Es lo que separa "por
+  /// notificar" de "pendiente de aprobación" en la pantalla de verificaciones.
+  documentsSubmittedAt DateTime? @map("documents_submitted_at") @db.Timestamptz(3)
   populations                 String[]
   modality                    Modality
   travelsTo                   String?                 @map("travels_to") @db.VarChar(200)

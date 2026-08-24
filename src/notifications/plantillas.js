@@ -259,6 +259,17 @@ export const PLANTILLAS = {
       boton: { texto: 'Contar cómo me fue', url: urlDelSitio(p.ruta) },
     }),
 
+  /** A coordinación: llegaron documentos de un profesional, a aprobar. */
+  COORD_DOCUMENTOS_RECIBIDOS: (p) =>
+    armar('Documentos recibidos: hay una verificación pendiente', {
+      titulo: 'Un profesional subió sus documentos',
+      parrafos: [
+        `<strong>${p.profesional}</strong> subió su tarjeta (o certificado) y su documento de identidad por su enlace.`,
+        'Están en la pantalla de verificaciones, con el documento a la vista y los datos del perfil al lado, para aprobar en un clic.',
+      ],
+      boton: { texto: 'Revisar y aprobar', url: urlDelSitio(p.ruta) },
+    }),
+
   /** A coordinación: algo falló en el servidor. Uno por error y por día. */
   COORD_ERROR: (p) =>
     armar(`Error en la plataforma: ${p.origen}`, {
