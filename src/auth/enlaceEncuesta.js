@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import { env } from '../config/env.js'
+import { CODIGO, crearCompacto, leerCompacto } from './enlaceCompacto.js'
 
 /**
  * El enlace por el que la persona responde la encuesta breve tras el cierre.
@@ -17,15 +18,15 @@ function firmar(cuerpo) {
 }
 
 export function crearEnlaceEncuesta(assignmentId) {
-  const cuerpo = Buffer.from(
-    JSON.stringify({ tipo: TIPO, asignacion: assignmentId, vence: Date.now() + TTL_MS }),
-  ).toString('base64url')
-
-  return `${cuerpo}.${firmar(cuerpo)}`
+  return crearCompacto(CODIGO.encuesta, assignmentId, Date.now() + TTL_MS)
 }
 
 export function leerEnlaceEncuesta(token) {
   if (typeof token !== 'string' || token.length > 2048) return null
+
+  // Primero el formato compacto; si trae punto, es un enlace del formato viejo.
+  const compacto = leerCompacto(token, CODIGO.encuesta)
+  if (compacto) return { tipo: TIPO, asignacion: compacto.uuid, vence: compacto.vence }
 
   const corte = token.lastIndexOf('.')
   if (corte < 1) return null

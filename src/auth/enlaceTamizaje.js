@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import { env } from '../config/env.js'
+import { CODIGO, crearCompacto, leerCompacto } from './enlaceCompacto.js'
 
 /**
  * El enlace por el que la persona responde su propio tamizaje.
@@ -28,19 +29,15 @@ function firmar(cuerpo) {
 }
 
 export function crearEnlaceTamizaje(supportRequestId) {
-  const cuerpo = Buffer.from(
-    JSON.stringify({
-      tipo: TIPO,
-      solicitud: supportRequestId,
-      vence: Date.now() + env.triageTtlHours * 3600 * 1000,
-    }),
-  ).toString('base64url')
-
-  return `${cuerpo}.${firmar(cuerpo)}`
+  return crearCompacto(CODIGO.tamizaje, supportRequestId, Date.now() + env.triageTtlHours * 3600 * 1000)
 }
 
 export function leerEnlaceTamizaje(token) {
   if (typeof token !== 'string' || token.length > 2048) return null
+
+  // Primero el formato compacto; si trae punto, es un enlace del formato viejo.
+  const compacto = leerCompacto(token, CODIGO.tamizaje)
+  if (compacto) return { tipo: TIPO, solicitud: compacto.uuid, vence: compacto.vence }
 
   const corte = token.lastIndexOf('.')
   if (corte < 1) return null

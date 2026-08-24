@@ -13,13 +13,13 @@ import { firmarConsentimientoSchema } from '../src/validators/consentimiento.sch
 
 describe('enlace de consentimiento', () => {
   it('lo que se crea se puede leer, y trae la cita', () => {
-    const token = crearEnlaceConsentimiento('cita-123')
+    const token = crearEnlaceConsentimiento('11111111-1111-4111-8111-111111111111')
     const datos = leerEnlaceConsentimiento(token)
-    expect(datos?.cita).toBe('cita-123')
+    expect(datos?.cita).toBe('11111111-1111-4111-8111-111111111111')
   })
 
   it('un token manoseado no abre', () => {
-    const token = crearEnlaceConsentimiento('cita-123')
+    const token = crearEnlaceConsentimiento('11111111-1111-4111-8111-111111111111')
     expect(leerEnlaceConsentimiento(token.slice(0, -1) + 'x')).toBeNull()
     expect(leerEnlaceConsentimiento('basura')).toBeNull()
     expect(leerEnlaceConsentimiento('')).toBeNull()
@@ -27,7 +27,7 @@ describe('enlace de consentimiento', () => {
 
   /** Mismo secreto, puertas distintas: el campo `tipo` es el que separa. */
   it('un token de tamizaje no abre la puerta del consentimiento', () => {
-    expect(leerEnlaceConsentimiento(crearEnlaceTamizaje('solicitud-1'))).toBeNull()
+    expect(leerEnlaceConsentimiento(crearEnlaceTamizaje('22222222-2222-4222-8222-222222222222'))).toBeNull()
   })
 })
 
@@ -55,13 +55,13 @@ describe('lo que se manda al firmar', () => {
 describe('enlace de la encuesta del cierre', () => {
   it('lo que se crea se puede leer, y trae la asignación', async () => {
     const { crearEnlaceEncuesta, leerEnlaceEncuesta } = await import('../src/auth/enlaceEncuesta.js')
-    const datos = leerEnlaceEncuesta(crearEnlaceEncuesta('asig-1'))
-    expect(datos?.asignacion).toBe('asig-1')
+    const datos = leerEnlaceEncuesta(crearEnlaceEncuesta('33333333-3333-4333-8333-333333333333'))
+    expect(datos?.asignacion).toBe('33333333-3333-4333-8333-333333333333')
   })
 
   it('un token de consentimiento no abre la puerta de la encuesta', async () => {
     const { leerEnlaceEncuesta } = await import('../src/auth/enlaceEncuesta.js')
-    expect(leerEnlaceEncuesta(crearEnlaceConsentimiento('cita-1'))).toBeNull()
+    expect(leerEnlaceEncuesta(crearEnlaceConsentimiento('11111111-1111-4111-8111-111111111111'))).toBeNull()
   })
 })
 
@@ -79,12 +79,12 @@ describe('lo que se manda en la encuesta', () => {
 describe('enlace de documentos del profesional', () => {
   it('lo que se crea se puede leer, y trae al profesional', async () => {
     const { crearEnlaceDocumentos, leerEnlaceDocumentos } = await import('../src/auth/enlaceDocumentos.js')
-    expect(leerEnlaceDocumentos(crearEnlaceDocumentos('prof-1'))?.profesional).toBe('prof-1')
+    expect(leerEnlaceDocumentos(crearEnlaceDocumentos('11111111-1111-4111-8111-111111111111'))?.profesional).toBe('11111111-1111-4111-8111-111111111111')
   })
 
   it('un token de encuesta no abre la puerta de documentos', async () => {
     const { leerEnlaceDocumentos } = await import('../src/auth/enlaceDocumentos.js')
     const { crearEnlaceEncuesta } = await import('../src/auth/enlaceEncuesta.js')
-    expect(leerEnlaceDocumentos(crearEnlaceEncuesta('x'))).toBeNull()
+    expect(leerEnlaceDocumentos(crearEnlaceEncuesta('44444444-4444-4444-8444-444444444444'))).toBeNull()
   })
 })

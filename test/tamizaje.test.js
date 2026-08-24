@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { createHmac } from 'node:crypto'
 import { calcularPrioridad, exigeAvisoInmediato } from '../src/services/triage.service.js'
 import { crearEnlaceTamizaje, leerEnlaceTamizaje } from '../src/auth/enlaceTamizaje.js'
+import { env } from '../src/config/env.js'
 import {
   prioridadPorSilencio,
   toca,
@@ -134,6 +135,19 @@ describe('enlace del tamizaje', () => {
    * que impide que uno sirva para la puerta del otro es el campo `tipo`. Si
    * alguien lo quita, esta prueba tiene que fallar.
    */
+  /**
+   * Por WhatsApp ya salieron enlaces del formato viejo (JSON + firma hex, con
+   * punto). Mientras no venzan tienen que seguir abriendo: si esta prueba
+   * falla, alguien con el enlace en su chat se queda por fuera.
+   */
+  it('un enlace del formato viejo sigue abriendo hasta vencer', () => {
+    const cuerpo = Buffer.from(
+      JSON.stringify({ tipo: 'tamizaje', solicitud, vence: Date.now() + 100000 }),
+    ).toString('base64url')
+    const firma = createHmac('sha256', env.sharedCaseSecret).update(cuerpo).digest('hex')
+    expect(leerEnlaceTamizaje(`${cuerpo}.${firma}`)?.solicitud).toBe(solicitud)
+  })
+
   it('un token sin tipo —como el del caso compartido— no abre el tamizaje', () => {
     const cuerpo = Buffer.from(
       JSON.stringify({ paciente: solicitud, profesional: 'x', vence: Date.now() + 100000 }),

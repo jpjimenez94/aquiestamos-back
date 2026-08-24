@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import { env } from '../config/env.js'
+import { CODIGO, crearCompacto, leerCompacto } from './enlaceCompacto.js'
 
 /**
  * El enlace por el que el profesional sube sus documentos: la tarjeta o el
@@ -22,15 +23,15 @@ function firmar(cuerpo) {
 }
 
 export function crearEnlaceDocumentos(professionalId) {
-  const cuerpo = Buffer.from(
-    JSON.stringify({ tipo: TIPO, profesional: professionalId, vence: Date.now() + TTL_MS }),
-  ).toString('base64url')
-
-  return `${cuerpo}.${firmar(cuerpo)}`
+  return crearCompacto(CODIGO.documentos, professionalId, Date.now() + TTL_MS)
 }
 
 export function leerEnlaceDocumentos(token) {
   if (typeof token !== 'string' || token.length > 2048) return null
+
+  // Primero el formato compacto; si trae punto, es un enlace del formato viejo.
+  const compacto = leerCompacto(token, CODIGO.documentos)
+  if (compacto) return { tipo: TIPO, profesional: compacto.uuid, vence: compacto.vence }
 
   const corte = token.lastIndexOf('.')
   if (corte < 1) return null
