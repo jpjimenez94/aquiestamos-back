@@ -53,6 +53,11 @@ professionalRoutes.patch(
   validateBody(actualizarTarjetaProfesionalSchema),
   ProfessionalController.actualizarTarjetaProfesional,
 )
+professionalRoutes.post(
+  '/:id/solicitar-documentos-email',
+  authorize('profesional:verificar-tarjeta'),
+  ProfessionalController.solicitarDocumentosEmail,
+)
 professionalRoutes.delete('/:id', authorize('profesional:borrar'), ProfessionalController.destroy)
 
 // Disponibilidad: el propio profesional puede editar la suya, y el controlador

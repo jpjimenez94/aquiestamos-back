@@ -157,6 +157,22 @@ export async function postulacionAprobada(profesional) {
   })
 }
 
+/** Solicitar al profesional por correo que suba sus documentos (tarjeta/identidad). */
+export async function solicitarDocumentosEmail({ profesional, token }) {
+  await encolar({
+    plantilla: 'SOLICITUD_DOCUMENTOS_PROFESIONAL',
+    para: profesional.email,
+    nombre: profesional.fullName,
+    payload: {
+      nombre: primerNombre(profesional.fullName),
+      ruta: `/documentos/${token}`,
+    },
+    entidad: 'profesional',
+    entidadId: profesional.id,
+    clave: `solicitar-docs:${profesional.id}:${Date.now()}`,
+  })
+}
+
 /**
  * Se admitió a alguien y falta asignarle profesional.
  *

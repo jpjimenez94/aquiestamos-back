@@ -2,7 +2,7 @@ import { ProfessionalModel } from '../models/professional.model.js'
 import { UserModel } from '../models/user.model.js'
 import { CaseAssignmentModel } from '../models/caseAssignment.model.js'
 import { aprobarPostulacion } from '../services/promotion.service.js'
-import { postulacionAprobada } from '../notifications/eventos.js'
+import { postulacionAprobada, solicitarDocumentosEmail } from '../notifications/eventos.js'
 import { cargaActual } from '../services/scheduling.service.js'
 import { registrar, ACCION } from '../services/audit.service.js'
 import { ok, created, failure } from '../views/response.view.js'
@@ -178,6 +178,38 @@ export const ProfessionalController = {
       })
 
       return res.json(ok(profesionalSegunRol(profesional, req.usuario), 'Tarjeta profesional actualizada con éxito'))
+    } catch (error) {
+      next(error)
+    }
+  },
+
+  /** POST /api/professionals/:id/solicitar-documentos-email */
+  async solicitarDocumentosEmail(req, res, next) {
+    try {
+      const profesional = await ProfessionalModel.findById(req.params.id)
+      if (!profesional) return res.status(404).json(failure('Profesional no encontrado'))
+
+      if (!profesional.email) {
+        return res.status(422).json(failure('El profesional no tiene correo electrónico registrado'))
+      }
+
+      const token = crearEnlaceDocumentos(profesional.id)
+      await solicitarDocumentosEmail({ profesional, token })
+
+      await registrar({
+        req,
+        action: ACCION.CREAR,
+        entity: 'aviso_documentos',
+        entityId: profesional.id,
+        after: { destinatario: profesional.email },
+      })
+
+      return res.json(
+        ok(
+          { enviado: true, email: profesional.email },
+          `Correo enviado a ${profesional.email} para cargar documentos`,
+        ),
+      )
     } catch (error) {
       next(error)
     }

@@ -16,6 +16,7 @@ const CASOS = {
   POSTULACION_RECIBIDA: { nombre: 'Ana' },
   APOYO_RECIBIDO: { nombre: 'Camila', disciplina: 'Logística' },
   POSTULACION_APROBADA: { nombre: 'Ana' },
+  SOLICITUD_DOCUMENTOS_PROFESIONAL: { nombre: 'Ana', ruta: '/documentos/xyz123' },
   CITA_AGENDADA: {
     nombre: 'Ana',
     cuando: '2026-09-03 15:00',

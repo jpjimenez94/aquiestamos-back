@@ -81,6 +81,17 @@ export const PLANTILLAS = {
       ],
     }),
 
+  /** Al profesional solicitándole que cargue sus documentos de soporte. */
+  SOLICITUD_DOCUMENTOS_PROFESIONAL: (p) =>
+    armar('Carga de documentos para tu perfil · Red Aquí Estamos', {
+      titulo: `Hola ${p.nombre}, completa tu perfil`,
+      parrafos: [
+        'Para completar la activación de tu perfil y poder asignarte acompañamientos psicológicos en la red, necesitamos que cargues tu tarjeta profesional (o certificado de estudios si estás en formación) y tu documento de identidad.',
+        'Puedes cargarlos en cualquier momento desde tu teléfono o computador ingresando al enlace personal y seguro a continuación. Los documentos se almacenan de manera protegida en nuestro almacenamiento privado.',
+      ],
+      boton: { texto: 'Cargar mis documentos', url: urlDelSitio(p.ruta) },
+    }),
+
   // ---------------------------------------------------------------- agenda
 
   /**
