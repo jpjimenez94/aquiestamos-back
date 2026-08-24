@@ -24,6 +24,9 @@ export const PatientModel = {
           orderBy: { startsAt: 'desc' },
           include: { professional: true },
         },
+        notes: {
+          orderBy: { createdAt: 'desc' },
+        },
       },
     })
   },
@@ -48,6 +51,9 @@ export const PatientModel = {
         appointments: {
           orderBy: { startsAt: 'desc' },
           include: { professional: true },
+        },
+        notes: {
+          orderBy: { createdAt: 'desc' },
         },
       },
       // Los que llevan más tiempo esperando, primero.
@@ -74,6 +80,9 @@ export const PatientModel = {
         appointments: {
           orderBy: { startsAt: 'desc' },
           include: { professional: true },
+        },
+        notes: {
+          orderBy: { createdAt: 'desc' },
         },
       },
       // Primero lo urgente y, dentro de cada nivel, quien lleva más esperando.

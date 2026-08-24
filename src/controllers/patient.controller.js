@@ -1,4 +1,5 @@
 import { PatientModel } from '../models/patient.model.js'
+import { PatientNoteModel } from '../models/patientNote.model.js'
 import { CaseAssignmentModel } from '../models/caseAssignment.model.js'
 import { CaseReportModel } from '../models/caseReport.model.js'
 import { AppointmentModel } from '../models/appointment.model.js'
@@ -237,6 +238,89 @@ export const PatientController = {
           paciente: pacienteSegunRol(paciente, req.usuario),
           candidatos: candidatos.map((c) => profesionalConCarga(c, req.usuario)),
         }),
+      )
+    } catch (error) {
+      next(error)
+    }
+  },
+
+  /** POST /api/patients/:id/notes — Agregar nota de seguimiento */
+  async agregarNota(req, res, next) {
+    try {
+      const { note } = req.body
+      if (!note || typeof note !== 'string' || !note.trim()) {
+        return res.status(400).json(failure('La nota no puede estar vacía'))
+      }
+
+      const paciente = await PatientModel.findById(req.params.id)
+      if (!paciente) return res.status(404).json(failure('Persona no encontrada'))
+
+      const authorName = req.usuario?.fullName || req.usuario?.email || 'Coordinación'
+      const authorEmail = req.usuario?.email || 'sistema'
+
+      const nuevaNota = await PatientNoteModel.create({
+        patientId: paciente.id,
+        note: note.trim(),
+        authorName,
+        authorEmail,
+      })
+
+      await registrar({
+        req,
+        action: ACCION.CREAR,
+        entity: 'paciente_nota',
+        entityId: nuevaNota.id,
+        after: {
+          pacienteId: paciente.id,
+          pacienteNombre: paciente.fullName,
+          nota: nuevaNota.note,
+          autor: authorName,
+        },
+      })
+
+      const notas = await PatientNoteModel.findDePaciente(paciente.id)
+
+      return res.status(201).json(
+        created({
+          nota: {
+            id: nuevaNota.id,
+            nota: nuevaNota.note,
+            autor: nuevaNota.authorName,
+            email: nuevaNota.authorEmail,
+            fecha: nuevaNota.createdAt,
+          },
+          notas: notas.map((n) => ({
+            id: n.id,
+            nota: n.note,
+            autor: n.authorName,
+            email: n.authorEmail,
+            fecha: n.createdAt,
+          })),
+        }),
+      )
+    } catch (error) {
+      next(error)
+    }
+  },
+
+  /** GET /api/patients/:id/notes — Listar notas de seguimiento */
+  async obtenerNotas(req, res, next) {
+    try {
+      const paciente = await PatientModel.findById(req.params.id)
+      if (!paciente) return res.status(404).json(failure('Persona no encontrada'))
+
+      const notas = await PatientNoteModel.findDePaciente(paciente.id)
+
+      return res.json(
+        ok(
+          notas.map((n) => ({
+            id: n.id,
+            nota: n.note,
+            autor: n.authorName,
+            email: n.authorEmail,
+            fecha: n.createdAt,
+          })),
+        ),
       )
     } catch (error) {
       next(error)

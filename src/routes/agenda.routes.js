@@ -90,6 +90,8 @@ patientRoutes.patch(
   validateBody(editarPacienteSchema),
   PatientController.update,
 )
+patientRoutes.get('/:id/notes', authorize('paciente:leer'), PatientController.obtenerNotas)
+patientRoutes.post('/:id/notes', authorize('paciente:leer'), PatientController.agregarNota)
 patientRoutes.delete('/:id', authorize('paciente:borrar'), PatientController.destroy)
 
 // ---------------------------------------------------------------- agenda

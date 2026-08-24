@@ -62,6 +62,25 @@ export function pacienteParaAgendador(p) {
       ultimaAsignacion?.availabilityNote ||
       ultimaAsignacion?.closeReason ||
       null,
+    notasSeguimiento:
+      p.notes?.map((n) => ({
+        id: n.id,
+        nota: n.note,
+        autor: n.authorName,
+        email: n.authorEmail,
+        fecha: n.createdAt,
+        fechaLocal: formatearLocal(n.createdAt),
+      })) ?? [],
+    totalNotas: p.notes?.length ?? 0,
+    ultimaNota: p.notes?.[0]
+      ? {
+          id: p.notes[0].id,
+          nota: p.notes[0].note,
+          autor: p.notes[0].authorName,
+          fecha: p.notes[0].createdAt,
+          fechaLocal: formatearLocal(p.notes[0].createdAt),
+        }
+      : null,
   }
 }
 

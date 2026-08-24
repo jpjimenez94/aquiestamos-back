@@ -626,6 +626,7 @@ model Patient {
 
   assignments  CaseAssignment[]
   appointments Appointment[]
+  notes        PatientNote[]
 
   @@index([status])
   @@index([status, priority])
@@ -633,6 +634,23 @@ model Patient {
   @@index([createdAt])
   @@index([deletedAt])
   @@map("patients")
+}
+
+/// Notas de seguimiento del equipo coordinador/agendador sobre la persona.
+model PatientNote {
+  id          String   @id @default(uuid()) @db.Uuid
+  patientId   String   @map("patient_id") @db.Uuid
+  patient     Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  note        String   @db.VarChar(2000)
+  authorName  String   @map("author_name") @db.VarChar(160)
+  authorEmail String   @map("author_email") @db.VarChar(160)
+
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([patientId, createdAt])
+  @@map("patient_notes")
 }
 
 /// Quién acompaña a quién, durante qué periodo.
