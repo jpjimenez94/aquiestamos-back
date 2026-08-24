@@ -14,7 +14,7 @@ const CON_PERSONAS = {
       professionalCardDocumentUrl: true,
     },
   },
-  patient: { select: { id: true, fullName: true, phone: true, email: true, isMinor: true } },
+  patient: { select: { id: true, fullName: true, phone: true, email: true, isMinor: true, preferredContact: true } },
 }
 
 /**

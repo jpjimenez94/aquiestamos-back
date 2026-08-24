@@ -43,6 +43,7 @@ export function cita(c) {
           nombre: c.patient.fullName,
           telefono: c.patient.phone,
           esMenor: c.patient.isMinor,
+          canalPreferido: c.patient.preferredContact ?? null,
         }
       : { id: c.patientId },
   }
