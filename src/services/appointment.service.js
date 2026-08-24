@@ -174,6 +174,27 @@ export async function crearCita({
     throw new DomainError('FUERA_DE_FRANJA', mensaje)
   }
 
+  // Si la persona ya había firmado el consentimiento informado en una cita previa o en este caso,
+  // no es necesario volver a pedirle la firma: se hereda automáticamente.
+  let yaFirmoConsentimiento = Boolean(consentSigned)
+  let urlDocConsentimiento = consentSignedDocumentUrl ?? null
+  let fechaFirmaConsentimiento = consentSignedAt ?? null
+
+  if (!yaFirmoConsentimiento) {
+    const previaConConsentimiento = await prisma.appointment.findFirst({
+      where: {
+        patientId,
+        consentSigned: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+    if (previaConConsentimiento) {
+      yaFirmoConsentimiento = true
+      urlDocConsentimiento = previaConConsentimiento.consentSignedDocumentUrl
+      fechaFirmaConsentimiento = previaConConsentimiento.consentSignedAt
+    }
+  }
+
   try {
     const cita = await AppointmentModel.create({
       professionalId,
@@ -183,6 +204,9 @@ export async function crearCita({
       endsAt: fin,
       bufferMinutes: descansoMinutos,
       modality: modalidad ?? profesional.modality,
+      consentSigned: yaFirmoConsentimiento,
+      consentSignedDocumentUrl: urlDocConsentimiento,
+      consentSignedAt: fechaFirmaConsentimiento,
       createdById: actorId ?? null,
     })
 
@@ -239,6 +263,9 @@ export async function reprogramar({ citaId, inicio, fin, modalidad, actorId }) {
         fin,
         modalidad: modalidad ?? original.modality,
         descansoMinutos: original.bufferMinutes,
+        consentSigned: original.consentSigned,
+        consentSignedDocumentUrl: original.consentSignedDocumentUrl,
+        consentSignedAt: original.consentSignedAt,
         actorId,
       })
     } catch (error) {
