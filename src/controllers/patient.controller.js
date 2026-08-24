@@ -3,6 +3,9 @@ import { CaseAssignmentModel } from '../models/caseAssignment.model.js'
 import { CaseReportModel } from '../models/caseReport.model.js'
 import { AppointmentModel } from '../models/appointment.model.js'
 import { cita } from '../views/appointment.view.js'
+import { crearEnlaceEncuesta } from '../auth/enlaceEncuesta.js'
+import { env } from '../config/env.js'
+import { prisma } from '../config/database.js'
 import { admitirSolicitud } from '../services/promotion.service.js'
 import { reporte } from '../views/caseReport.view.js'
 import { pacienteAdmitido } from '../notifications/eventos.js'
@@ -58,6 +61,29 @@ export const PatientController = {
       // Bogotá y quién es el profesional.
       const citas = await AppointmentModel.findDePaciente(paciente.id)
 
+      /**
+       * Con el caso cerrado, la ficha trae la encuesta: el enlace para
+       * mandársela a la persona por WhatsApp y, si ya respondió, lo que dijo.
+       * El enlace sale de SITIO_URL, como todos.
+       */
+      let encuesta = null
+      if (paciente.status === 'CERRADO') {
+        const cerrada = await prisma.caseAssignment.findFirst({
+          where: { patientId: paciente.id, status: 'CERRADA', deletedAt: null },
+          orderBy: { endedAt: 'desc' },
+          include: { survey: true },
+        })
+        if (cerrada) {
+          encuesta = {
+            enlace: `${env.sitioUrl.replace(/\/$/, '')}/encuesta/${crearEnlaceEncuesta(cerrada.id)}`,
+            respondida: cerrada.survey != null,
+            ayudo: cerrada.survey?.helped ?? null,
+            recomendaria: cerrada.survey?.wouldRecommend ?? null,
+            comentario: cerrada.survey?.comment ?? null,
+          }
+        }
+      }
+
       await registrar({
         req,
         action: ACCION.CONSULTAR,
@@ -102,6 +128,7 @@ export const PatientController = {
             profesional: r.assignment?.professional?.fullName ?? null,
           })),
           citas: citas.map(cita),
+          encuesta,
         }),
       )
     } catch (error) {

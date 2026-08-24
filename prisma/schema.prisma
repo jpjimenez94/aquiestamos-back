@@ -660,6 +660,7 @@ model CaseAssignment {
   patientConfirmedAt DateTime? @map("patient_confirmed_at") @db.Timestamptz(3)
 
   createdById String? @map("created_by_id") @db.Uuid
+  survey      ClosureSurvey?
 
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -767,6 +768,33 @@ enum CaseFollowUp {
   SUFICIENTE
   /// Todavia no lo se.
   NO_SABE
+}
+
+/// Lo que respondió la persona en la encuesta breve tras el cierre.
+enum EncuestaAyuda {
+  SI
+  ALGO
+  NO
+}
+
+/// La encuesta breve que se le ofrece a la persona al cerrar su caso. Es el
+/// único dato de resultado que la red tiene: dos preguntas, opcional, por
+/// enlace con token. Una por asignación cerrada.
+model ClosureSurvey {
+  id           String         @id @default(uuid()) @db.Uuid
+  assignmentId String         @unique @map("assignment_id") @db.Uuid
+  assignment   CaseAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+
+  /// ¿Te sirvió el acompañamiento?
+  helped         EncuestaAyuda
+  /// ¿Se lo recomendarías a alguien que lo necesite?
+  wouldRecommend Boolean       @map("would_recommend")
+  /// Algo más que quiera decir. Opcional y corto.
+  comment        String?       @db.VarChar(500)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@map("closure_surveys")
 }
 
 model CaseReport {

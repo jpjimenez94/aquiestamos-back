@@ -51,3 +51,27 @@ describe('lo que se manda al firmar', () => {
     expect(firmarConsentimientoSchema.safeParse(sin).success).toBe(false)
   })
 })
+
+describe('enlace de la encuesta del cierre', () => {
+  it('lo que se crea se puede leer, y trae la asignación', async () => {
+    const { crearEnlaceEncuesta, leerEnlaceEncuesta } = await import('../src/auth/enlaceEncuesta.js')
+    const datos = leerEnlaceEncuesta(crearEnlaceEncuesta('asig-1'))
+    expect(datos?.asignacion).toBe('asig-1')
+  })
+
+  it('un token de consentimiento no abre la puerta de la encuesta', async () => {
+    const { leerEnlaceEncuesta } = await import('../src/auth/enlaceEncuesta.js')
+    expect(leerEnlaceEncuesta(crearEnlaceConsentimiento('cita-1'))).toBeNull()
+  })
+})
+
+describe('lo que se manda en la encuesta', () => {
+  it('las dos preguntas son obligatorias; el comentario no', async () => {
+    const { responderEncuestaSchema } = await import('../src/validators/encuesta.schema.js')
+    expect(
+      responderEncuestaSchema.safeParse({ helped: 'SI', wouldRecommend: true }).success,
+    ).toBe(true)
+    expect(responderEncuestaSchema.safeParse({ helped: 'SI' }).success).toBe(false)
+    expect(responderEncuestaSchema.safeParse({ wouldRecommend: true }).success).toBe(false)
+  })
+})

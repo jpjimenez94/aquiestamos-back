@@ -11,6 +11,7 @@ import { resourceRoutes } from './resource.routes.js'
 import sharedCaseRoutes from './sharedCase.routes.js'
 import { triageRoutes } from './triage.routes.js'
 import { consentimientoRoutes } from './consentimiento.routes.js'
+import { encuestaRoutes } from './encuesta.routes.js'
 import { documentoRoutes } from './documento.routes.js'
 import {
   professionalRoutes,
@@ -46,6 +47,7 @@ apiRoutes.use('/shared-cases', sharedCaseRoutes)
 // --- Tamizaje: la persona responde su propio enlace, sin sesión ---
 apiRoutes.use('/triage', triageRoutes)
 apiRoutes.use('/consentimiento', consentimientoRoutes)
+apiRoutes.use('/encuesta', encuestaRoutes)
 
 // --- Portal ---
 apiRoutes.use('/auth', authRoutes)
