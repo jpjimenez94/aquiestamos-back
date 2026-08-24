@@ -9,6 +9,7 @@ import {
 } from './asignacion/barrido.js'
 import { arrancarBarridoCitas, detenerBarridoCitas } from './citas/barrido.js'
 import { vigilarProceso } from './monitoreo/errores.js'
+import { hayAlmacenamientoConfigurado } from './almacenamiento/documentos.js'
 
 // Antes de todo: si algo revienta fuera de Express, que alguien se entere.
 vigilarProceso()
@@ -34,6 +35,17 @@ const server = app.listen(env.port, () => {
   // Recordatorios de sesión, pedir el reporte después, y la alarma de una
   // prioridad ALTA que se está quedando en la cola.
   arrancarBarridoCitas()
+
+  // Sin Supabase configurado, TODO lo de documentos falla: la subida por
+  // enlace, los consentimientos escaneados y las tarjetas. Pasó en
+  // producción y el primero en enterarse fue un profesional con su cédula
+  // en la mano. Que grite aquí, donde lo ve quien despliega.
+  if (!hayAlmacenamientoConfigurado()) {
+    console.warn(
+      '[documentos] OJO: faltan SUPABASE_URL y/o SUPABASE_SERVICE_KEY. ' +
+        'Nadie puede subir ni ver documentos hasta ponerlas.',
+    )
+  }
 })
 
 async function shutdown(signal) {

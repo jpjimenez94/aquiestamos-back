@@ -1,6 +1,11 @@
 import { prisma } from '../config/database.js'
 import { leerEnlaceDocumentos } from '../auth/enlaceDocumentos.js'
-import { guardarDocumento, esClaveDeAlmacenamiento } from '../almacenamiento/documentos.js'
+import {
+  guardarDocumento,
+  esClaveDeAlmacenamiento,
+  hayAlmacenamientoConfigurado,
+} from '../almacenamiento/documentos.js'
+import { capturarError } from '../monitoreo/errores.js'
 import { ok, failure } from '../views/response.view.js'
 import { registrar, ACCION } from '../services/audit.service.js'
 import { documentosRecibidos } from '../notifications/eventos.js'
@@ -74,6 +79,22 @@ export const DocumentosProfesionalController = {
       }
       if (profesional.professionalCardVerified) {
         return res.status(409).json(failure('Tu perfil ya está verificado: no hace falta subir nada más.'))
+      }
+
+      /**
+       * Si el almacenamiento no está configurado, quien lo sufre es un
+       * profesional con su cédula en la mano — y quien puede arreglarlo ni se
+       * entera. El aviso a coordinación viaja por el monitoreo (uno por día),
+       * y a la persona se le habla claro: no es culpa suya ni de su archivo.
+       */
+      if (!hayAlmacenamientoConfigurado()) {
+        capturarError(
+          'almacenamiento sin configurar (subida por enlace)',
+          new Error('Faltan SUPABASE_URL y/o SUPABASE_SERVICE_KEY en el entorno'),
+        )
+        return res
+          .status(503)
+          .json(failure('No es tu archivo: tenemos un problema técnico de nuestro lado. Ya avisamos al equipo; intenta más tarde.'))
       }
 
       const tipo = String(req.get('x-tipo-archivo') ?? req.get('content-type') ?? '')
