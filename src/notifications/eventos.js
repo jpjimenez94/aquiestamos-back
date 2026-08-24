@@ -39,24 +39,50 @@ async function encolar({ plantilla, para, nombre, payload, entidad, entidadId, c
 }
 
 /**
- * A dónde van los avisos internos: a lo que diga la variable de entorno o, si
- * está vacía, a todas las cuentas de administración activas. Así la red no se
- * queda sin enterarse por haber olvidado configurar algo.
+ * A dónde van los avisos internos de coordinación (solicitudes pendientes,
+ * verificaciones pendientes, admisiones, alertas).
+ *
+ * Siempre incluye el buzón oficial redaquiestamos@gmail.com, además de los
+ * correos definidos en NOTIFICACIONES_COORDINACION y las cuentas de administración
+ * activas en la base de datos (sin duplicados).
  */
-async function correosDeCoordinacion() {
+export async function correosDeCoordinacion() {
+  const mapa = new Map()
+
+  // 1. Destinatarios configurados por variable de entorno
   if (env.smtp.coordinacion.length > 0) {
-    return env.smtp.coordinacion.map((email) => ({ email, name: null }))
+    for (const email of env.smtp.coordinacion) {
+      if (email) mapa.set(email.toLowerCase(), { email: email.toLowerCase(), name: null })
+    }
+  } else {
+    // Si no hay variable configurada, buzón oficial por defecto
+    mapa.set('redaquiestamos@gmail.com', {
+      email: 'redaquiestamos@gmail.com',
+      name: 'Coordinación Red Aquí Estamos',
+    })
   }
 
+  // 2. Administradores activos en la base de datos
   try {
     const admins = await UserModel.findAll?.({ role: 'ADMIN' })
-    return (admins ?? [])
-      .filter((u) => u.active && !u.deletedAt)
-      .map((u) => ({ email: u.email, name: u.name }))
+    for (const u of admins ?? []) {
+      if (u.active && !u.deletedAt && u.email) {
+        mapa.set(u.email.toLowerCase(), { email: u.email.toLowerCase(), name: u.name })
+      }
+    }
   } catch (error) {
-    console.error('[avisos] no se pudo resolver coordinación:', error.message)
-    return []
+    console.error('[avisos] no se pudo resolver administradores:', error.message)
   }
+
+  // 3. En producción y desarrollo siempre incluir el buzón oficial redaquiestamos@gmail.com
+  if (process.env.NODE_ENV !== 'test') {
+    mapa.set('redaquiestamos@gmail.com', {
+      email: 'redaquiestamos@gmail.com',
+      name: 'Coordinación Red Aquí Estamos',
+    })
+  }
+
+  return Array.from(mapa.values())
 }
 
 async function avisarACoordinacion({ plantilla, payload, entidad, entidadId, clave }) {

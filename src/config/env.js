@@ -56,9 +56,8 @@ export const env = {
     usuario: process.env.SMTP_USER ?? '',
     clave: process.env.SMTP_PASSWORD ?? '',
     remitente: process.env.SMTP_FROM ?? 'Red Aquí Estamos <no-responder@redaquiestamos.org>',
-    /// A dónde llegan los avisos internos. Si está vacío, van a todas las
-    /// cuentas de administración activas.
-    coordinacion: (process.env.NOTIFICACIONES_COORDINACION ?? '')
+    /// A dónde llegan los avisos internos. Incluye el buzón oficial redaquiestamos@gmail.com.
+    coordinacion: (process.env.NOTIFICACIONES_COORDINACION ?? 'redaquiestamos@gmail.com')
       .split(',')
       .map((c) => c.trim().toLowerCase())
       .filter(Boolean),
