@@ -63,6 +63,14 @@ export async function huecosDisponibles({
     )
   }
 
+  const profesional = await prisma.professional.findFirst({
+    where: { id: professionalId, deletedAt: null },
+    select: { id: true, status: true },
+  })
+  if (!profesional || profesional.status !== 'ACTIVO') {
+    return []
+  }
+
   const [reglas, excepciones, citas] = await Promise.all([
     prisma.availabilityRule.findMany({
       where: {
