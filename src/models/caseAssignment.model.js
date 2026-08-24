@@ -2,6 +2,7 @@ import { prisma } from '../config/database.js'
 import { VIVOS } from '../services/assignmentState.service.js'
 
 const vivos = { deletedAt: null }
+const esUuid = (val) => typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)
 
 /**
  * MODELO: CaseAssignment
@@ -12,6 +13,7 @@ export const CaseAssignmentModel = {
   },
 
   findById(id) {
+    if (!esUuid(id)) return null
     return prisma.caseAssignment.findFirst({
       where: { id, ...vivos },
       include: { professional: true, patient: true },
@@ -26,6 +28,7 @@ export const CaseAssignmentModel = {
    * parte del tiempo un caso está esperando respuesta, no acompañándose.
    */
   findAbiertaDePaciente(patientId) {
+    if (!esUuid(patientId)) return null
     return prisma.caseAssignment.findFirst({
       where: { patientId, status: { in: VIVOS }, ...vivos },
       include: { professional: true },
@@ -34,6 +37,7 @@ export const CaseAssignmentModel = {
 
   /** Solo la que ya tiene cita: acompañamiento en curso de verdad. */
   findActivaDePaciente(patientId) {
+    if (!esUuid(patientId)) return null
     return prisma.caseAssignment.findFirst({
       where: { patientId, status: 'ACTIVA', ...vivos },
       include: { professional: true },
@@ -41,6 +45,7 @@ export const CaseAssignmentModel = {
   },
 
   findDeProfesional(professionalId, { status = 'ACTIVA' } = {}) {
+    if (!esUuid(professionalId)) return []
     return prisma.caseAssignment.findMany({
       where: { professionalId, ...(status ? { status } : {}), ...vivos },
       include: { patient: true },

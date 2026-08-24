@@ -1,6 +1,7 @@
 import { prisma } from '../config/database.js'
 
 const vivos = { deletedAt: null }
+const esUuid = (val) => typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)
 
 /**
  * MODELO: Professional
@@ -11,14 +12,17 @@ export const ProfessionalModel = {
   },
 
   findById(id) {
+    if (!esUuid(id)) return null
     return prisma.professional.findFirst({ where: { id, ...vivos } })
   },
 
   findByUserId(userId) {
+    if (!esUuid(userId)) return null
     return prisma.professional.findFirst({ where: { userId, ...vivos } })
   },
 
   findByVolunteerId(volunteerId) {
+    if (!esUuid(volunteerId)) return null
     return prisma.professional.findFirst({ where: { volunteerId, ...vivos } })
   },
 

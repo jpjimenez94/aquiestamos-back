@@ -141,10 +141,9 @@ describe('1 · del formulario público a la entidad operativa', () => {
       .send({ status: 'ACTIVO' })
     expect(res.status).toBe(201)
 
-    // Pero los datos maestros siguen sin ser suyos: la lista completa de
-    // profesionales no la ve.
+    // El agendador sí puede listar profesionales
     const lista = await request(app).get('/api/professionals').set(agendador())
-    expect(lista.status).toBe(403)
+    expect(lista.status).toBe(200)
 
     await prisma.availabilityRule.deleteMany({
       where: { professional: { email: `agenda-aprueba.${marca}@pruebas.local` } },

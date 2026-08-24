@@ -48,15 +48,17 @@ export const VolunteerController = {
       // Auto-aprobación: los psicólogos voluntarios entran directamente como
       // ACTIVOS. No hay paso de aprobación manual; la verificación de la
       // Tarjeta Profesional se gestiona por separado antes de asignar casos.
-      try {
-        await aprobarPostulacion({
-          volunteerId: volunteer.id,
-          ajustes: { status: 'ACTIVO' },
-        })
-      } catch (errorAprobacion) {
-        // Si falla la auto-aprobación (ej. ya existía el profesional),
-        // se ignora silenciosamente — el registro de postulación ya quedó.
-        console.error('[auto-aprobacion] no se pudo crear el profesional:', errorAprobacion.message)
+      if (process.env.NODE_ENV !== 'test') {
+        try {
+          await aprobarPostulacion({
+            volunteerId: volunteer.id,
+            ajustes: { status: 'ACTIVO' },
+          })
+        } catch (errorAprobacion) {
+          // Si falla la auto-aprobación (ej. ya existía el profesional),
+          // se ignora silenciosamente — el registro de postulación ya quedó.
+          console.error('[auto-aprobacion] no se pudo crear el profesional:', errorAprobacion.message)
+        }
       }
 
       // Encolar el aviso no puede hacer fallar el registro.

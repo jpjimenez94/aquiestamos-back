@@ -85,6 +85,9 @@ export async function crearCita({
   modalidad,
   descansoMinutos = DESCANSO,
   permitirFueraDeFranja = false,
+  consentSigned,
+  consentSignedDocumentUrl,
+  consentSignedAt,
   actorId,
 }) {
   const [profesional, paciente] = await Promise.all([
@@ -276,7 +279,7 @@ export async function reprogramar({ citaId, inicio, fin, modalidad, actorId }) {
 
     await AppointmentModel.update(citaId, { rescheduledToId: nueva.id })
     return nueva
-  })
+  }, { timeout: 15000 })
 }
 
 /**

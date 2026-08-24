@@ -2,6 +2,7 @@ import { prisma } from '../config/database.js'
 
 /** Los registros con `deletedAt` no existen para el resto de la aplicación. */
 const vivos = { deletedAt: null }
+const esUuid = (val) => typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)
 
 /**
  * MODELO: SupportRequest
@@ -13,6 +14,7 @@ export const SupportRequestModel = {
   },
 
   findById(id) {
+    if (!esUuid(id)) return null
     return prisma.supportRequest.findFirst({ where: { id, ...vivos } })
   },
 

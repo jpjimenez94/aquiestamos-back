@@ -17,6 +17,8 @@ const CON_PERSONAS = {
   patient: { select: { id: true, fullName: true, phone: true, email: true, isMinor: true, preferredContact: true } },
 }
 
+const esUuid = (val) => typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)
+
 /**
  * MODELO: Appointment
  */
@@ -26,6 +28,7 @@ export const AppointmentModel = {
   },
 
   findById(id) {
+    if (!esUuid(id)) return null
     return prisma.appointment.findUnique({ where: { id }, include: CON_PERSONAS })
   },
 

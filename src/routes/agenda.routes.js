@@ -7,6 +7,7 @@ import { DashboardController } from '../controllers/dashboard.controller.js'
 import { authenticate } from '../middlewares/authenticate.js'
 import { authorize } from '../middlewares/authorize.js'
 import { validateBody } from '../middlewares/validate.js'
+import { validarParamId } from '../middlewares/validarUuid.js'
 import {
   crearCitaSchema,
   cambiarEstadoSchema,
@@ -28,6 +29,7 @@ import {
 // ---------------------------------------------------------------- profesionales
 export const professionalRoutes = Router()
 professionalRoutes.use(authenticate)
+professionalRoutes.param('id', validarParamId)
 
 professionalRoutes.get('/', authorize('profesional:leer'), ProfessionalController.index)
 professionalRoutes.get('/:id', authorize('profesional:leer'), ProfessionalController.show)
@@ -78,6 +80,7 @@ professionalRoutes.delete('/:id/bloqueos/:bloqueoId', AvailabilityController.bor
 // ---------------------------------------------------------------- personas
 export const patientRoutes = Router()
 patientRoutes.use(authenticate)
+patientRoutes.param('id', validarParamId)
 
 patientRoutes.get('/', authorize('paciente:leer'), PatientController.index)
 patientRoutes.get('/:id', authorize('paciente:leer'), PatientController.show)
@@ -102,6 +105,7 @@ patientRoutes.delete('/:id', authorize('paciente:borrar'), PatientController.des
 // ---------------------------------------------------------------- agenda
 export const appointmentRoutes = Router()
 appointmentRoutes.use(authenticate)
+appointmentRoutes.param('id', validarParamId)
 
 // Las rutas fijas van antes que `/:id`, si no `huecos` se leería como un id.
 appointmentRoutes.get('/huecos', authorize('agenda:leer'), AppointmentController.huecos)

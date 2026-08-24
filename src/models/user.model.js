@@ -6,6 +6,7 @@ import { prisma } from '../config/database.js'
  * lo contrario de forma explícita.
  */
 const vivos = { deletedAt: null }
+const esUuid = (val) => typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)
 
 export const UserModel = {
   create(data) {
@@ -13,6 +14,7 @@ export const UserModel = {
   },
 
   findById(id) {
+    if (!esUuid(id)) return null
     return prisma.user.findFirst({ where: { id, ...vivos } })
   },
 

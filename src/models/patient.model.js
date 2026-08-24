@@ -2,6 +2,7 @@ import { prisma } from '../config/database.js'
 import { VIVOS } from '../services/assignmentState.service.js'
 
 const vivos = { deletedAt: null }
+const esUuid = (val) => typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)
 
 /**
  * MODELO: Patient
@@ -12,6 +13,7 @@ export const PatientModel = {
   },
 
   findById(id) {
+    if (!esUuid(id)) return null
     return prisma.patient.findFirst({
       where: { id, ...vivos },
       include: {
@@ -32,6 +34,7 @@ export const PatientModel = {
   },
 
   findBySupportRequestId(supportRequestId) {
+    if (!esUuid(supportRequestId)) return null
     return prisma.patient.findFirst({ where: { supportRequestId, ...vivos } })
   },
 
