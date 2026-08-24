@@ -18,6 +18,7 @@ import { cita as citaVista, citaLista, citaListaParaProfesional } from '../views
 import { huecoLista } from '../views/availability.view.js'
 import { DomainError } from '../errors/DomainError.js'
 import { crearEnlaceConsentimiento } from '../auth/enlaceConsentimiento.js'
+import { crearEnlaceDocumentos } from '../auth/enlaceDocumentos.js'
 import { env } from '../config/env.js'
 
 /** Lee un rango de fechas de la query, con valores por defecto sensatos. */
@@ -145,6 +146,11 @@ export const AppointmentController = {
           consentimiento: {
             enlace: `${env.sitioUrl.replace(/\/$/, '')}/consentimiento/${crearEnlaceConsentimiento(encontrada.id)}`,
           },
+          // El enlace por el que el profesional sube sus documentos, para el
+          // modal de la tarjeta en este mismo detalle. Solo si falta.
+          enlaceDocumentos: encontrada.professional?.professionalCardVerified
+            ? null
+            : `${env.sitioUrl.replace(/\/$/, '')}/documentos/${crearEnlaceDocumentos(encontrada.professionalId)}`,
         }),
       )
     } catch (error) {

@@ -1,4 +1,6 @@
 /**
+import { crearEnlaceDocumentos } from '../auth/enlaceDocumentos.js'
+import { env } from '../config/env.js'
  * VISTA: Volunteer
  * Nunca devolvemos el registro crudo de la base de datos: aquí se decide
  * qué campos son públicos y cuáles solo se exponen al panel administrativo.
@@ -45,6 +47,11 @@ export function volunteerAdmin(volunteer) {
     // Si ya fue promovido, el id del profesional y estado de su tarjeta profesional
     professionalId: volunteer.professional?.id ?? null,
     professionalCardVerified: volunteer.professional?.professionalCardVerified ?? false,
+    // El enlace por el que el profesional sube sus documentos. Solo si falta.
+    enlaceDocumentos:
+      volunteer.professional && !volunteer.professional.professionalCardVerified
+        ? `${env.sitioUrl.replace(/\/$/, '')}/documentos/${crearEnlaceDocumentos(volunteer.professional.id)}`
+        : null,
     professionalCardNumber: volunteer.professional?.professionalCardNumber ?? null,
     professionalCardDocumentUrl: volunteer.professional?.professionalCardDocumentUrl ?? null,
   }
