@@ -107,6 +107,7 @@ export async function authorizeSharedCase(req, res, next) {
         action: ACCION.ACCESO_FALLIDO,
         entity: 'CasoCompartido',
         entityId: id,
+        actorEmail: correo,
         after: { correo },
       })
       return res
@@ -119,6 +120,7 @@ export async function authorizeSharedCase(req, res, next) {
       action: ACCION.ACCEDER,
       entity: 'CasoCompartido',
       entityId: id,
+      actorEmail: profesional.email,
       after: { correo, profesionalId: profesional.id },
     })
 
@@ -235,6 +237,7 @@ export async function reportarCaso(req, res, next) {
       action: ACCION.CREAR,
       entity: 'ReporteDeCaso',
       entityId: creado.id,
+      actorEmail: asignacion.professional.email,
       after: { caso: id, resultado: creado.outcome },
     })
 
@@ -292,8 +295,17 @@ export async function responderPropuesta(req, res, next) {
       action: ACCION.EDITAR,
       entity: 'asignacion',
       entityId: asignacion.id,
+      actorEmail: asignacion.professional.email,
       before: { estado: asignacion.status },
-      after: { estado: actualizada.status, respondioProfesional: asignacion.professional.email },
+      after: {
+        estado: actualizada.status,
+        respondioProfesional: asignacion.professional.email,
+        acepta,
+        dias,
+        franjas,
+        nota: nota || null,
+        motivo: motivo || null,
+      },
     })
 
     return res.json(

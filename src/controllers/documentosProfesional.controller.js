@@ -31,6 +31,7 @@ async function profesionalDelToken(token) {
     select: {
       id: true,
       fullName: true,
+      email: true,
       professionalCardVerified: true,
       professionalCardNumber: true,
       documentsSubmittedAt: true,
@@ -112,7 +113,8 @@ export const DocumentosProfesionalController = {
         action: ACCION.CREAR,
         entity: 'documento',
         entityId: clave,
-        after: { profesional: profesional.id, tamano, desdeEnlace: true },
+        actorEmail: profesional.email,
+        after: { profesional: profesional.id, profesionalEmail: profesional.email, tamano, desdeEnlace: true },
       })
 
       return res.json(ok({ clave }))
@@ -153,6 +155,7 @@ export const DocumentosProfesionalController = {
         select: {
           id: true,
           fullName: true,
+          email: true,
           professionalCardVerified: true,
           professionalCardNumber: true,
           documentsSubmittedAt: true,
@@ -164,7 +167,8 @@ export const DocumentosProfesionalController = {
         action: ACCION.EDITAR,
         entity: 'profesional_tarjeta',
         entityId: profesional.id,
-        after: { documentosEnviados: true, desdeEnlace: true },
+        actorEmail: profesional.email,
+        after: { documentosEnviados: true, profesionalEmail: profesional.email, desdeEnlace: true },
       })
 
       await documentosRecibidos({ profesional: actualizado })

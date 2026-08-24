@@ -20,12 +20,12 @@ export function limpiar(objeto) {
   return salida
 }
 
-export async function registrar({ req, action, entity, entityId, before, after }) {
+export async function registrar({ req, action, entity, entityId, before, after, actorEmail, actorId }) {
   try {
     const actor = req?.usuario ?? null
     await AuditLogModel.create({
-      actorId: actor?.id ?? null,
-      actorEmail: actor?.email ?? null,
+      actorId: actorId ?? actor?.id ?? null,
+      actorEmail: actorEmail ?? actor?.email ?? null,
       action,
       entity,
       entityId: entityId ? String(entityId) : null,

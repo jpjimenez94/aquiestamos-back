@@ -91,6 +91,7 @@ export const ConsentimientoController = {
         action: ACCION.EDITAR,
         entity: 'cita_consentimiento',
         entityId: cita.id,
+        actorEmail: cita.patient?.email || (cita.patient?.fullName ? `${cita.patient.fullName} (persona)` : 'persona'),
         after: {
           consentSigned: true,
           firma: req.validated.nombreFirma,

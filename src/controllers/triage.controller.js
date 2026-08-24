@@ -124,6 +124,7 @@ export const TriageController = {
         action: ACCION.CREAR,
         entity: 'Tamizaje',
         entityId: respuesta.id,
+        actorEmail: solicitud.email || `${solicitud.name} (${solicitud.phone})`,
         after: { solicitud: solicitud.id, prioridad, admitida: Boolean(admision) },
       })
 
