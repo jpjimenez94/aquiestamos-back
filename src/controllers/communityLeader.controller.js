@@ -446,14 +446,14 @@ export const CommunityLeaderController = {
 
       await registrar({
         req,
-        action: ACCION.ELIMINAR,
+        action: ACCION.BORRAR,
         entity: 'lider_comunitario',
         entityId: id,
         before: existing,
         after: updated,
       })
 
-      return res.json(ok({ id }, 'Líder comunitario inactivado.'))
+      return res.json(ok({ id }, 'Líder comunitario eliminado correctamente.'))
     } catch (error) {
       return next(error)
     }
