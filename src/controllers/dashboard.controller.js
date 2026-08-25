@@ -111,7 +111,7 @@ export const DashboardController = {
       const ahora = new Date()
       const hace24h = new Date(ahora.getTime() - 24 * 3600 * 1000)
 
-      // 1. Pacientes activos con su asignación activa (incluye profesional y su TP)
+      // 1. Pacientes activos con su asignación activa (incluye profesional, última cita y último reporte)
       const pacientes = await prisma.patient.findMany({
         where: {
           deletedAt: null,
@@ -133,12 +133,35 @@ export const DashboardController = {
                   professionalCardDocumentUrl: true,
                 },
               },
+              reports: {
+                where: { deletedAt: null },
+                orderBy: { createdAt: 'desc' },
+                take: 1,
+                select: {
+                  id: true,
+                  outcome: true,
+                  createdAt: true,
+                  notes: true,
+                },
+              },
+            },
+          },
+          appointments: {
+            orderBy: { startsAt: 'desc' },
+            take: 1,
+            select: {
+              id: true,
+              startsAt: true,
+              endsAt: true,
+              status: true,
+              modality: true,
+              consentSigned: true,
             },
           },
         },
       })
 
-      // 2. Citas abiertas (desde 24h atrás para incluir citas en curso)
+      // 2. Citas abiertas (desde 24h atrás para incluir citas recientes)
       const citasAbiertas = await prisma.appointment.findMany({
         where: {
           startsAt: { gte: hace24h },
@@ -165,6 +188,9 @@ export const DashboardController = {
       // Aplanar estructura para el frontend
       const mapearPaciente = (p) => {
         const asignacion = p.assignments[0] ?? null
+        const ultimaCita = p.appointments?.[0] ?? null
+        const ultimoReporte = asignacion?.reports?.[0] ?? null
+
         return {
           id: p.id,
           fullName: p.fullName,
@@ -174,6 +200,23 @@ export const DashboardController = {
           isMinor: p.isMinor,
           createdAt: p.createdAt,
           diasEsperando: Math.floor((Date.now() - new Date(p.createdAt).getTime()) / 86400000),
+          ultimaCita: ultimaCita
+            ? {
+                id: ultimaCita.id,
+                inicio: ultimaCita.startsAt,
+                fin: ultimaCita.endsAt,
+                estado: ultimaCita.status,
+                modalidad: ultimaCita.modality,
+              }
+            : null,
+          ultimoReporte: ultimoReporte
+            ? {
+                id: ultimoReporte.id,
+                outcome: ultimoReporte.outcome,
+                fecha: ultimoReporte.createdAt,
+                notas: ultimoReporte.notes,
+              }
+            : null,
           asignacion: asignacion
             ? {
                 id: asignacion.id,
@@ -219,22 +262,14 @@ export const DashboardController = {
       }
 
       // Columnas del pipeline: la 1 por ausencia de negociación, la 2 y la 3
-      // por el estado de la asignación, la 4 por las citas y la 5 por el
-      // estado del paciente.
-      /**
-       * Sin negociación viva = por asignar. A propósito no se mira el estado
-       * del paciente: los casos de antes de que asignar fuera una negociación
-       * quedaron con el estado viejo ASIGNADO, y filtrar por estado los hacía
-       * invisibles en todas las columnas a la vez.
-       */
+      // por el estado de la asignación, la 4 y 5 por las citas futuras o en curso, y la 6
+      // por los casos en acompañamiento o cuya cita ya pasó (+45 min).
       const porAsignar = pacientes
         .filter((p) => p.assignments.length === 0)
         .map((p) => {
           const base = mapearPaciente(p)
           return {
             ...base,
-            // El mismo umbral que usa la alarma del barrido: la card grita
-            // cuando una ALTA lleva demasiados días sin profesional.
             slaVencido: p.priority === 'ALTA' && base.diasEsperando >= SLA_ALTA_DIAS,
           }
         })
@@ -248,18 +283,49 @@ export const DashboardController = {
         .map(mapearPaciente)
 
       /**
-       * ACTIVA en la asignación, no EN_ACOMPANAMIENTO en el paciente: la
-       * máquina de estados es la fuente de verdad, y los casos legacy tienen
-       * el paciente en ASIGNADO con la asignación perfectamente activa.
-       *
-       * Y sin cita abierta: mientras hay una cita sobre la mesa el caso vive
-       * en la columna 4, no en las dos a la vez. A esta columna se llega
-       * cuando la cita ya pasó o se marcó realizada — que es cuando de verdad
-       * toca el seguimiento: leer el reporte, agendar la siguiente o cerrar.
+       * Mapeo de citas evaluando si la sesión aún está vigente o si ya concluyó.
+       * Una sesión dura 45 minutos (termina a las `startsAt + 45min` o `endsAt`).
+       * Si ya pasaron los 45 minutos de la cita, ya no se muestra como pendiente en
+       * Paso 4/5, sino que el caso pasa a Paso 6 (Acompañamiento / seguimiento).
        */
-      const conCitaAbierta = new Set(citasAbiertas.map((c) => c.patient.id))
+      const citasMapeadas = citasAbiertas.map((c) => {
+        const finSesion = c.endsAt
+          ? new Date(c.endsAt)
+          : new Date(new Date(c.startsAt).getTime() + 45 * 60000)
+        const yaPasoSesion = finSesion.getTime() <= ahora.getTime()
+
+        return {
+          id: c.id,
+          inicio: c.startsAt,
+          fin: c.endsAt,
+          finSesion,
+          yaPasoSesion,
+          estado: c.status,
+          modalidad: c.modality,
+          consentSigned: c.consentSigned,
+          consentSignedDocumentUrl: c.consentSignedDocumentUrl,
+          paciente: { id: c.patient.id, nombre: c.patient.fullName, telefono: c.patient.phone },
+          profesional: { id: c.professional.id, nombre: c.professional.fullName },
+        }
+      })
+
+      // Columnas 4 y 5: Citas propuestas o confirmadas que todavía no han terminado
+      const citasPropuestas = citasMapeadas.filter((c) => c.estado === 'PROGRAMADA' && !c.yaPasoSesion)
+      const citasConfirmadas = citasMapeadas.filter((c) => c.estado === 'CONFIRMADA' && !c.yaPasoSesion)
+
+      // Pacientes con alguna cita futura o en curso (que no haya terminado)
+      const conCitaFutura = new Set(
+        citasMapeadas.filter((c) => !c.yaPasoSesion).map((c) => c.paciente.id),
+      )
+
+      /**
+       * Columna 6 (En acompañamiento / seguimiento):
+       * Asignación ACTIVA y sin cita futura pendiente. Es decir:
+       * - La cita acordada ya pasó (+45 min) y toca seguimiento / reporte.
+       * - O el caso está en acompañamiento continuo.
+       */
       const enAcompanamiento = pacientes
-        .filter((p) => p.assignments[0]?.status === 'ACTIVA' && !conCitaAbierta.has(p.id))
+        .filter((p) => p.assignments[0]?.status === 'ACTIVA' && !conCitaFutura.has(p.id))
         .map(mapearPaciente)
 
       // Los cerrados recientes, para que cerrar no sea desaparecer: quien
@@ -286,21 +352,6 @@ export const DashboardController = {
         motivo: p.assignments[0]?.closeReason ?? null,
         profesional: p.assignments[0]?.professional?.fullName ?? null,
       }))
-
-      const citasMapeadas = citasAbiertas.map((c) => ({
-        id: c.id,
-        inicio: c.startsAt,
-        fin: c.endsAt,
-        estado: c.status,
-        modalidad: c.modality,
-        consentSigned: c.consentSigned,
-        consentSignedDocumentUrl: c.consentSignedDocumentUrl,
-        paciente: { id: c.patient.id, nombre: c.patient.fullName, telefono: c.patient.phone },
-        profesional: { id: c.professional.id, nombre: c.professional.fullName },
-      }))
-
-      const citasPropuestas = citasMapeadas.filter((c) => c.estado === 'PROGRAMADA')
-      const citasConfirmadas = citasMapeadas.filter((c) => c.estado === 'CONFIRMADA')
 
       return res.json(
         ok({
