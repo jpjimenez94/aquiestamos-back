@@ -5,6 +5,7 @@ import { CaseReportModel } from '../models/caseReport.model.js'
 import { AppointmentModel } from '../models/appointment.model.js'
 import { cita } from '../views/appointment.view.js'
 import { crearEnlaceEncuesta } from '../auth/enlaceEncuesta.js'
+import { crearEnlaceFeedback } from '../auth/enlaceFeedback.js'
 import { env } from '../config/env.js'
 import { prisma } from '../config/database.js'
 import { admitirSolicitud } from '../services/promotion.service.js'
@@ -19,6 +20,10 @@ import {
   ETIQUETAS as ETIQUETAS_ASIGNACION,
   SIGUIENTE_PASO,
 } from '../services/assignmentState.service.js'
+import {
+  ETIQUETAS_FEEDBACK_SENTIR,
+  ETIQUETAS_FEEDBACK_CONTINUAR,
+} from '../catalogos.js'
 
 export const PatientController = {
   /** GET /api/patients */
@@ -61,6 +66,16 @@ export const PatientController = {
       // irse a la agenda a buscar cuándo es. La vista ya trae la hora en
       // Bogotá y quién es el profesional.
       const citas = await AppointmentModel.findDePaciente(paciente.id)
+
+      /**
+       * Retroalimentación directa de la persona sobre sus sesiones (formulario breve de experiencia).
+       */
+      const feedbacks = await prisma.patientFeedback.findMany({
+        where: { patientId: paciente.id },
+        orderBy: { createdAt: 'desc' },
+        include: { assignment: { include: { professional: { select: { fullName: true } } } } },
+      })
+      const enlaceFeedback = `${env.sitioUrl.replace(/\/$/, '')}/experiencia/${crearEnlaceFeedback(paciente.id)}`
 
       /**
        * Con el caso cerrado, la ficha trae la encuesta: el enlace para
@@ -128,6 +143,17 @@ export const PatientController = {
             ...reporte(r),
             profesional: r.assignment?.professional?.fullName ?? null,
           })),
+          feedbacks: feedbacks.map((f) => ({
+            id: f.id,
+            howFelt: f.howFelt,
+            howFeltLegible: ETIQUETAS_FEEDBACK_SENTIR[f.howFelt] ?? f.howFelt,
+            wantsToContinue: f.wantsToContinue,
+            wantsToContinueLegible: ETIQUETAS_FEEDBACK_CONTINUAR[f.wantsToContinue] ?? f.wantsToContinue,
+            comment: f.comment,
+            profesional: f.assignment?.professional?.fullName ?? null,
+            createdAt: f.createdAt,
+          })),
+          enlaceFeedback,
           citas: citas.map(cita),
           encuesta,
         }),

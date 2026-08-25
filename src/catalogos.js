@@ -97,3 +97,16 @@ export const ETIQUETAS_TAMIZAJE_URGENCIA = {
   ESTA_SEMANA: 'Esta semana',
   PUEDO_ESPERAR: 'Puedo esperar',
 }
+
+export const ETIQUETAS_FEEDBACK_SENTIR = {
+  MUY_BIEN: 'Muy bien / Me sentí escuchada(o)',
+  BIEN: 'Bien',
+  REGULAR: 'Regular / Con dudas',
+  INCOMODO: 'Incómoda(o) o insatisfecha(o)',
+}
+
+export const ETIQUETAS_FEEDBACK_CONTINUAR = {
+  SI_MISMO: 'Desea continuar con el mismo profesional',
+  CAMBIAR: 'Prefiere cambiar de profesional',
+  SUFICIENTE: 'Siente que con esta sesión fue suficiente',
+}

@@ -40,7 +40,7 @@ export const RESPONSABLE = {
   nombre: 'Red Aquí Estamos',
   nit: null,
   direccion: null,
-  canalHabeasData: 'WhatsApp +57 313 629 5251',
+  canalHabeasData: 'WhatsApp +57 310 218 6299',
   correoHabeasData: null,
   urlPolitica: '/politica-de-datos',
   retencionMeses: 24,

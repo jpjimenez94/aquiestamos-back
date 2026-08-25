@@ -21,7 +21,7 @@ import { env } from '../config/env.js'
  * enviados por WhatsApp siguen abriendo hasta su vencimiento natural.
  */
 
-export const CODIGO = { tamizaje: 1, consentimiento: 2, encuesta: 3, documentos: 4 }
+export const CODIGO = { tamizaje: 1, consentimiento: 2, encuesta: 3, documentos: 4, feedback: 5 }
 
 const LARGO_CUERPO = 21
 const LARGO_FIRMA = 16

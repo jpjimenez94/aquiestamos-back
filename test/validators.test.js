@@ -218,3 +218,34 @@ describe('auditoría', () => {
     expect(limpio.createdAt).toBe('2026-08-20T03:00:00.000Z')
   })
 })
+
+describe('feedback de la sesión', () => {
+  it('valida respuestas correctas', async () => {
+    const { responderFeedbackSchema } = await import('../src/validators/feedback.schema.js')
+    const r = responderFeedbackSchema.safeParse({
+      howFelt: 'MUY_BIEN',
+      wantsToContinue: 'SI_MISMO',
+      comment: 'Excelente sesión, muy empática.',
+    })
+    expect(r.success).toBe(true)
+  })
+
+  it('rechaza opciones inválidas', async () => {
+    const { responderFeedbackSchema } = await import('../src/validators/feedback.schema.js')
+    const r = responderFeedbackSchema.safeParse({
+      howFelt: 'DESCONOCIDO',
+      wantsToContinue: 'SI_MISMO',
+    })
+    expect(r.success).toBe(false)
+  })
+
+  it('genera y lee tokens de feedback correctamente', async () => {
+    const { crearEnlaceFeedback, leerEnlaceFeedback } = await import('../src/auth/enlaceFeedback.js')
+    const uuid = '227adf55-b00c-45f9-9e80-9e5e0bb843f5'
+    const token = crearEnlaceFeedback(uuid)
+    expect(typeof token).toBe('string')
+    const leido = leerEnlaceFeedback(token)
+    expect(leido?.tipo).toBe('feedback')
+    expect(leido?.paciente).toBe(uuid)
+  })
+})
