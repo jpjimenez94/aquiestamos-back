@@ -166,6 +166,7 @@ appointmentRoutes.post(
 
 // ---------------------------------------------------------------- tablero
 export const dashboardRoutes = Router()
+dashboardRoutes.get('/badges', authenticate, DashboardController.badges)
 dashboardRoutes.get('/', authenticate, authorize('agenda:leer'), DashboardController.index)
 dashboardRoutes.get('/tablero', authenticate, authorize('agenda:leer'), DashboardController.tablero)
 dashboardRoutes.get('/metricas', authenticate, authorize('metricas:leer'), DashboardController.metricas)

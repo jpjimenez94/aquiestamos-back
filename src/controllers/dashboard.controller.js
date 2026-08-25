@@ -9,6 +9,41 @@ import { formatearLocal } from '../services/timezone.service.js'
  * Indicadores de operacion. Lo que el equipo mira al empezar el dia.
  */
 export const DashboardController = {
+  /** GET /api/dashboard/badges — contadores para el menú lateral */
+  async badges(req, res, next) {
+    try {
+      const [
+        solicitudesNuevas,
+        postulacionesNuevas,
+        colaboradoresNuevos,
+        verificacionesPendientes,
+      ] = await Promise.all([
+        prisma.supportRequest.count({ where: { status: 'NUEVO', deletedAt: null } }),
+        prisma.volunteer.count({ where: { status: 'NUEVO', deletedAt: null } }),
+        prisma.collaborator.count({ where: { status: 'NUEVO', deletedAt: null } }),
+        prisma.professional.count({
+          where: {
+            status: 'ACTIVO',
+            deletedAt: null,
+            professionalCardVerified: false,
+            documentsSubmittedAt: { not: null },
+          },
+        }),
+      ])
+
+      return res.json(
+        ok({
+          solicitudes: solicitudesNuevas,
+          postulaciones: postulacionesNuevas,
+          colaboradores: colaboradoresNuevos,
+          verificaciones: verificacionesPendientes,
+        }),
+      )
+    } catch (error) {
+      next(error)
+    }
+  },
+
   /** GET /api/dashboard */
   async index(req, res, next) {
     try {
