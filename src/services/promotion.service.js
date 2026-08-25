@@ -29,6 +29,7 @@ export async function aprobarPostulacion({ volunteerId, ajustes = {} }) {
   // Quien aprueba puede corregir la modalidad que declaró la persona.
   const modalidad = ajustes.modality ?? postulacion.modality
 
+  return prisma.$transaction(async (tx) => {
     // Si adjuntó tarjeta profesional y cédula, los documentos quedan
     // registrados de inmediato y documentsSubmittedAt toma la fecha actual
     // para entrar como «Pendientes de aprobación».
