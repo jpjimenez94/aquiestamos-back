@@ -261,7 +261,7 @@ export const CommunityLeaderController = {
             nextActionDate: nextActionDate ? new Date(nextActionDate) : null,
             notes: notes?.trim() || null,
             lastContactAt: new Date(),
-            createdById: req.user?.id ?? null,
+            createdById: req.usuario?.id ?? null,
           },
         })
 
@@ -278,7 +278,7 @@ export const CommunityLeaderController = {
         await tx.communityLeaderContact.create({
           data: {
             leaderId: nuevo.id,
-            contactedBy: req.user?.name || req.user?.email || 'Coordinación',
+            contactedBy: req.usuario?.name || req.usuario?.email || 'Coordinación',
             notes: 'Registro inicial del líder y caracterización de la comunidad.',
             nextActionDefined: nextAction?.trim() || null,
           },
@@ -390,7 +390,7 @@ export const CommunityLeaderController = {
         const contactoCreado = await tx.communityLeaderContact.create({
           data: {
             leaderId: id,
-            contactedBy: req.user?.name || req.user?.email || 'Coordinación',
+            contactedBy: req.usuario?.name || req.usuario?.email || 'Coordinación',
             notes,
             nextActionDefined: nextActionDefined?.trim() || null,
           },
