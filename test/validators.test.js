@@ -90,6 +90,21 @@ describe('formulario de profesionales', () => {
     expect(volunteerCreateSchema.safeParse({ ...voluntarioBase, consentVersion: '1999-01' }).success).toBe(false)
   })
 
+  it('acepta el envío con documentos opcionales de tarjeta y cédula', () => {
+    const conDocs = {
+      ...voluntarioBase,
+      professionalCardNumber: '123456',
+      professionalCardDocumentUrl: 'tarjetas/123e4567-e89b-12d3-a456-426614174000.pdf',
+      identityDocumentUrl: 'tarjetas/123e4567-e89b-12d3-a456-426614174001.jpg',
+      identityDocumentBackUrl: 'tarjetas/123e4567-e89b-12d3-a456-426614174002.jpg',
+    }
+    const r = volunteerCreateSchema.safeParse(conDocs)
+    expect(r.success).toBe(true)
+    expect(r.data.professionalCardDocumentUrl).toBe('tarjetas/123e4567-e89b-12d3-a456-426614174000.pdf')
+    expect(r.data.identityDocumentUrl).toBe('tarjetas/123e4567-e89b-12d3-a456-426614174001.jpg')
+    expect(r.data.professionalCardNumber).toBe('123456')
+  })
+
   it('los mensajes de error están en español', () => {
     const r = volunteerCreateSchema.safeParse({})
     const mensajes = r.error.issues.map((i) => i.message)

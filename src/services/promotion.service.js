@@ -29,7 +29,13 @@ export async function aprobarPostulacion({ volunteerId, ajustes = {} }) {
   // Quien aprueba puede corregir la modalidad que declaró la persona.
   const modalidad = ajustes.modality ?? postulacion.modality
 
-  return prisma.$transaction(async (tx) => {
+    // Si adjuntó tarjeta profesional y cédula, los documentos quedan
+    // registrados de inmediato y documentsSubmittedAt toma la fecha actual
+    // para entrar como «Pendientes de aprobación».
+    const tieneDocumentos = Boolean(
+      ajustes.professionalCardDocumentUrl && ajustes.identityDocumentUrl,
+    )
+
     const profesional = await tx.professional.create({
       data: {
         volunteerId,
@@ -41,6 +47,11 @@ export async function aprobarPostulacion({ volunteerId, ajustes = {} }) {
         profession: ajustes.profession ?? postulacion.profession ?? postulacion.training ?? 'Sin especificar',
         yearsExperience: postulacion.yearsExperience,
         professionalCard: postulacion.professionalCard,
+        professionalCardNumber: ajustes.professionalCardNumber || null,
+        professionalCardDocumentUrl: ajustes.professionalCardDocumentUrl || null,
+        identityDocumentUrl: ajustes.identityDocumentUrl || null,
+        identityDocumentBackUrl: ajustes.identityDocumentBackUrl || null,
+        documentsSubmittedAt: tieneDocumentos ? new Date() : null,
         populations: postulacion.populations,
         modality: modalidad,
         travelsTo: postulacion.availableToTravel,

@@ -90,6 +90,12 @@ export const volunteerCreateSchema = z
     dataConsent: consentimiento('Necesitamos tu autorización para poder contactarte'),
     sensitiveDataConsent: z.boolean().optional().default(false),
     communicationsConsent: z.boolean().optional().default(false),
+
+    // --- Documentos opcionales (habilitación profesional e identidad) ---
+    professionalCardDocumentUrl: z.string().trim().max(500).optional().or(z.literal('')),
+    identityDocumentUrl: z.string().trim().max(500).optional().or(z.literal('')),
+    identityDocumentBackUrl: z.string().trim().max(500).optional().or(z.literal('')),
+    professionalCardNumber: z.string().trim().max(60).optional().or(z.literal('')),
   })
   // Si marcó "Otra" población, hay que decir cuál.
   .refine(

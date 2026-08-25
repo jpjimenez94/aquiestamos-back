@@ -1,15 +1,57 @@
 import { VolunteerModel } from '../models/volunteer.model.js'
-import { created, ok } from '../views/response.view.js'
+import { created, ok, failure } from '../views/response.view.js'
 import { registrar, ACCION } from '../services/audit.service.js'
-import { postulacionRecibida } from '../notifications/eventos.js'
+import { postulacionRecibida, documentosRecibidos } from '../notifications/eventos.js'
 import { volunteerReceipt, volunteerAdminList } from '../views/volunteer.view.js'
 import { aprobarPostulacion } from '../services/promotion.service.js'
+import {
+  guardarDocumento,
+  hayAlmacenamientoConfigurado,
+  esClaveDeAlmacenamiento,
+} from '../almacenamiento/documentos.js'
+import { capturarError } from '../monitoreo/errores.js'
 
 /**
  * CONTROLADOR: orquesta la petición HTTP, pide datos al modelo y delega
  * el formato de salida a la vista. No contiene SQL ni HTML.
  */
 export const VolunteerController = {
+  /**
+   * POST /api/volunteers/upload — subida opcional de archivos de tarjeta/cédula
+   * durante el diligenciamiento del formulario de postulación.
+   */
+  async subirArchivo(req, res, next) {
+    try {
+      if (!hayAlmacenamientoConfigurado()) {
+        capturarError(
+          'almacenamiento sin configurar (subida voluntariado)',
+          new Error('Faltan SUPABASE_URL y/o SUPABASE_SERVICE_KEY en el entorno'),
+        )
+        return res
+          .status(503)
+          .json(
+            failure(
+              'No es tu archivo: tenemos un problema técnico de nuestro lado. Ya avisamos al equipo; puedes enviar el formulario sin adjuntos y te los solicitaremos luego.',
+            ),
+          )
+      }
+
+      const tipo = String(req.get('x-tipo-archivo') ?? req.get('content-type') ?? '')
+        .split(';')[0]
+        .trim()
+
+      const { clave, tamano } = await guardarDocumento({
+        carpeta: 'tarjetas',
+        tipo,
+        bytes: req.body,
+      })
+
+      return res.json(ok({ clave }))
+    } catch (error) {
+      return next(error)
+    }
+  },
+
   async store(req, res, next) {
     try {
       const input = req.validated
@@ -46,14 +88,29 @@ export const VolunteerController = {
       })
 
       // Auto-aprobación: los psicólogos voluntarios entran directamente como
-      // ACTIVOS. No hay paso de aprobación manual; la verificación de la
-      // Tarjeta Profesional se gestiona por separado antes de asignar casos.
+      // ACTIVOS. Si adjuntaron sus documentos (tarjeta y cédula), quedan
+      // inmediatamente en «Pendientes de aprobación» con documentsSubmittedAt.
       if (process.env.NODE_ENV !== 'test') {
         try {
-          await aprobarPostulacion({
+          const resultado = await aprobarPostulacion({
             volunteerId: volunteer.id,
-            ajustes: { status: 'ACTIVO' },
+            ajustes: {
+              status: 'ACTIVO',
+              professionalCardNumber: input.professionalCardNumber || null,
+              professionalCardDocumentUrl: input.professionalCardDocumentUrl || null,
+              identityDocumentUrl: input.identityDocumentUrl || null,
+              identityDocumentBackUrl: input.identityDocumentBackUrl || null,
+            },
           })
+
+          // Si adjuntó documentos en el formulario, avisar a coordinación
+          if (
+            input.professionalCardDocumentUrl &&
+            input.identityDocumentUrl &&
+            resultado?.profesional
+          ) {
+            await documentosRecibidos({ profesional: resultado.profesional }).catch(() => {})
+          }
         } catch (errorAprobacion) {
           // Si falla la auto-aprobación (ej. ya existía el profesional),
           // se ignora silenciosamente — el registro de postulación ya quedó.
