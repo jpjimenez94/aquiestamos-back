@@ -157,6 +157,11 @@ export const ProfessionalController = {
               professionalCardVerifiedAt: new Date(),
               professionalCardVerifiedBy: req.usuario?.email ?? req.usuario?.name ?? 'Admin',
             }
+          : professionalCardVerified === false
+          ? {
+              professionalCardVerifiedAt: null,
+              professionalCardVerifiedBy: null,
+            }
           : {}),
       }
 
