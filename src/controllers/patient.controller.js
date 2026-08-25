@@ -22,6 +22,9 @@ import {
 } from '../services/assignmentState.service.js'
 import {
   ETIQUETAS_FEEDBACK_SENTIR,
+  ETIQUETAS_FEEDBACK_TRATO,
+  ETIQUETAS_FEEDBACK_HERRAMIENTAS,
+  ETIQUETAS_FEEDBACK_CALIDAD_SESION,
   ETIQUETAS_FEEDBACK_CONTINUAR,
 } from '../catalogos.js'
 
@@ -147,6 +150,12 @@ export const PatientController = {
             id: f.id,
             howFelt: f.howFelt,
             howFeltLegible: ETIQUETAS_FEEDBACK_SENTIR[f.howFelt] ?? f.howFelt,
+            respectfulTreatment: f.respectfulTreatment,
+            respectfulTreatmentLegible: f.respectfulTreatment ? (ETIQUETAS_FEEDBACK_TRATO[f.respectfulTreatment] ?? f.respectfulTreatment) : null,
+            gotTools: f.gotTools,
+            gotToolsLegible: f.gotTools ? (ETIQUETAS_FEEDBACK_HERRAMIENTAS[f.gotTools] ?? f.gotTools) : null,
+            sessionQuality: f.sessionQuality,
+            sessionQualityLegible: f.sessionQuality ? (ETIQUETAS_FEEDBACK_CALIDAD_SESION[f.sessionQuality] ?? f.sessionQuality) : null,
             wantsToContinue: f.wantsToContinue,
             wantsToContinueLegible: ETIQUETAS_FEEDBACK_CONTINUAR[f.wantsToContinue] ?? f.wantsToContinue,
             comment: f.comment,

@@ -105,6 +105,24 @@ export const ETIQUETAS_FEEDBACK_SENTIR = {
   INCOMODO: 'Incómoda(o) o insatisfecha(o)',
 }
 
+export const ETIQUETAS_FEEDBACK_TRATO = {
+  EXCELENTE: 'Muy puntual y empático(a)',
+  ADECUADO: 'Adecuado y respetuoso',
+  A_MEJORAR: 'A mejorar (impuntualidad o desinterés)',
+}
+
+export const ETIQUETAS_FEEDBACK_HERRAMIENTAS = {
+  MUCHA_CLARIDAD: 'Sí, me dio herramientas y claridad',
+  ALGO: 'Me ayudó un poco / Desahogo',
+  POCO_O_NADA: 'Poco o nada de herramientas',
+}
+
+export const ETIQUETAS_FEEDBACK_CALIDAD_SESION = {
+  SIN_PROBLEMAS: 'Excelente comunicación',
+  CON_DIFICULTADES: 'Hubo dificultades técnicas o de señal',
+  PREFIERO_OTRA_MODALIDAD: 'Prefiere otra modalidad',
+}
+
 export const ETIQUETAS_FEEDBACK_CONTINUAR = {
   SI_MISMO: 'Desea continuar con el mismo profesional',
   CAMBIAR: 'Prefiere cambiar de profesional',

@@ -60,13 +60,16 @@ export const FeedbackController = {
       }
 
       const asignacion = paciente.assignments?.[0]
-      const { howFelt, wantsToContinue, comment } = req.validated
+      const { howFelt, respectfulTreatment, gotTools, sessionQuality, wantsToContinue, comment } = req.validated
 
       const feedback = await prisma.patientFeedback.create({
         data: {
           patientId: paciente.id,
           assignmentId: asignacion?.id ?? null,
           howFelt,
+          respectfulTreatment: respectfulTreatment || null,
+          gotTools: gotTools || null,
+          sessionQuality: sessionQuality || null,
           wantsToContinue,
           comment: comment?.trim() || null,
         },
@@ -77,7 +80,7 @@ export const FeedbackController = {
         action: ACCION.CREAR,
         entity: 'paciente_feedback',
         entityId: feedback.id,
-        after: { patientId: paciente.id, howFelt, wantsToContinue, desdeEnlace: true },
+        after: { patientId: paciente.id, howFelt, respectfulTreatment, gotTools, sessionQuality, wantsToContinue, desdeEnlace: true },
       })
 
       return res.json(

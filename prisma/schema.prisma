@@ -839,11 +839,17 @@ model PatientFeedback {
   assignment   CaseAssignment? @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
 
   /// ¿Cómo te sentiste en la sesión?
-  howFelt         String       @map("how_felt") @db.VarChar(40)
+  howFelt              String   @map("how_felt") @db.VarChar(40)
+  /// ¿El profesional fue puntual y te brindó un trato respetuoso y empático?
+  respectfulTreatment  String?  @map("respectful_treatment") @db.VarChar(40)
+  /// ¿Sientes que la sesión te dio claridad, alivio o herramientas para tu situación?
+  gotTools             String?  @map("got_tools") @db.VarChar(40)
+  /// ¿La comunicación (llamada / videollamada / presencial) funcionó sin problemas?
+  sessionQuality       String?  @map("session_quality") @db.VarChar(40)
   /// ¿Deseas continuar tu acompañamiento con este mismo profesional?
-  wantsToContinue String       @map("wants_to_continue") @db.VarChar(40)
+  wantsToContinue      String   @map("wants_to_continue") @db.VarChar(40)
   /// Comentario o retroalimentación libre
-  comment         String?      @db.VarChar(1000)
+  comment              String?  @db.VarChar(1000)
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
 
