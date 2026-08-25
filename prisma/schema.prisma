@@ -30,6 +30,10 @@ enum UserRole {
   ADMIN
   /// Voluntario digital: consulta y agenda citas. No edita datos maestros.
   AGENDADOR
+  /// Admisión y Verificaciones: solo gestiona solicitudes, postulaciones y verificaciones.
+  ADMISION
+  /// Coordinador de Casos y Agenda: solo gestiona agenda, citas y personas acompañadas.
+  COORDINADOR_CASOS
   /// Profesional de la red: solo consulta sus propias asignaciones.
   PROFESIONAL
   /// Solo lectura: ve todo, no toca nada. Para quien supervisa u observa.

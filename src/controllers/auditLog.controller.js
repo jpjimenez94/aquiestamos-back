@@ -1,8 +1,7 @@
 import { AuditLogModel } from '../models/auditLog.model.js'
 import { ok } from '../views/response.view.js'
 import { listaAuditoria } from '../views/auditLog.view.js'
-
-const ROLES = ['ADMIN', 'AGENDADOR', 'PROFESIONAL', 'LECTURA']
+import { ROLES } from '../auth/permissions.js'
 const ACCIONES = [
   'acceder',
   'acceso_fallido',

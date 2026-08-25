@@ -118,9 +118,63 @@ describe('matriz de permisos', () => {
     }
   })
 
+  it('el rol de admision solo gestiona solicitudes, postulaciones y verificaciones', () => {
+    const admision = { role: 'ADMISION' }
+    // Lo que sí puede
+    expect(puede(admision, 'solicitud:leer')).toBe(true)
+    expect(puede(admision, 'postulacion:leer')).toBe(true)
+    expect(puede(admision, 'paciente:crear')).toBe(true)
+    expect(puede(admision, 'profesional:crear')).toBe(true)
+    expect(puede(admision, 'profesional:leer')).toBe(true)
+    expect(puede(admision, 'profesional:verificar-tarjeta')).toBe(true)
+    expect(puede(admision, 'documento:leer')).toBe(true)
+    expect(puede(admision, 'documento:subir')).toBe(true)
+
+    // Lo que NO puede
+    expect(puede(admision, 'agenda:leer')).toBe(false)
+    expect(puede(admision, 'paciente:leer')).toBe(false)
+    expect(puede(admision, 'cita:crear')).toBe(false)
+    expect(puede(admision, 'asignacion:crear')).toBe(false)
+    expect(puede(admision, 'colaborador:leer')).toBe(false)
+    expect(puede(admision, 'usuario:leer')).toBe(false)
+    expect(puede(admision, 'auditoria:leer')).toBe(false)
+    expect(puede(admision, 'metricas:leer')).toBe(false)
+  })
+
+  it('el rol de coordinador de casos solo gestiona agenda, citas y personas acompanadas', () => {
+    const casos = { role: 'COORDINADOR_CASOS' }
+    // Lo que sí puede
+    expect(puede(casos, 'agenda:leer')).toBe(true)
+    expect(puede(casos, 'paciente:leer')).toBe(true)
+    expect(puede(casos, 'paciente:editar')).toBe(true)
+    expect(puede(casos, 'profesional:leer')).toBe(true)
+    expect(puede(casos, 'disponibilidad:leer')).toBe(true)
+    expect(puede(casos, 'asignacion:crear')).toBe(true)
+    expect(puede(casos, 'asignacion:cerrar')).toBe(true)
+    expect(puede(casos, 'cita:crear')).toBe(true)
+    expect(puede(casos, 'cita:reprogramar')).toBe(true)
+    expect(puede(casos, 'cita:cancelar')).toBe(true)
+    expect(puede(casos, 'cita:confirmar')).toBe(true)
+    expect(puede(casos, 'cita:cerrar')).toBe(true)
+    expect(puede(casos, 'documento:leer')).toBe(true)
+    expect(puede(casos, 'documento:subir')).toBe(true)
+
+    // Lo que NO puede
+    expect(puede(casos, 'solicitud:leer')).toBe(false)
+    expect(puede(casos, 'postulacion:leer')).toBe(false)
+    expect(puede(casos, 'profesional:crear')).toBe(false)
+    expect(puede(casos, 'profesional:verificar-tarjeta')).toBe(false)
+    expect(puede(casos, 'colaborador:leer')).toBe(false)
+    expect(puede(casos, 'usuario:leer')).toBe(false)
+    expect(puede(casos, 'auditoria:leer')).toBe(false)
+    expect(puede(casos, 'metricas:leer')).toBe(false)
+  })
+
   it('permisosDe expone la lista para el portal', () => {
     expect(permisosDe('ADMIN')).toEqual(['*'])
     expect(permisosDe('AGENDADOR')).toContain('cita:crear')
+    expect(permisosDe('ADMISION')).toContain('solicitud:leer')
+    expect(permisosDe('COORDINADOR_CASOS')).toContain('agenda:leer')
     expect(permisosDe('AGENDADOR')).toContain('perfil:cambiar-clave')
     expect(permisosDe('INVENTADO')).toEqual(['perfil:leer:propio', 'perfil:cambiar-clave'])
   })

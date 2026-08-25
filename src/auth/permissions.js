@@ -15,22 +15,7 @@
 export const PERMISOS = {
   ADMIN: ['*'],
 
-  // Voluntario digital: recibe lo que llega, lo aprueba y lo agenda.
-  //
-  // Puede APROBAR postulaciones (profesional:crear) y ADMITIR solicitudes con
-  // su prioridad (paciente:crear): es quien opera la entrada, y sin eso cada
-  // aprobación tenía que esperar a la administración.
-  //
-  // SÍ ve las fichas de los profesionales y verifica sus tarjetas. Antes no:
-  // se consideraban datos maestros. Resultó que en la operación real es este
-  // rol quien lleva el WhatsApp con cada profesional y quien le pide y sube el
-  // soporte de su tarjeta, así que negárselo solo conseguía que tuviera que
-  // pedirle a la administración que hiciera clic por él.
-  //
-  // Lo que sigue sin poder: `profesional:editar` —cupo de casos, notas
-  // internas, enlazar una cuenta del portal— y `profesional:borrar`. Verificar
-  // una tarjeta tiene permiso propio justo para no tener que abrir todo eso.
-  // Las notas internas tampoco le llegan: la vista solo se las da a ADMIN.
+  // Voluntario digital general: recibe lo que llega, lo aprueba y lo agenda.
   AGENDADOR: [
     'postulacion:leer',
     'solicitud:leer',
@@ -48,9 +33,36 @@ export const PERMISOS = {
     'cita:cancelar',
     'cita:confirmar',
     'cita:cerrar',
-    // El consentimiento firmado de una cita lo sube y lo mira quien agenda.
-    // No le abre las tarjetas profesionales: para llegar a una haría falta su
-    // clave, y esa solo aparece en fichas de profesional, que este rol no ve.
+    'documento:subir',
+    'documento:leer',
+  ],
+
+  // Admisión y Verificaciones: solo gestiona solicitudes, postulaciones y verificaciones de TP/cédula.
+  ADMISION: [
+    'postulacion:leer',
+    'solicitud:leer',
+    'paciente:crear',
+    'profesional:crear',
+    'profesional:leer',
+    'profesional:verificar-tarjeta',
+    'documento:subir',
+    'documento:leer',
+  ],
+
+  // Gestión de Casos y Agenda: solo gestiona el tablero de agenda, citas y personas acompañadas.
+  COORDINADOR_CASOS: [
+    'paciente:leer',
+    'paciente:editar',
+    'profesional:leer',
+    'agenda:leer',
+    'disponibilidad:leer',
+    'asignacion:crear',
+    'asignacion:cerrar',
+    'cita:crear',
+    'cita:reprogramar',
+    'cita:cancelar',
+    'cita:confirmar',
+    'cita:cerrar',
     'documento:subir',
     'documento:leer',
   ],
