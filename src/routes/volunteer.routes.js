@@ -35,3 +35,6 @@ volunteerRoutes.post('/', validateBody(volunteerCreateSchema), VolunteerControll
 
 // Portal: consulta de postulaciones
 volunteerRoutes.get('/', authenticate, authorize('postulacion:leer'), VolunteerController.index)
+
+// Portal: eliminar postulación (ADMIN)
+volunteerRoutes.delete('/:id', authenticate, authorize('postulacion:eliminar'), VolunteerController.destroy)

@@ -166,4 +166,29 @@ export const VolunteerController = {
       next(error)
     }
   },
+
+  /** DELETE /api/volunteers/:id — borrado lógico de una postulación (ADMIN) */
+  async destroy(req, res, next) {
+    try {
+      const { id } = req.params
+      const postulacion = await VolunteerModel.findById(id)
+      if (!postulacion) {
+        return res.status(404).json(failure('La postulación no existe o ya fue eliminada'))
+      }
+
+      await VolunteerModel.softDelete(id)
+
+      await registrar({
+        req,
+        action: ACCION.BORRAR,
+        entity: 'postulacion',
+        entityId: id,
+        before: { fullName: postulacion.fullName, email: postulacion.email, status: postulacion.status },
+      })
+
+      return res.json(ok(null, 'La postulación fue eliminada correctamente.'))
+    } catch (error) {
+      next(error)
+    }
+  },
 }

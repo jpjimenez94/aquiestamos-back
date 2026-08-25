@@ -10,7 +10,8 @@
  * Permisos por rol. `*` significa «todo».
  *
  * Permisos exclusivos de ADMIN (cubiertos por `*`):
- *   - solicitud:eliminar  → borrado lógico de una solicitud de acompañamiento
+ *   - solicitud:eliminar    → borrado lógico de una solicitud de acompañamiento
+ *   - postulacion:eliminar  → borrado lógico de una postulación de voluntariado
  */
 export const PERMISOS = {
   ADMIN: ['*'],
