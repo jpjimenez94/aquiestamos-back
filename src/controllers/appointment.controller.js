@@ -161,7 +161,7 @@ export const AppointmentController = {
   /** POST /api/appointments */
   async store(req, res, next) {
     try {
-      const { professionalId, patientId, inicio, fin, modalidad } = req.validated
+      const { professionalId, patientId, inicio, fin, modalidad, estado, fueraDeFranja } = req.validated
 
       const nueva = await crearCita({
         professionalId,
@@ -169,6 +169,8 @@ export const AppointmentController = {
         inicio,
         fin,
         modalidad,
+        estado: estado ?? 'PROGRAMADA',
+        permitirFueraDeFranja: fueraDeFranja,
         actorId: req.usuario.id,
       })
 
@@ -177,7 +179,7 @@ export const AppointmentController = {
         action: ACCION.CREAR,
         entity: 'cita',
         entityId: nueva.id,
-        after: { inicio, fin, professionalId, patientId },
+        after: { inicio, fin, professionalId, patientId, estado: nueva.status },
       })
 
       // El aviso lleva cuándo y un enlace; los datos de la persona los abre

@@ -17,6 +17,8 @@ export const crearCitaSchema = z
     inicio: fecha,
     fin: fecha,
     modalidad: choice(['PRESENCIAL', 'VIRTUAL', 'AMBAS']).optional(),
+    estado: choice(['PROGRAMADA', 'CONFIRMADA']).optional(),
+    fueraDeFranja: z.boolean().optional(),
   })
   .refine((d) => d.fin > d.inicio, {
     message: 'La hora de fin debe ser posterior a la de inicio',
