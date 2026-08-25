@@ -134,7 +134,6 @@ export const DashboardController = {
                 },
               },
               reports: {
-                where: { deletedAt: null },
                 orderBy: { createdAt: 'desc' },
                 take: 1,
                 select: {
