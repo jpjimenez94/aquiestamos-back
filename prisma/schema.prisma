@@ -34,6 +34,8 @@ enum UserRole {
   ADMISION
   /// Coordinador de Casos y Agenda: solo gestiona agenda, citas y personas acompañadas.
   COORDINADOR_CASOS
+  /// Operador de líderes comunitarios y territorio.
+  LIDERES_COMUNITARIOS
   /// Profesional de la red: solo consulta sus propias asignaciones.
   PROFESIONAL
   /// Solo lectura: ve todo, no toca nada. Para quien supervisa u observa.
@@ -59,6 +61,7 @@ model User {
   sessions     Session[]
   auditLogs    AuditLog[]
   professional Professional?
+  leaders      CommunityLeader[]
 
   @@index([role])
   @@index([deletedAt])
@@ -1024,4 +1027,91 @@ model TriageResponse {
 
   @@index([supportRequestId, createdAt])
   @@map("triage_responses")
+}
+
+// ===========================================================================
+// Centro de Mando Operativo — Líderes Comunitarios y Catálogo de Necesidades
+// ===========================================================================
+
+/// Catálogo dinámico administrable de necesidades de la comunidad.
+model NeedCategory {
+  id          String   @id @default(uuid()) @db.Uuid
+  type        String   @db.VarChar(40) // 'PSICOLOGICA' | 'RECURSO'
+  name        String   @db.VarChar(160)
+  description String?  @db.VarChar(300)
+  active      Boolean  @default(true)
+  order       Int      @default(0) @map("display_order")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  leaders CommunityLeaderNeed[]
+
+  @@index([type, active])
+  @@map("need_categories")
+}
+
+/// Perfil de Líder Comunitario y territorio a su cargo.
+model CommunityLeader {
+  id                 String    @id @default(uuid()) @db.Uuid
+  name               String    @db.VarChar(160)
+  phone              String    @db.VarChar(40)
+  email              String?   @db.VarChar(160)
+  territory          String    @db.VarChar(200)
+  beneficiariesCount Int       @default(0) @map("beneficiaries_count")
+  status             String    @default("ACTIVO") @db.VarChar(40) // 'ACTIVO' | 'EN_SEGUIMIENTO' | 'ATENDIDO' | 'INACTIVO'
+
+  lastContactAt      DateTime? @map("last_contact_at") @db.Timestamptz(3)
+  nextAction         String?   @map("next_action") @db.VarChar(600)
+  nextActionDate     DateTime? @map("next_action_date") @db.Timestamptz(3)
+  notes              String?   @db.VarChar(2000)
+
+  createdById        String?   @map("created_by_id") @db.Uuid
+  createdBy          User?     @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt          DateTime? @map("deleted_at") @db.Timestamptz(3)
+
+  needs              CommunityLeaderNeed[]
+  contacts           CommunityLeaderContact[]
+
+  @@index([status])
+  @@index([territory])
+  @@index([createdAt])
+  @@map("community_leaders")
+}
+
+/// Relación entre líder y las necesidades de su comunidad.
+model CommunityLeaderNeed {
+  id        String          @id @default(uuid()) @db.Uuid
+  leaderId  String          @map("leader_id") @db.Uuid
+  leader    CommunityLeader @relation(fields: [leaderId], references: [id], onDelete: Cascade)
+  needId    String          @map("need_id") @db.Uuid
+  need      NeedCategory    @relation(fields: [needId], references: [id], onDelete: Cascade)
+
+  details   String?         @db.VarChar(500)
+  status    String          @default("PENDIENTE") @db.VarChar(40) // 'PENDIENTE' | 'EN_GESTION' | 'CUBIERTA'
+  createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@unique([leaderId, needId])
+  @@index([leaderId])
+  @@index([needId])
+  @@map("community_leader_needs")
+}
+
+/// Bitácora de seguimiento / contactos realizados con el líder.
+model CommunityLeaderContact {
+  id                String          @id @default(uuid()) @db.Uuid
+  leaderId          String          @map("leader_id") @db.Uuid
+  leader            CommunityLeader @relation(fields: [leaderId], references: [id], onDelete: Cascade)
+
+  contactedAt       DateTime        @default(now()) @map("contacted_at") @db.Timestamptz(3)
+  contactedBy       String          @map("contacted_by") @db.VarChar(160)
+  notes             String          @db.VarChar(2000)
+  nextActionDefined String?         @map("next_action_defined") @db.VarChar(600)
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([leaderId, contactedAt])
+  @@map("community_leader_contacts")
 }

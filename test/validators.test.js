@@ -249,3 +249,50 @@ describe('feedback de la sesión', () => {
     expect(leido?.paciente).toBe(uuid)
   })
 })
+
+describe('esquemas de líderes comunitarios y necesidades', () => {
+  it('valida un perfil de líder comunitario completo', async () => {
+    const { crearLiderSchema } = await import('../src/validators/communityLeader.schema.js')
+    const r = crearLiderSchema.safeParse({
+      name: 'Carmen Julia Morales',
+      phone: '3157894561',
+      email: 'carmen@comunidad.org',
+      territory: 'Vereda El Vergel / Albergue La Esperanza',
+      beneficiariesCount: 120,
+      status: 'ACTIVO',
+      nextAction: 'Entregar 30 frazadas y agendar brigada psicológica el jueves',
+      notes: 'Líder comunitaria del sector alto.',
+      needIds: ['227adf55-b00c-45f9-9e80-9e5e0bb843f5'],
+    })
+    expect(r.success).toBe(true)
+  })
+
+  it('exige nombre, teléfono y territorio', async () => {
+    const { crearLiderSchema } = await import('../src/validators/communityLeader.schema.js')
+    const r = crearLiderSchema.safeParse({
+      name: '',
+      phone: '',
+      territory: '',
+    })
+    expect(r.success).toBe(false)
+  })
+
+  it('valida registro en bitácora de contacto', async () => {
+    const { registrarContactoSchema } = await import('../src/validators/communityLeader.schema.js')
+    const r = registrarContactoSchema.safeParse({
+      notes: 'Llamada de seguimiento realizada. Reportan llegada de 15 nuevas familias.',
+      nextActionDefined: 'Gestionar kits de alimentos con bodega.',
+    })
+    expect(r.success).toBe(true)
+  })
+
+  it('valida opciones de catálogo de necesidades', async () => {
+    const { crearCategoriaNecesidadSchema } = await import('../src/validators/communityLeader.schema.js')
+    const r = crearCategoriaNecesidadSchema.safeParse({
+      type: 'RECURSO',
+      name: 'Kits de aseo e higiene personal',
+      order: 3,
+    })
+    expect(r.success).toBe(true)
+  })
+})

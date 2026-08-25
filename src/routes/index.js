@@ -21,6 +21,10 @@ import {
   appointmentRoutes,
   dashboardRoutes,
 } from './agenda.routes.js'
+import {
+  communityLeaderRouter,
+  needCategoryRouter,
+} from './communityLeader.routes.js'
 
 export const apiRoutes = Router()
 
@@ -66,3 +70,8 @@ apiRoutes.use('/dashboard', dashboardRoutes)
 apiRoutes.use('/professionals', professionalRoutes)
 apiRoutes.use('/patients', patientRoutes)
 apiRoutes.use('/appointments', appointmentRoutes)
+
+// --- Centro de Mando: Líderes comunitarios y catálogo dinámico de necesidades ---
+apiRoutes.use('/leaders', communityLeaderRouter)
+apiRoutes.use('/needs-catalog', needCategoryRouter)
+

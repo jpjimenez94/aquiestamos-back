@@ -128,3 +128,15 @@ export const ETIQUETAS_FEEDBACK_CONTINUAR = {
   CAMBIAR: 'Prefiere cambiar de profesional',
   SUFICIENTE: 'Siente que con esta sesión fue suficiente',
 }
+
+export const ETIQUETAS_ESTADO_LIDER = {
+  ACTIVO: 'Activo',
+  EN_SEGUIMIENTO: 'En seguimiento',
+  ATENDIDO: 'Atendido',
+  INACTIVO: 'Inactivo',
+}
+
+export const ETIQUETAS_TIPO_NECESIDAD = {
+  PSICOLOGICA: 'Psicológica',
+  RECURSO: 'Recursos',
+}

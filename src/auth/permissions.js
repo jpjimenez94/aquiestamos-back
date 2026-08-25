@@ -35,6 +35,9 @@ export const PERMISOS = {
     'cita:cerrar',
     'documento:subir',
     'documento:leer',
+    'lideres:leer',
+    'lideres:crear',
+    'lideres:editar',
   ],
 
   // Admisión y Verificaciones: solo gestiona solicitudes, postulaciones y verificaciones de TP/cédula.
@@ -47,6 +50,7 @@ export const PERMISOS = {
     'profesional:verificar-tarjeta',
     'documento:subir',
     'documento:leer',
+    'lideres:leer',
   ],
 
   // Gestión de Casos y Agenda: solo gestiona el tablero de agenda, citas y personas acompañadas.
@@ -65,6 +69,16 @@ export const PERMISOS = {
     'cita:cerrar',
     'documento:subir',
     'documento:leer',
+    'lideres:leer',
+    'lideres:editar',
+  ],
+
+  // Operador de Líderes Comunitarios: acceso EXCLUSIVO a gestión de líderes y procesos de la red.
+  LIDERES_COMUNITARIOS: [
+    'lideres:leer',
+    'lideres:crear',
+    'lideres:editar',
+    'lideres:inactivar',
   ],
 
   // Solo lectura: visibilidad global, ninguna acción. Todos sus permisos
@@ -81,6 +95,7 @@ export const PERMISOS = {
     'usuario:leer',
     'auditoria:leer',
     'documento:leer',
+    'lideres:leer',
     // Las métricas de impacto: para leer, no para operar. El AGENDADOR no
     // las tiene a propósito — pedido explícito: solo administración y lectura.
     'metricas:leer',

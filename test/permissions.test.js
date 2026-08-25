@@ -170,11 +170,34 @@ describe('matriz de permisos', () => {
     expect(puede(casos, 'metricas:leer')).toBe(false)
   })
 
+  it('el rol de líderes comunitarios solo gestiona líderes y no tiene acceso al resto del portal ni administra catálogos', () => {
+    const lider = { role: 'LIDERES_COMUNITARIOS' }
+    // Lo que sí puede
+    expect(puede(lider, 'lideres:leer')).toBe(true)
+    expect(puede(lider, 'lideres:crear')).toBe(true)
+    expect(puede(lider, 'lideres:editar')).toBe(true)
+    expect(puede(lider, 'lideres:inactivar')).toBe(true)
+    expect(puede(lider, 'perfil:leer:propio')).toBe(true)
+    expect(puede(lider, 'perfil:cambiar-clave')).toBe(true)
+
+    // Lo que NO puede (catálogo de necesidades solo lo administra ADMIN)
+    expect(puede(lider, 'necesidades:administrar')).toBe(false)
+    expect(puede(lider, 'agenda:leer')).toBe(false)
+    expect(puede(lider, 'solicitud:leer')).toBe(false)
+    expect(puede(lider, 'postulacion:leer')).toBe(false)
+    expect(puede(lider, 'paciente:leer')).toBe(false)
+    expect(puede(lider, 'profesional:leer')).toBe(false)
+    expect(puede(lider, 'usuario:leer')).toBe(false)
+    expect(puede(lider, 'auditoria:leer')).toBe(false)
+    expect(puede(lider, 'metricas:leer')).toBe(false)
+  })
+
   it('permisosDe expone la lista para el portal', () => {
     expect(permisosDe('ADMIN')).toEqual(['*'])
     expect(permisosDe('AGENDADOR')).toContain('cita:crear')
     expect(permisosDe('ADMISION')).toContain('solicitud:leer')
     expect(permisosDe('COORDINADOR_CASOS')).toContain('agenda:leer')
+    expect(permisosDe('LIDERES_COMUNITARIOS')).toContain('lideres:leer')
     expect(permisosDe('AGENDADOR')).toContain('perfil:cambiar-clave')
     expect(permisosDe('INVENTADO')).toEqual(['perfil:leer:propio', 'perfil:cambiar-clave'])
   })
