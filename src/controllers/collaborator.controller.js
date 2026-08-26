@@ -115,4 +115,53 @@ export const CollaboratorController = {
       next(error)
     }
   },
+
+  /** GET /api/collaborators/:id */
+  async show(req, res, next) {
+    try {
+      const c = await CollaboratorModel.findById(req.params.id)
+      if (!c) return res.status(404).json({ success: false, message: 'Colaborador no encontrado.' })
+      return res.json(ok(collaboratorAdmin(c)))
+    } catch (error) { next(error) }
+  },
+
+  /** PATCH /api/collaborators/:id */
+  async update(req, res, next) {
+    try {
+      const c = await CollaboratorModel.findById(req.params.id)
+      if (!c) return res.status(404).json({ success: false, message: 'Colaborador no encontrado.' })
+      const input = req.validated
+      const actualizado = await CollaboratorModel.update(req.params.id, {
+        ...(input.fullName !== undefined ? { fullName: input.fullName } : {}),
+        ...(input.phone !== undefined ? { phone: input.phone } : {}),
+        ...(input.email !== undefined ? { email: input.email } : {}),
+        ...(input.city !== undefined ? { city: input.city } : {}),
+        ...(input.area !== undefined ? { area: input.area } : {}),
+        ...(input.discipline !== undefined ? { discipline: input.discipline } : {}),
+        ...(input.disciplineOther !== undefined ? { disciplineOther: input.disciplineOther || null } : {}),
+        ...(input.yearsExperience !== undefined ? { yearsExperience: input.yearsExperience || null } : {}),
+        ...(input.professionalCard !== undefined ? { professionalCard: input.professionalCard || null } : {}),
+        ...(input.skills !== undefined ? { skills: input.skills || null } : {}),
+        ...(input.modality !== undefined ? { modality: input.modality } : {}),
+        ...(input.availableToTravel !== undefined ? { availableToTravel: input.availableToTravel || null } : {}),
+        ...(input.availableDays !== undefined ? { availableDays: input.availableDays } : {}),
+        ...(input.availableSlots !== undefined ? { availableSlots: input.availableSlots } : {}),
+        ...(input.weeklyHours !== undefined ? { weeklyHours: input.weeklyHours } : {}),
+        ...(input.status !== undefined ? { status: input.status } : {}),
+      })
+      await registrar({ req, action: ACCION.EDITAR, entity: 'colaborador', entityId: c.id, after: input })
+      return res.json(ok(collaboratorAdmin(actualizado), 'Colaborador actualizado.'))
+    } catch (error) { next(error) }
+  },
+
+  /** DELETE /api/collaborators/:id */
+  async destroy(req, res, next) {
+    try {
+      const c = await CollaboratorModel.findById(req.params.id)
+      if (!c) return res.status(404).json({ success: false, message: 'Colaborador no encontrado.' })
+      await CollaboratorModel.softDelete(req.params.id)
+      await registrar({ req, action: ACCION.ELIMINAR, entity: 'colaborador', entityId: req.params.id })
+      return res.json(ok(null, 'Colaborador eliminado.'))
+    } catch (error) { next(error) }
+  },
 }

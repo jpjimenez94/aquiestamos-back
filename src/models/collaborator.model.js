@@ -68,6 +68,10 @@ export const CollaboratorModel = {
     })
   },
 
+  update(id, data) {
+    return prisma.collaborator.update({ where: { id }, data, include: { assignments: { select: { id: true, status: true } } } })
+  },
+
   updateStatus(id, status) {
     return prisma.collaborator.update({ where: { id }, data: { status } })
   },

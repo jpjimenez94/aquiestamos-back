@@ -123,4 +123,15 @@ describe('formulario de voluntariado de apoyo', () => {
       expect(DISCIPLINAS[area]).toContain('Otra')
     }
   })
+
+  it('valida actualización parcial de colaborador', async () => {
+    const { collaboratorUpdateSchema } = await import('../src/validators/collaborator.schema.js')
+    const r = collaboratorUpdateSchema.safeParse({
+      phone: '3109998877',
+      status: 'ACTIVO',
+      city: 'Medellín',
+    })
+    expect(r.success).toBe(true)
+    expect(r.data.status).toBe('ACTIVO')
+  })
 })

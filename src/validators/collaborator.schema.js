@@ -140,3 +140,23 @@ export const collaboratorCreateSchema = z
     message: 'Necesitamos tu autorización expresa para guardar el dato de vacunación',
     path: ['sensitiveDataConsent'],
   })
+
+
+export const collaboratorUpdateSchema = z.object({
+  fullName: trimmed(160).optional(),
+  phone: trimmed(40).regex(/^\+?[\d\s()-]{7,25}$/, 'Número de celular no válido').optional(),
+  email: z.string().trim().toLowerCase().email('Correo no válido').max(160).optional(),
+  city: trimmed(160).optional(),
+  area: choice(AREAS).optional(),
+  discipline: trimmed(120).optional(),
+  disciplineOther: opcional(160),
+  yearsExperience: choiceOpcional(['MENOS_DE_1', 'ENTRE_1_Y_3', 'ENTRE_3_Y_5', 'MAS_DE_5']),
+  professionalCard: choiceOpcional(['SI', 'EN_TRAMITE', 'ESTUDIANTE']),
+  skills: opcional(600),
+  modality: choice(['PRESENCIAL', 'VIRTUAL', 'AMBAS']).optional(),
+  availableToTravel: opcional(200),
+  availableDays: z.array(z.enum(WEEKDAYS)).optional(),
+  availableSlots: z.array(z.enum(DAY_SLOTS)).optional(),
+  weeklyHours: choice(['ENTRE_1_Y_3', 'ENTRE_4_Y_6', 'MAS_DE_6', 'VARIABLE']).optional(),
+  status: choice(['NUEVO', 'ACTIVO', 'INACTIVO']).optional(),
+})

@@ -21,6 +21,7 @@ export const PERMISOS = {
     'postulacion:leer',
     'solicitud:leer',
     'colaborador:leer',
+    'colaborador:editar',
     'paciente:leer',
     'paciente:crear',
     'profesional:crear',
