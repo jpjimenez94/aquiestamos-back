@@ -51,8 +51,8 @@ describe('matriz de permisos', () => {
     expect(puede(agendador, 'profesional:borrar')).toBe(false)
   })
 
-  it('el agendador sigue sin ver el voluntariado de apoyo', () => {
-    expect(puede(agendador, 'colaborador:leer')).toBe(false)
+  it('el agendador puede ver el voluntariado de apoyo', () => {
+    expect(puede(agendador, 'colaborador:leer')).toBe(true)
     expect(puede(agendador, 'asignacion:crear')).toBe(true)
   })
 
