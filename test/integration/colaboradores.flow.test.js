@@ -101,11 +101,11 @@ describe('voluntariado de apoyo', () => {
     expect(res.status).toBe(403)
   })
 
-  it('el agendador tampoco lo ve: decisión expresa de la red', async () => {
+  it('el agendador sí lo ve: acceso para voluntariado digital general', async () => {
     const res = await request(app)
       .get('/api/collaborators')
       .set('Authorization', `Bearer ${tokens.AGENDADOR}`)
-    expect(res.status).toBe(403)
+    expect(res.status).toBe(200)
   })
 
   it('la administración sí lo ve, con el resumen por área', async () => {

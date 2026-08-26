@@ -414,3 +414,46 @@ export async function propuestaRespondida({ asignacion, profesional }) {
     clave: `coord-propuesta:${asignacion.id}:${asignacion.status}`,
   })
 }
+
+// ---------------------------------------------------------------------------
+// Módulo de Tareas Internas
+// ---------------------------------------------------------------------------
+
+/** Se asignó la tarea a un voluntario. Le llega a él para que acepte o rechace. */
+export async function tareaAsignada({ asignacion, tarea, colaborador, ruta }) {
+  await encolar({
+    plantilla: 'TAREA_INVITACION',
+    para: colaborador.email,
+    nombre: colaborador.fullName,
+    payload: {
+      nombre: primerNombre(colaborador.fullName),
+      titulo: tarea.title,
+      descripcion: tarea.description ?? null,
+      nota: asignacion.note ?? null,
+      fechaLimite: tarea.dueDate
+        ? new Intl.DateTimeFormat('es-CO', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(tarea.dueDate))
+        : null,
+      ruta,
+    },
+    entidad: 'task_assignment',
+    entidadId: asignacion.id,
+    clave: `tarea-invitacion:${asignacion.id}`,
+  })
+}
+
+/** El voluntario respondió (aceptó o rechazó). Le llega a coordinación. */
+export async function tareaRespondida({ asignacion, tarea, colaborador }) {
+  await avisarACoordinacion({
+    plantilla: 'TAREA_RESPUESTA',
+    payload: {
+      nombreVoluntario: colaborador.fullName,
+      titulo: tarea.title,
+      accion: asignacion.status,
+      motivoRechazo: asignacion.declineReason ?? null,
+      ruta: `/portal/colaboradores/tareas/${tarea.id}`,
+    },
+    entidad: 'task_assignment',
+    entidadId: asignacion.id,
+    clave: `tarea-respondida:${asignacion.id}`,
+  })
+}

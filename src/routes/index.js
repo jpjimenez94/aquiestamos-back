@@ -25,6 +25,7 @@ import {
   communityLeaderRouter,
   needCategoryRouter,
 } from './communityLeader.routes.js'
+import { taskRoutes, taskConfirmationRoutes } from './tasks.routes.js'
 
 export const apiRoutes = Router()
 
@@ -75,3 +76,6 @@ apiRoutes.use('/appointments', appointmentRoutes)
 apiRoutes.use('/leaders', communityLeaderRouter)
 apiRoutes.use('/needs-catalog', needCategoryRouter)
 
+// --- Módulo de Tareas Internas de Voluntariado ---
+apiRoutes.use('/tasks', taskRoutes)
+apiRoutes.use('/turno-confirmacion', taskConfirmationRoutes)

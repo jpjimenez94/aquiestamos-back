@@ -40,6 +40,10 @@ export const PERMISOS = {
     'lideres:leer',
     'lideres:crear',
     'lideres:editar',
+    'tarea:leer',
+    'tarea:crear',
+    'tarea:editar',
+    'tarea:asignar',
   ],
 
   // Admisión y Verificaciones: solo gestiona solicitudes, postulaciones y verificaciones de TP/cédula.
@@ -73,6 +77,7 @@ export const PERMISOS = {
     'documento:leer',
     'lideres:leer',
     'lideres:editar',
+    'tarea:leer',
   ],
 
   // Operador de Líderes Comunitarios: acceso EXCLUSIVO a gestión de líderes y procesos de la red.
@@ -98,6 +103,7 @@ export const PERMISOS = {
     'auditoria:leer',
     'documento:leer',
     'lideres:leer',
+    'tarea:leer',
     // Las métricas de impacto: para leer, no para operar. El AGENDADOR no
     // las tiene a propósito — pedido explícito: solo administración y lectura.
     'metricas:leer',

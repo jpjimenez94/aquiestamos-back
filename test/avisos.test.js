@@ -83,6 +83,21 @@ const CASOS = {
     tramo: 'profesional',
     ruta: '/portal/personas/abc',
   },
+  TAREA_INVITACION: {
+    nombre: 'Camila',
+    titulo: 'Verificar tarjetas profesionales',
+    descripcion: 'Revisar 10 postulaciones pendientes',
+    nota: 'Antes del viernes si es posible',
+    fechaLimite: '28 de agosto de 2026',
+    ruta: '/turno/tok123',
+  },
+  TAREA_RESPUESTA: {
+    nombreVoluntario: 'Camila Restrepo',
+    titulo: 'Verificar tarjetas profesionales',
+    accion: 'ACEPTADO',
+    motivoRechazo: null,
+    ruta: '/portal/tareas/abc',
+  },
 }
 
 describe('plantillas de avisos', () => {

@@ -536,6 +536,8 @@ model Collaborator {
   updatedAt DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
   deletedAt DateTime?        @map("deleted_at") @db.Timestamptz(3)
 
+  assignments TaskAssignment[]
+
   @@index([email])
   @@index([area])
   @@index([city])
@@ -1114,4 +1116,102 @@ model CommunityLeaderContact {
 
   @@index([leaderId, contactedAt])
   @@map("community_leader_contacts")
+}
+
+// ===========================================================================
+// Módulo de Tareas Internas — Voluntariado de Apoyo
+//
+// Los Collaborators ayudan con labores internas de la fundación:
+// verificaciones de TP, gestión de agenda, diseño, etc.
+// Son tareas que el coordinador crea y asigna; el voluntario acepta o rechaza
+// por un enlace en su correo, sin necesitar cuenta en el portal.
+// ===========================================================================
+
+enum TaskStatus {
+  /// Solo visible para el equipo. Aún no se asigna.
+  BORRADOR
+  /// Se puede asignar a voluntarios.
+  ABIERTA
+  /// Al menos un voluntario la aceptó y está trabajando.
+  EN_PROGRESO
+  /// El coordinador la cerró como hecha.
+  COMPLETADA
+  CANCELADA
+}
+
+enum TaskPriority {
+  BAJA
+  MEDIA
+  ALTA
+}
+
+enum TaskAssignmentStatus {
+  /// Se envió el email; el voluntario aún no responde.
+  INVITADO
+  /// Confirmó por el link.
+  ACEPTADO
+  /// Declinó por el link.
+  RECHAZADO
+  /// El coordinador marcó que empezó a trabajar.
+  EN_PROGRESO
+  /// El coordinador lo marcó como terminado.
+  COMPLETADO
+  /// Venció el plazo sin respuesta.
+  NO_RESPONDIO
+}
+
+/// Tarea interna que el coordinador crea y asigna a voluntarios.
+model Task {
+  id          String       @id @default(uuid()) @db.Uuid
+  /// A qué área pertenece la tarea. Sirve para sugerir voluntarios compatibles.
+  area        CollaboratorArea
+  title       String       @db.VarChar(200)
+  description String?      @db.VarChar(2000)
+  /// Fecha límite opcional. Hay tareas sin plazo fijo.
+  dueDate     DateTime?    @map("due_date") @db.Date
+  priority    TaskPriority @default(MEDIA)
+  status      TaskStatus   @default(BORRADOR)
+  /// Instrucciones, links, materiales. Solo visible para el equipo.
+  notes       String?      @db.VarChar(2000)
+  /// Quién la creó. Desnormalizado para que el rastro sobreviva si se elimina la cuenta.
+  createdByEmail String?   @map("created_by_email") @db.VarChar(160)
+
+  assignments TaskAssignment[]
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt      @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at")               @db.Timestamptz(3)
+
+  @@index([status])
+  @@index([area])
+  @@index([dueDate])
+  @@map("tasks")
+}
+
+/// Quién hace qué tarea.
+model TaskAssignment {
+  id             String               @id @default(uuid()) @db.Uuid
+  taskId         String               @map("task_id") @db.Uuid
+  task           Task                 @relation(fields: [taskId], references: [id], onDelete: Restrict)
+  collaboratorId String               @map("collaborator_id") @db.Uuid
+  collaborator   Collaborator         @relation(fields: [collaboratorId], references: [id], onDelete: Restrict)
+
+  status         TaskAssignmentStatus @default(INVITADO)
+  /// Nota del coordinador para esta asignación específica.
+  note           String?              @db.VarChar(500)
+  /// Token de un solo uso para el link de confirmación del voluntario. Nunca sale de la base.
+  confirmToken   String               @unique @map("confirm_token") @db.VarChar(200)
+  /// Cuándo el voluntario respondió (sea aceptar o rechazar).
+  respondedAt    DateTime?            @map("responded_at") @db.Timestamptz(3)
+  /// Razón del rechazo, si la da.
+  declineReason  String?              @map("decline_reason") @db.VarChar(300)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt      @map("updated_at") @db.Timestamptz(3)
+
+  /// Un voluntario solo puede tener una asignación por tarea.
+  @@unique([taskId, collaboratorId])
+  @@index([collaboratorId, status])
+  @@index([confirmToken])
+  @@map("task_assignments")
 }

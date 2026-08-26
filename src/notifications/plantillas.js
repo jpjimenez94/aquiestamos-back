@@ -320,6 +320,35 @@ export const PLANTILLAS = {
       boton: { texto: 'Buscarle profesional', url: urlDelSitio(p.ruta) },
     }),
 
+  /** Al voluntario: el coordinador le asignó una tarea. */
+  TAREA_INVITACION: (p) =>
+    armar(`[Aquí Estamos] Te necesitamos para una tarea: ${p.titulo}`, {
+      titulo: `Hola ${p.nombre}, ¿puedes apoyarnos?`,
+      parrafos: [
+        `El equipo de coordinación de la Red Aquí Estamos te está invitando a apoyar con la siguiente tarea:`,
+        `<strong>${p.titulo}</strong>`,
+        p.descripcion ?? null,
+        p.nota ? `<em>Nota del coordinador:</em> ${p.nota}` : null,
+        p.fechaLimite ? `<strong>Fecha límite:</strong> ${p.fechaLimite}` : null,
+        'Haz clic abajo para ver los detalles y confirmar si puedes apoyarnos. Si no puedes en este momento, también puedes declinarlo desde el mismo enlace.',
+      ].filter(Boolean),
+      boton: { texto: 'Ver tarea y confirmar', url: urlDelSitio(p.ruta) },
+    }),
+
+  /** A coordinación: el voluntario respondió a una asignación. */
+  TAREA_RESPUESTA: (p) =>
+    armar(`Respuesta de voluntario: ${p.accion} — ${p.titulo}`, {
+      titulo: 'Un voluntario respondió a una tarea asignada',
+      parrafos: [
+        `<strong>${p.nombreVoluntario}</strong> respondió a la tarea <strong>${p.titulo}</strong>.`,
+      ],
+      datos: [
+        `<strong>Respuesta:</strong> ${p.accion === 'ACEPTADO' ? '✅ Aceptó apoyar' : '❌ No puede en este momento'}`,
+        p.motivoRechazo ? `<strong>Motivo:</strong> ${p.motivoRechazo}` : null,
+      ].filter(Boolean),
+      boton: { texto: 'Ver la tarea en el portal', url: urlDelSitio(p.ruta) },
+    }),
+
   /** A coordinación: se admitió a alguien y falta asignarle profesional. */
   COORD_PACIENTE_ADMITIDO: (p) =>
     armar(
