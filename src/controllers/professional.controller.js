@@ -18,6 +18,8 @@ export const ProfessionalController = {
         status: req.query.status || undefined,
         city: req.query.city || undefined,
         modality: req.query.modality || undefined,
+        skip: req.query.skip || undefined,
+        take: req.query.take || undefined,
       })
 
       const carga = await cargaActual(profesionales.map((p) => p.id))

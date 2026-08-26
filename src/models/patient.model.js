@@ -38,7 +38,7 @@ export const PatientModel = {
     return prisma.patient.findFirst({ where: { supportRequestId, ...vivos } })
   },
 
-  findAll({ status, city, skip = 0, take = 100 } = {}) {
+  findAll({ status, city, skip, take } = {}) {
     return prisma.patient.findMany({
       where: {
         ...vivos,
@@ -61,8 +61,8 @@ export const PatientModel = {
       },
       // Los que llevan más tiempo esperando, primero.
       orderBy: [{ status: 'asc' }, { createdAt: 'asc' }],
-      skip,
-      take,
+      ...(skip !== undefined ? { skip: Number(skip) } : {}),
+      ...(take !== undefined ? { take: Number(take) } : {}),
     })
   },
 

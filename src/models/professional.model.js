@@ -26,7 +26,7 @@ export const ProfessionalModel = {
     return prisma.professional.findFirst({ where: { volunteerId, ...vivos } })
   },
 
-  findAll({ status, city, modality, skip = 0, take = 100 } = {}) {
+  findAll({ status, city, modality, skip, take } = {}) {
     return prisma.professional.findMany({
       where: {
         ...vivos,
@@ -35,8 +35,8 @@ export const ProfessionalModel = {
         ...(modality && modality !== 'AMBAS' ? { modality: { in: [modality, 'AMBAS'] } } : {}),
       },
       orderBy: [{ status: 'asc' }, { fullName: 'asc' }],
-      skip,
-      take,
+      ...(skip !== undefined ? { skip: Number(skip) } : {}),
+      ...(take !== undefined ? { take: Number(take) } : {}),
     })
   },
 
