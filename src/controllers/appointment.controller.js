@@ -258,12 +258,15 @@ export const AppointmentController = {
   /** POST /api/appointments/:id/reprogramar */
   async reprogramar(req, res, next) {
     try {
+      const datos = req.validated
       const nueva = await reprogramar({
         citaId: req.params.id,
-        inicio: req.validated.inicio,
-        fin: req.validated.fin,
-        modalidad: req.validated.modalidad,
-        actorId: req.usuario.id,
+        inicio: datos.inicio,
+        fin: datos.fin,
+        modalidad: datos.modalidad,
+        meetingUrl: datos.meetingUrl,
+        meetingProvider: datos.meetingProvider,
+        actorId: req.usuario?.id,
       })
 
       await registrar({

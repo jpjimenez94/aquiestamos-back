@@ -19,6 +19,8 @@ export const crearCitaSchema = z
     modalidad: choice(['PRESENCIAL', 'VIRTUAL', 'AMBAS']).optional(),
     estado: choice(['PROGRAMADA', 'CONFIRMADA']).optional(),
     fueraDeFranja: z.boolean().optional(),
+    meetingUrl: z.string().max(500).optional().nullable().or(z.literal('')),
+    meetingProvider: z.string().max(50).optional().nullable(),
   })
   .refine((d) => d.fin > d.inicio, {
     message: 'La hora de fin debe ser posterior a la de inicio',
@@ -35,6 +37,8 @@ export const reprogramarSchema = z
     inicio: fecha,
     fin: fecha,
     modalidad: choice(['PRESENCIAL', 'VIRTUAL', 'AMBAS']).optional(),
+    meetingUrl: z.string().max(500).optional().nullable().or(z.literal('')),
+    meetingProvider: z.string().max(50).optional().nullable(),
   })
   .refine((d) => d.fin > d.inicio, {
     message: 'La hora de fin debe ser posterior a la de inicio',

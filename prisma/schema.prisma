@@ -920,6 +920,10 @@ model Appointment {
   modality Modality
   status   AppointmentStatus @default(PROGRAMADA)
 
+  /// Enlace de la videollamada para citas virtuales (auto-generado o Meet/Zoom manual).
+  meetingUrl      String? @map("meeting_url") @db.VarChar(500)
+  meetingProvider String? @default("AUTO") @map("meeting_provider") @db.VarChar(50)
+
   consentSigned            Boolean   @default(false) @map("consent_signed")
   consentSignedDocumentUrl String?   @map("consent_signed_document_url") @db.VarChar(500)
   consentSignedAt          DateTime? @map("consent_signed_at") @db.Timestamptz(3)

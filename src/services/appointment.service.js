@@ -1,3 +1,5 @@
+import crypto from 'crypto'
+import { generarEnlaceVideollamada } from './meeting.service.js'
 import { Prisma } from '@prisma/client'
 import { prisma } from '../config/database.js'
 import { AppointmentModel } from '../models/appointment.model.js'
@@ -249,7 +251,7 @@ export async function cambiarEstado({ citaId, nuevoEstado, motivo, actorId }) {
  * Reprograma: no edita la cita, crea otra y las enlaza.
  * Así el historial no se pierde y se puede ver cuántas veces se movió un caso.
  */
-export async function reprogramar({ citaId, inicio, fin, modalidad, actorId }) {
+export async function reprogramar({ citaId, inicio, fin, modalidad, meetingUrl, meetingProvider, actorId }) {
   const original = await AppointmentModel.findById(citaId)
   if (!original) throw new DomainError('NO_ENCONTRADO', 'La cita no existe')
 
@@ -272,6 +274,8 @@ export async function reprogramar({ citaId, inicio, fin, modalidad, actorId }) {
         consentSigned: original.consentSigned,
         consentSignedDocumentUrl: original.consentSignedDocumentUrl,
         consentSignedAt: original.consentSignedAt,
+        meetingUrl: meetingUrl ?? (original.modality === 'VIRTUAL' ? original.meetingUrl : null),
+        meetingProvider: meetingProvider ?? original.meetingProvider,
         actorId,
       })
     } catch (error) {
