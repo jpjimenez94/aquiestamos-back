@@ -4,6 +4,7 @@ import { registrar, ACCION } from '../services/audit.service.js'
 import { apoyoRecibido } from '../notifications/eventos.js'
 import {
   collaboratorReceipt,
+  collaboratorAdmin,
   collaboratorAdminList,
   resumenPorArea,
 } from '../views/collaborator.view.js'
@@ -51,6 +52,7 @@ export const CollaboratorController = {
         status: 'ACTIVO',
       })
 
+      // Auditoría: creación pública (sin sesión).
       await registrar({
         req,
         action: ACCION.CREAR,
@@ -58,25 +60,35 @@ export const CollaboratorController = {
         entityId: colaborador.id,
       })
 
-      await apoyoRecibido(colaborador)
+      // Aviso por correo: confirmación de recepción.
+      await apoyoRecibido({
+        colaborador: {
+          fullName: input.fullName,
+          email: input.email,
+          area: input.area,
+          discipline: input.discipline,
+        },
+      })
 
-      return res.status(201).json(
-        created(
-          collaboratorReceipt(colaborador),
-          'Gracias por sumarte. Quedaste en el directorio y te escribiremos cuando haya algo en lo que puedas ayudar.',
-        ),
-      )
+      return res
+        .status(201)
+        .json(
+          created(
+            collaboratorReceipt(colaborador),
+            'Registro recibido. Te contactaremos cuando aparezca una labor que coincida con lo que sabes hacer.',
+          ),
+        )
     } catch (error) {
       next(error)
     }
   },
 
-  /** GET /api/collaborators — el directorio, desde el portal. */
+  /** GET /api/collaborators — el directorio del portal. */
   async index(req, res, next) {
     try {
-      const all = req.query.all === 'true' || req.query.todos === 'true' || req.query.perPage === 'all'
-      const page = Math.max(1, Number(req.query.page ?? 1))
-      const perPage = all ? undefined : Math.min(500, Math.max(1, Number(req.query.perPage ?? 25)))
+      const page = Math.max(1, parseInt(req.query.page ?? '1', 10) || 1)
+      const perPage = Math.min(100, Math.max(1, parseInt(req.query.perPage ?? '20', 10) || 20))
+      const all = req.query.all === 'true'
 
       const filtros = {
         area: req.query.area || undefined,
