@@ -1,11 +1,11 @@
 import { SupportRequestModel } from '../models/supportRequest.model.js'
 import { TriageResponseModel } from '../models/triageResponse.model.js'
 import { calcularPrioridad } from '../services/triage.service.js'
+import { admitirPorTamizaje, DIAS_SIN_RESPUESTA } from '../services/promotion.service.js'
 import { crearEnlaceTamizaje } from '../auth/enlaceTamizaje.js'
-import { DIAS_SIN_RESPUESTA } from '../services/promotion.service.js'
 import { env } from '../config/env.js'
 import { created, ok, failure } from '../views/response.view.js'
-import { solicitudRecibida } from '../notifications/eventos.js'
+import { solicitudRecibida, pacienteAdmitido, tamizajeRespondido } from '../notifications/eventos.js'
 import { registrar, ACCION } from '../services/audit.service.js'
 import {
   supportRequestReceipt,
@@ -42,7 +42,7 @@ export const SupportRequestController = {
         communicationsConsent: input.communicationsConsent,
       })
 
-      // Si el formulario incluyó las preguntas de triaje prioritario, guardar TriageResponse
+      // Si el formulario incluyó las preguntas de triaje prioritario, guardar TriageResponse y admitir de inmediato
       if (input.distress !== undefined && input.distress !== null) {
         const triageData = {
           safePlace: input.safePlace ?? true,
@@ -63,15 +63,34 @@ export const SupportRequestController = {
           esMenor: input.isMinor === true,
         })
 
-        await TriageResponseModel.create({
+        const respuesta = await TriageResponseModel.create({
           supportRequestId: request.id,
           ...triageData,
           suggestedPriority: prioridad,
           reasons: razones,
         })
-      }
 
-      await solicitudRecibida(request)
+        // Admisión automática inmediata: como ya tiene triaje y prioridad, se admite sola
+        let admision = null
+        try {
+          admision = await admitirPorTamizaje({
+            supportRequestId: request.id,
+            prioridad,
+            disponibilidad: {
+              availableDays: input.availableDays || [],
+              availableSlots: input.availableSlots || [],
+              preferredModality: input.preferredModality || null,
+            },
+          })
+        } catch (error) {
+          console.error('[solicitud] no se pudo admitir automáticamente:', error.message)
+        }
+
+        if (admision?.nuevo) await pacienteAdmitido(admision.paciente)
+        await tamizajeRespondido({ solicitud: request, respuesta })
+      } else {
+        await solicitudRecibida(request)
+      }
 
       return res
         .status(201)
