@@ -26,6 +26,7 @@ import {
   needCategoryRouter,
 } from './communityLeader.routes.js'
 import { taskRoutes, taskConfirmationRoutes } from './tasks.routes.js'
+import { meetingTelemetryRoutes } from './meetingTelemetry.routes.js'
 
 export const apiRoutes = Router()
 
@@ -79,3 +80,6 @@ apiRoutes.use('/needs-catalog', needCategoryRouter)
 // --- Módulo de Tareas Internas de Voluntariado ---
 apiRoutes.use('/tasks', taskRoutes)
 apiRoutes.use('/turno-confirmacion', taskConfirmationRoutes)
+
+// --- Telemetría de Salas de Videollamada y Espera ---
+apiRoutes.use('/meetings', meetingTelemetryRoutes)
