@@ -531,7 +531,7 @@ model Collaborator {
   sensitiveDataConsent  Boolean @default(false) @map("sensitive_data_consent")
   communicationsConsent Boolean @default(false) @map("communications_consent")
 
-  status    SubmissionStatus @default(NUEVO)
+  status    SubmissionStatus @default(ACTIVO)
   createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
   deletedAt DateTime?        @map("deleted_at") @db.Timestamptz(3)

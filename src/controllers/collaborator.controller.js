@@ -48,6 +48,7 @@ export const CollaboratorController = {
         dataConsent: input.dataConsent,
         sensitiveDataConsent: soloVirtual ? false : input.sensitiveDataConsent,
         communicationsConsent: input.communicationsConsent,
+        status: 'ACTIVO',
       })
 
       await registrar({
