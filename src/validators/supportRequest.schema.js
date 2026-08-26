@@ -49,6 +49,15 @@ export const supportRequestCreateSchema = z
     availableSlots: z.array(z.enum(DAY_SLOTS)).optional().default([]),
     message: opcional(1000),
 
+    // --- Triaje / Evaluación de Prioridad Ágil ---
+    distress: z.union([z.number().int().min(1).max(5), z.string().transform((v) => parseInt(v, 10))]).optional().nullable(),
+    selfHarmThoughts: z.union([z.boolean(), z.string().transform((v) => v === 'true' || v === 'SI')]).optional().nullable(),
+    howSoon: z.enum(['HOY', 'PROXIMOS_DIAS', 'ESTA_SEMANA']).optional().nullable(),
+    safePlace: z.union([z.boolean(), z.string().transform((v) => v === 'true' || v === 'SI')]).optional().nullable(),
+    sleepAndEat: z.enum(['SI', 'MAS_O_MENOS', 'NO']).optional().nullable(),
+    dailyFunction: z.enum(['SI', 'CON_DIFICULTAD', 'NO']).optional().nullable(),
+    hasSupport: z.union([z.boolean(), z.string().transform((v) => v === 'true' || v === 'SI')]).optional().nullable(),
+
     // --- Bloque 4: autorizaciones ---
     consentVersion: z.enum(VERSIONES_VALIDAS, {
       errorMap: () => ({ message: 'Versión de autorización no reconocida' }),

@@ -1,5 +1,6 @@
 import { SupportRequestModel } from '../models/supportRequest.model.js'
 import { TriageResponseModel } from '../models/triageResponse.model.js'
+import { calcularPrioridad } from '../services/triage.service.js'
 import { crearEnlaceTamizaje } from '../auth/enlaceTamizaje.js'
 import { DIAS_SIN_RESPUESTA } from '../services/promotion.service.js'
 import { env } from '../config/env.js'
@@ -40,6 +41,35 @@ export const SupportRequestController = {
         guardianConsent: input.isMinor === true ? input.guardianConsent : false,
         communicationsConsent: input.communicationsConsent,
       })
+
+      // Si el formulario incluyó las preguntas de triaje prioritario, guardar TriageResponse
+      if (input.distress !== undefined && input.distress !== null) {
+        const triageData = {
+          safePlace: input.safePlace ?? true,
+          distress: Number(input.distress),
+          sleepAndEat: input.sleepAndEat || 'SI',
+          dailyFunction: input.dailyFunction || 'SI',
+          hasSupport: input.hasSupport ?? true,
+          selfHarmThoughts: Boolean(input.selfHarmThoughts),
+          howSoon: input.howSoon || 'PROXIMOS_DIAS',
+          availableDays: input.availableDays || [],
+          availableSlots: input.availableSlots || [],
+          preferredModality: input.preferredModality || null,
+          consentVersion: input.consentVersion,
+          sensitiveDataConsent: input.sensitiveDataConsent,
+        }
+
+        const { prioridad, razones } = calcularPrioridad(triageData, {
+          esMenor: input.isMinor === true,
+        })
+
+        await TriageResponseModel.create({
+          supportRequestId: request.id,
+          ...triageData,
+          suggestedPriority: prioridad,
+          reasons: razones,
+        })
+      }
 
       await solicitudRecibida(request)
 
