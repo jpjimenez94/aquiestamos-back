@@ -137,19 +137,16 @@ export const TaskController = {
       if (input.collaboratorId) {
         const colaborador = await CollaboratorModel.findById(input.collaboratorId)
         if (colaborador) {
-          const tempToken = 'temp-' + Date.now()
+          const token = generarTokenAsignacion()
           const asignacion = await TaskAssignmentModel.create({
             taskId: tarea.id,
             collaboratorId: input.collaboratorId,
             note: input.assignmentNote ?? null,
-            confirmToken: tempToken,
+            confirmToken: token,
           })
 
-          const token = generarTokenAsignacion(asignacion.id, input.collaboratorId, tarea.id)
-          const asignacionActualizada = await TaskAssignmentModel.update(asignacion.id, { confirmToken: token })
-
           await tareaAsignada({
-            asignacion: asignacionActualizada,
+            asignacion,
             tarea,
             colaborador,
             ruta: '/turno/' + token,
@@ -253,23 +250,20 @@ export const TaskController = {
       const existente = await TaskAssignmentModel.findByTaskAndCollaborator(req.params.id, collaboratorId)
       if (existente) return res.status(409).json({ success: false, message: 'Este voluntario ya está asignado a esta tarea.' })
 
-      const tempToken = 'temp-' + Date.now()
+      const token = generarTokenAsignacion()
       const asignacion = await TaskAssignmentModel.create({
         taskId: req.params.id,
         collaboratorId,
         note: note ?? null,
-        confirmToken: tempToken,
+        confirmToken: token,
       })
-
-      const token = generarTokenAsignacion(asignacion.id, collaboratorId, req.params.id)
-      const asignacionActualizada = await TaskAssignmentModel.update(asignacion.id, { confirmToken: token })
 
       if (tarea.status === 'BORRADOR') {
         await TaskModel.update(req.params.id, { status: 'ABIERTA' })
       }
 
       await tareaAsignada({
-        asignacion: asignacionActualizada,
+        asignacion,
         tarea,
         colaborador,
         ruta: '/turno/' + token,
