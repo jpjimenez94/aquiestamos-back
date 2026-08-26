@@ -1206,7 +1206,7 @@ model TaskAssignment {
   /// Nota del coordinador para esta asignación específica.
   note           String?              @db.VarChar(500)
   /// Token de un solo uso para el link de confirmación del voluntario. Nunca sale de la base.
-  confirmToken   String               @unique @map("confirm_token") @db.VarChar(200)
+  confirmToken   String               @unique @map("confirm_token") @db.VarChar(500)
   /// Cuándo el voluntario respondió (sea aceptar o rechazar).
   respondedAt    DateTime?            @map("responded_at") @db.Timestamptz(3)
   /// Razón del rechazo, si la da.
