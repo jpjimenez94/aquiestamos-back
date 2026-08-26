@@ -44,6 +44,15 @@ export const SupportRequestController = {
 
       // Si el formulario incluyó las preguntas de triaje prioritario, guardar TriageResponse y admitir de inmediato
       if (input.distress !== undefined && input.distress !== null) {
+        let howSoonNormalizado = 'ESTA_SEMANA'
+        if (input.howSoon === 'HOY') {
+          howSoonNormalizado = 'HOY'
+        } else if (input.howSoon === 'PUEDO_ESPERAR') {
+          howSoonNormalizado = 'PUEDO_ESPERAR'
+        } else if (input.howSoon === 'ESTA_SEMANA' || input.howSoon === 'PROXIMOS_DIAS') {
+          howSoonNormalizado = 'ESTA_SEMANA'
+        }
+
         const triageData = {
           safePlace: input.safePlace ?? true,
           distress: Number(input.distress),
@@ -51,7 +60,7 @@ export const SupportRequestController = {
           dailyFunction: input.dailyFunction || 'SI',
           hasSupport: input.hasSupport ?? true,
           selfHarmThoughts: Boolean(input.selfHarmThoughts),
-          howSoon: input.howSoon || 'PROXIMOS_DIAS',
+          howSoon: howSoonNormalizado,
           availableDays: input.availableDays || [],
           availableSlots: input.availableSlots || [],
           preferredModality: input.preferredModality || null,

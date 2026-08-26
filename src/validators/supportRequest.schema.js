@@ -52,7 +52,7 @@ export const supportRequestCreateSchema = z
     // --- Triaje / Evaluación de Prioridad Ágil ---
     distress: z.union([z.number().int().min(1).max(5), z.string().transform((v) => parseInt(v, 10))]).optional().nullable(),
     selfHarmThoughts: z.union([z.boolean(), z.string().transform((v) => v === 'true' || v === 'SI')]).optional().nullable(),
-    howSoon: z.enum(['HOY', 'PROXIMOS_DIAS', 'ESTA_SEMANA']).optional().nullable(),
+    howSoon: z.enum(['HOY', 'PROXIMOS_DIAS', 'ESTA_SEMANA', 'PUEDO_ESPERAR']).optional().nullable(),
     safePlace: z.union([z.boolean(), z.string().transform((v) => v === 'true' || v === 'SI')]).optional().nullable(),
     sleepAndEat: z.enum(['SI', 'MAS_O_MENOS', 'NO']).optional().nullable(),
     dailyFunction: z.enum(['SI', 'CON_DIFICULTAD', 'NO']).optional().nullable(),
