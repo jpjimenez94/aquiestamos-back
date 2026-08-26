@@ -24,7 +24,8 @@ export const cambiarClaveSchema = z.object({
 export const crearUsuarioSchema = z.object({
   email: z.string(requerido).trim().toLowerCase().email('Correo no válido').max(160),
   name: z.string(requerido).trim().min(1, 'Campo obligatorio').max(160),
-  role: z.enum(ROLES, { errorMap: () => ({ message: 'Rol no válido' }) }),
+  role: z.enum(ROLES, { errorMap: () => ({ message: 'Rol no válido' }) }).optional(),
+  roles: z.array(z.enum(ROLES, { errorMap: () => ({ message: 'Rol no válido' }) })).min(1, 'Debes seleccionar al menos un rol').optional(),
   password: clave,
 })
 
@@ -32,5 +33,6 @@ export const editarUsuarioSchema = z.object({
   name: z.string().trim().min(1).max(160).optional(),
   email: z.string().trim().toLowerCase().email('Correo no válido').max(160).optional(),
   role: z.enum(ROLES, { errorMap: () => ({ message: 'Rol no válido' }) }).optional(),
+  roles: z.array(z.enum(ROLES, { errorMap: () => ({ message: 'Rol no válido' }) })).min(1, 'Debes seleccionar al menos un rol').optional(),
   active: z.boolean().optional(),
 })

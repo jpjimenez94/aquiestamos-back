@@ -5,11 +5,16 @@ import { permisosDe } from '../auth/permissions.js'
  * El hash de la clave no sale de aquí en ningún caso.
  */
 export function usuarioPublico(user) {
+  const roles = Array.isArray(user.roles) && user.roles.length > 0
+    ? user.roles
+    : (user.role ? [user.role] : [])
+
   return {
     id: user.id,
     email: user.email,
     name: user.name,
-    role: user.role,
+    role: user.role ?? roles[0] ?? 'AGENDADOR',
+    roles,
     active: user.active,
     mustChangePassword: user.mustChangePassword,
     lastLoginAt: user.lastLoginAt,
@@ -23,13 +28,15 @@ export function usuarioLista(usuarios) {
 
 /** Lo que necesita el portal justo después de iniciar sesión. */
 export function sesionIniciada(user, token, expiresAt) {
+  const roles = Array.isArray(user.roles) && user.roles.length > 0 ? user.roles : (user.role ? [user.role] : [])
   return {
     token,
     expiresAt,
-    usuario: { ...usuarioPublico(user), permisos: permisosDe(user.role) },
+    usuario: { ...usuarioPublico(user), permisos: permisosDe(roles) },
   }
 }
 
 export function perfil(user) {
-  return { ...usuarioPublico(user), permisos: permisosDe(user.role) }
+  const roles = Array.isArray(user.roles) && user.roles.length > 0 ? user.roles : (user.role ? [user.role] : [])
+  return { ...usuarioPublico(user), permisos: permisosDe(roles) }
 }

@@ -19,7 +19,12 @@ export const UserController = {
   /** POST /api/users */
   async store(req, res, next) {
     try {
-      const { email, name, role, password } = req.validated
+      let { email, name, role, roles, password } = req.validated
+
+      const listaRoles = Array.isArray(roles) && roles.length > 0
+        ? roles
+        : (role ? [role] : ['AGENDADOR'])
+      const rolPrincipal = role || listaRoles[0] || 'AGENDADOR'
 
       const existente = await UserModel.findByEmail(email)
       if (existente) {
@@ -31,7 +36,8 @@ export const UserController = {
       const usuario = await UserModel.create({
         email,
         name,
-        role,
+        role: rolPrincipal,
+        roles: listaRoles,
         passwordHash: await hashearClave(password),
         mustChangePassword: true,
       })
@@ -68,21 +74,41 @@ export const UserController = {
         }
       }
 
+      const rolesAnteriores = Array.isArray(anterior.roles) && anterior.roles.length > 0
+        ? anterior.roles
+        : [anterior.role]
+
+      let nuevosRoles = req.validated.roles
+      if (!nuevosRoles && req.validated.role) {
+        nuevosRoles = [req.validated.role]
+      }
+
+      if (nuevosRoles && nuevosRoles.length > 0) {
+        req.validated.roles = nuevosRoles
+        if (!req.validated.role) {
+          req.validated.role = nuevosRoles[0]
+        }
+      }
+
       // Nadie puede quitarse a sí mismo el rol de administrador ni desactivarse:
       // es la forma más común de quedarse sin acceso al portal.
       if (anterior.id === req.usuario.id) {
-        if (req.validated.role && req.validated.role !== anterior.role) {
-          return res.status(400).json(failure('No puedes cambiar tu propio rol'))
+        const teniaAdmin = rolesAnteriores.includes('ADMIN')
+        const tendraAdmin = nuevosRoles ? nuevosRoles.includes('ADMIN') : teniaAdmin
+        if (teniaAdmin && !tendraAdmin) {
+          return res.status(400).json(failure('No puedes quitarte a ti mismo el rol de administrador'))
         }
         if (req.validated.active === false) {
           return res.status(400).json(failure('No puedes desactivar tu propia cuenta'))
         }
       }
 
-      if (anterior.role === 'ADMIN' && (req.validated.role !== undefined || req.validated.active === false)) {
+      const teniaAdmin = rolesAnteriores.includes('ADMIN')
+      const perderaAdmin = nuevosRoles && !nuevosRoles.includes('ADMIN')
+      if (teniaAdmin && (perderaAdmin || req.validated.active === false)) {
         const admins = await UserModel.findAll({ role: 'ADMIN' })
-        const activos = admins.filter((u) => u.active)
-        if (activos.length <= 1) {
+        const activos = admins.filter((u) => u.active && u.id !== anterior.id)
+        if (activos.length === 0) {
           return res
             .status(400)
             .json(failure('Debe quedar al menos un administrador activo'))
@@ -92,7 +118,7 @@ export const UserController = {
       const usuario = await UserModel.update(req.params.id, req.validated)
 
       // Bajar el rol o desactivar debe surtir efecto ya, no cuando caduque la sesión.
-      if (req.validated.role !== undefined || req.validated.active === false) {
+      if (req.validated.role !== undefined || req.validated.roles !== undefined || req.validated.active === false) {
         await SessionModel.revokeAllForUser(usuario.id)
       }
 

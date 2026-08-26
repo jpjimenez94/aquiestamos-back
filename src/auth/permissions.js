@@ -122,20 +122,37 @@ export const PERMISOS = {
 const PERMISOS_COMUNES = ['perfil:leer:propio', 'perfil:cambiar-clave']
 
 export function puede(usuario, permiso) {
-  if (!usuario || !usuario.role) return false
+  if (!usuario) return false
   if (PERMISOS_COMUNES.includes(permiso)) return true
 
-  const concedidos = PERMISOS[usuario.role]
-  if (!concedidos) return false
+  const listaRoles = Array.isArray(usuario.roles) && usuario.roles.length > 0
+    ? usuario.roles
+    : (usuario.role ? [usuario.role] : [])
 
-  return concedidos.some((p) => p === '*' || p === permiso)
+  if (listaRoles.length === 0) return false
+
+  return listaRoles.some((rol) => {
+    const concedidos = PERMISOS[rol]
+    if (!concedidos) return false
+    return concedidos.some((p) => p === '*' || p === permiso)
+  })
 }
 
-/** Lista expandida de permisos de un rol, para mostrarla en el portal. */
-export function permisosDe(role) {
-  const concedidos = PERMISOS[role] ?? []
-  if (concedidos.includes('*')) return ['*']
-  return [...concedidos, ...PERMISOS_COMUNES]
+/** Lista expandida de permisos de uno o varios roles, para mostrarla en el portal. */
+export function permisosDe(rolesOrRole) {
+  const listaRoles = Array.isArray(rolesOrRole)
+    ? rolesOrRole.filter(Boolean)
+    : [rolesOrRole].filter(Boolean)
+
+  if (listaRoles.length === 0) return [...PERMISOS_COMUNES]
+
+  const todos = new Set(PERMISOS_COMUNES)
+  for (const rol of listaRoles) {
+    const concedidos = PERMISOS[rol] ?? []
+    if (concedidos.includes('*')) return ['*']
+    for (const p of concedidos) todos.add(p)
+  }
+  return Array.from(todos)
 }
 
 export const ROLES = Object.keys(PERMISOS)

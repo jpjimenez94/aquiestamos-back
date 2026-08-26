@@ -48,6 +48,7 @@ model User {
   name               String    @db.VarChar(160)
   passwordHash       String    @map("password_hash") @db.VarChar(255)
   role               UserRole
+  roles              UserRole[] @default([])
   active             Boolean   @default(true)
   /// Las cuentas las crea un administrador; la persona cambia la clave al entrar.
   mustChangePassword Boolean   @default(true) @map("must_change_password")
