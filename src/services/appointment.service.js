@@ -389,7 +389,7 @@ export async function confirmarHorario({
   })
 }
 
-/** Aceptó, pero no hubo forma de cuadrar. El caso vuelve a la cola. */
+/** Aceptó, pero no hubo forma de cuadrar o se debe reasignar. El caso vuelve a la cola. */
 export async function cancelarAsignacion({ asignacionId, motivo }) {
   const asignacion = await CaseAssignmentModel.findById(asignacionId)
   if (!asignacion) throw new DomainError('NO_ENCONTRADO', 'La asignación no existe')
@@ -397,6 +397,19 @@ export async function cancelarAsignacion({ asignacionId, motivo }) {
   exigirTransicionAsignacion(asignacion.status, 'CANCELADA')
 
   const cancelada = await CaseAssignmentModel.cancelar(asignacionId, motivo)
+
+  // Si había citas programadas o confirmadas con el profesional anterior, se cancelan.
+  await prisma.appointment.updateMany({
+    where: {
+      caseAssignmentId: asignacionId,
+      status: { in: ['PROGRAMADA', 'CONFIRMADA'] },
+    },
+    data: {
+      status: 'CANCELADA',
+      cancelReason: `Caso reasignado / asignación cancelada: ${motivo}`,
+    },
+  })
+
   // Vuelve a estar disponible para que se le proponga a otro profesional.
   await PatientModel.update(asignacion.patientId, { status: 'EN_ADMISION' })
   return cancelada

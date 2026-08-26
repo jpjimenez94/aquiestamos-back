@@ -63,15 +63,10 @@ describe('validador de tareas internas', () => {
 })
 
 describe('servicio de tokens de confirmación de tareas', () => {
-  it('genera y verifica un token válido', () => {
-    const assignmentId = 'assign-123'
-    const collaboratorId = 'colab-456'
-    const taskId = 'task-789'
-
-    const token = generarTokenAsignacion(assignmentId, collaboratorId, taskId)
-    const payload = verificarTokenAsignacion(token)
-    expect(payload.sub).toBe(assignmentId)
-    expect(payload.cid).toBe(collaboratorId)
-    expect(payload.tid).toBe(taskId)
+  it('genera un token corto válido de 24 caracteres', () => {
+    const token = generarTokenAsignacion()
+    expect(typeof token).toBe('string')
+    expect(token).toHaveLength(24)
+    expect(/^[0-9a-f]{24}$/.test(token)).toBe(true)
   })
 })

@@ -49,7 +49,7 @@ const TRANSICIONES = {
   // De ACEPTADA se sale agendando (ACTIVA) o cancelando: si la persona no
   // responde o ningún horario le sirve, el caso vuelve a la cola.
   ACEPTADA: [ESTADOS.ACTIVA, ESTADOS.CANCELADA],
-  ACTIVA: [ESTADOS.CERRADA],
+  ACTIVA: [ESTADOS.CERRADA, ESTADOS.CANCELADA],
   RECHAZADA: [],
   CANCELADA: [],
   CERRADA: [],

@@ -68,7 +68,7 @@ function calcularEstadoDinamico(a, taskDueDate, taskStartTime, taskEndTime) {
   return a.status
 }
 
-function formatearAsignacion(a, tareaPadre)
+function formatearAsignacion(a, tareaPadre) {
   return {
     id: a.id,
     status: tareaPadre ? calcularEstadoDinamico(a, tareaPadre.dueDate, tareaPadre.startTime, tareaPadre.endTime) : a.status,
