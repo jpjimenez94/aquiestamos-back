@@ -1,6 +1,7 @@
 import { ETIQUETAS } from '../services/appointmentState.service.js'
 import { formatearLocal, franjaDe } from '../services/timezone.service.js'
 import { transicionesDesde } from '../services/appointmentState.service.js'
+import { generarTokenSala } from '../services/meeting.service.js'
 
 /**
  * VISTA: Appointment
@@ -21,6 +22,13 @@ export function cita(c) {
     modalidad: c.modality,
     meetingUrl: c.meetingUrl ?? null,
     meetingProvider: c.meetingProvider ?? null,
+    salaTokenPaciente: c.meetingUrl ? generarTokenSala(c.id, 'PACIENTE') : null,
+    salaTokenProfesional: c.meetingUrl ? generarTokenSala(c.id, 'PROFESIONAL') : null,
+    patientFirstJoinedAt: c.patientFirstJoinedAt ?? null,
+    professionalFirstJoinedAt: c.professionalFirstJoinedAt ?? null,
+    totalCallDurationSeconds: c.totalCallDurationSeconds ?? 0,
+    totalCallDurationMinutes: c.totalCallDurationSeconds ? Math.round(c.totalCallDurationSeconds / 60) : 0,
+    accessLogs: c.accessLogs ?? [],
     estado: c.status,
     estadoLegible: ETIQUETAS[c.status] ?? c.status,
     siguientesEstados: transicionesDesde(c.status),
@@ -67,6 +75,7 @@ export function citaParaProfesional(c) {
     modalidad: base.modalidad,
     meetingUrl: base.meetingUrl,
     meetingProvider: base.meetingProvider,
+    salaTokenProfesional: base.salaTokenProfesional,
     estado: base.estado,
     estadoLegible: base.estadoLegible,
     paciente: base.paciente,
