@@ -6,7 +6,7 @@ export const TaskAssignmentModel = {
       data,
       include: {
         collaborator: { select: { id: true, fullName: true, email: true, phone: true, area: true, discipline: true } },
-        task: { select: { id: true, title: true, area: true, dueDate: true, notes: true } },
+        task: { select: { id: true, title: true, area: true, dueDate: true, startTime: true, endTime: true, materialsUrl: true, notes: true } },
       },
     })
   },
@@ -16,7 +16,7 @@ export const TaskAssignmentModel = {
       where: { id },
       include: {
         collaborator: { select: { id: true, fullName: true, email: true, phone: true, area: true, discipline: true } },
-        task: { select: { id: true, title: true, description: true, area: true, dueDate: true, notes: true, status: true, priority: true } },
+        task: { select: { id: true, title: true, description: true, area: true, dueDate: true, startTime: true, endTime: true, materialsUrl: true, notes: true, status: true, priority: true } },
       },
     })
   },
@@ -26,7 +26,7 @@ export const TaskAssignmentModel = {
       where: { confirmToken },
       include: {
         collaborator: { select: { id: true, fullName: true, email: true } },
-        task: { select: { id: true, title: true, description: true, area: true, dueDate: true, notes: true, priority: true } },
+        task: { select: { id: true, title: true, description: true, area: true, dueDate: true, startTime: true, endTime: true, materialsUrl: true, notes: true, priority: true } },
       },
     })
   },
@@ -37,7 +37,6 @@ export const TaskAssignmentModel = {
     })
   },
 
-  /** Todas las asignaciones de un colaborador (con datos de la tarea). */
   findByCollaborator(collaboratorId) {
     return prisma.taskAssignment.findMany({
       where: { collaboratorId },

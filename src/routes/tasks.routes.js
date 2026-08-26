@@ -1,6 +1,10 @@
 import { Router } from 'express'
 import { TaskController } from '../controllers/task.controller.js'
-import { obtenerDetallesAsignacion, responderAsignacion } from '../controllers/taskConfirmation.controller.js'
+import {
+  obtenerDetallesAsignacion,
+  responderAsignacion,
+  completarLaborVoluntario,
+} from '../controllers/taskConfirmation.controller.js'
 import { validateBody } from '../middlewares/validate.js'
 import { authenticate } from '../middlewares/authenticate.js'
 import { authorize } from '../middlewares/authorize.js'
@@ -12,6 +16,7 @@ import {
   reassignCollaboratorSchema,
   addNoteSchema,
   updateAssignmentStatusSchema,
+  taskCompletionSchema,
 } from '../validators/task.schema.js'
 
 export const taskRoutes = Router()
@@ -32,6 +37,7 @@ taskRoutes.post('/:id/reassign', authenticate, authorize('tarea:asignar'), valid
 taskRoutes.patch('/:taskId/assign/:assignmentId/status', authenticate, authorize('tarea:asignar'), validateBody(updateAssignmentStatusSchema), TaskController.updateAssignmentStatus)
 taskRoutes.delete('/:taskId/assign/:assignmentId', authenticate, authorize('tarea:asignar'), TaskController.removeAssignment)
 
-// --- Público: el voluntario confirma o rechaza desde su email ---
+// --- Público: el voluntario confirma, rechaza o completa desde su email ---
 taskConfirmationRoutes.get('/:token', obtenerDetallesAsignacion)
 taskConfirmationRoutes.post('/:token', responderAsignacion)
+taskConfirmationRoutes.post('/:token/completar', validateBody(taskCompletionSchema), completarLaborVoluntario)

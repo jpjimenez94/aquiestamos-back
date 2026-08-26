@@ -1175,6 +1175,8 @@ model Task {
   endTime     String?      @map("end_time") @db.VarChar(10)
   priority    TaskPriority @default(MEDIA)
   status      TaskStatus   @default(BORRADOR)
+  /// Enlace a carpeta de Drive, documento o herramienta de trabajo (visible para el voluntario tras aceptar).
+  materialsUrl String?      @map("materials_url") @db.VarChar(500)
   /// Instrucciones, links, materiales. Solo visible para el equipo.
   notes       String?      @db.VarChar(2000)
   /// Quién la creó. Desnormalizado para que el rastro sobreviva si se elimina la cuenta.
@@ -1209,6 +1211,10 @@ model TaskAssignment {
   respondedAt    DateTime?            @map("responded_at") @db.Timestamptz(3)
   /// Razón del rechazo, si la da.
   declineReason  String?              @map("decline_reason") @db.VarChar(300)
+  /// Enlace entregado por el voluntario al terminar (ej. link de Drive con los artes o reportes).
+  completionUrl  String?              @map("completion_url") @db.VarChar(500)
+  /// Comentario o reporte de entrega del voluntario.
+  completionNote String?              @map("completion_note") @db.VarChar(1000)
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime @updatedAt      @map("updated_at") @db.Timestamptz(3)

@@ -37,6 +37,7 @@ export const CollaboratorModel = {
           : {}),
         ...(status ? { status } : {}),
       },
+      include: { assignments: { select: { id: true, status: true } } },
       orderBy: { createdAt: 'desc' },
       ...(skip !== undefined ? { skip } : {}),
       ...(take !== undefined ? { take } : {}),

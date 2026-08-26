@@ -13,6 +13,7 @@ export const taskCreateSchema = z.object({
   startTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).optional().nullable(),
   endTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).optional().nullable(),
   priority: z.enum(PRIORIDADES).default('MEDIA'),
+  materialsUrl: z.string().url().max(500).optional().nullable().or(z.literal('')),
   notes: z.string().max(2000).optional().nullable(),
   collaboratorId: z.string().uuid().optional().nullable(),
   assignmentNote: z.string().max(500).optional().nullable(),
@@ -26,6 +27,7 @@ export const taskUpdateSchema = z.object({
   startTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).optional().nullable(),
   endTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).optional().nullable(),
   priority: z.enum(PRIORIDADES).optional(),
+  materialsUrl: z.string().url().max(500).optional().nullable().or(z.literal('')),
   notes: z.string().max(2000).optional().nullable(),
 })
 
@@ -55,4 +57,10 @@ export const updateAssignmentStatusSchema = z.object({
 export const taskConfirmationSchema = z.object({
   accion: z.enum(['ACEPTAR', 'RECHAZAR']),
   declineReason: z.string().max(300).optional(),
+})
+
+// Ruta pública: el voluntario marca como completada y entrega recursos
+export const taskCompletionSchema = z.object({
+  completionUrl: z.string().url().max(500).optional().nullable().or(z.literal('')),
+  completionNote: z.string().max(1000).optional().nullable(),
 })

@@ -457,3 +457,38 @@ export async function tareaRespondida({ asignacion, tarea, colaborador }) {
     clave: `tarea-respondida:${asignacion.id}`,
   })
 }
+
+
+/** El voluntario completó la tarea. Se le agradece a él y se avisa a coordinación. */
+export async function tareaCompletada({ asignacion, tarea, colaborador, porVoluntario = false }) {
+  // Agradecimiento al voluntario
+  await encolar({
+    plantilla: 'TAREA_AGRADECIMIENTO',
+    para: colaborador.email,
+    nombre: colaborador.fullName,
+    payload: {
+      nombre: primerNombre(colaborador.fullName),
+      titulo: tarea.title,
+    },
+    entidad: 'task_assignment',
+    entidadId: asignacion.id,
+    clave: `tarea-gracias:${asignacion.id}`,
+  })
+
+  // Si la marcó el propio voluntario desde su link, avisar a coordinación
+  if (porVoluntario) {
+    await avisarACoordinacion({
+      plantilla: 'TAREA_ENTREGA_COORD',
+      payload: {
+        nombreVoluntario: colaborador.fullName,
+        titulo: tarea.title,
+        completionUrl: asignacion.completionUrl ?? null,
+        completionNote: asignacion.completionNote ?? null,
+        ruta: `/portal/tareas/${tarea.id}`,
+      },
+      entidad: 'task_assignment',
+      entidadId: asignacion.id,
+      clave: `tarea-entrega:${asignacion.id}`,
+    })
+  }
+}

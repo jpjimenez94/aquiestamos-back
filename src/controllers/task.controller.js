@@ -4,7 +4,7 @@ import { CollaboratorModel } from '../models/collaborator.model.js'
 import { ok, created } from '../views/response.view.js'
 import { registrar, ACCION } from '../services/audit.service.js'
 import { generarTokenAsignacion } from '../services/taskToken.service.js'
-import { tareaAsignada } from '../notifications/eventos.js'
+import { tareaAsignada, tareaCompletada } from '../notifications/eventos.js'
 
 const AREA_LEGIBLE = {
   SALUD: 'Salud y primeros auxilios',
@@ -31,6 +31,7 @@ function formatearTarea(t) {
     dueDate: t.dueDate ? t.dueDate.toISOString().split('T')[0] : null,
     startTime: t.startTime,
     endTime: t.endTime,
+    materialsUrl: t.materialsUrl,
     priority: t.priority,
     priorityLegible: PRIORIDAD_LEGIBLE[t.priority] ?? t.priority,
     status: t.status,
@@ -49,8 +50,11 @@ function formatearAsignacion(a) {
     id: a.id,
     status: a.status,
     note: a.note,
+    confirmToken: a.confirmToken,
     respondedAt: a.respondedAt,
     declineReason: a.declineReason,
+    completionUrl: a.completionUrl,
+    completionNote: a.completionNote,
     createdAt: a.createdAt,
     collaborator: a.collaborator
       ? {
@@ -99,6 +103,7 @@ export const TaskController = {
         dueDate: input.dueDate ? new Date(input.dueDate) : null,
         startTime: input.startTime ?? null,
         endTime: input.endTime ?? null,
+        materialsUrl: input.materialsUrl || null,
         priority: input.priority ?? 'MEDIA',
         status: estadoInicial,
         notes: input.notes ?? null,
@@ -133,7 +138,7 @@ export const TaskController = {
       }
 
       await registrar({ req, action: ACCION.CREAR, entity: 'task', entityId: tarea.id })
-      return res.status(201).json(created(formatearTarea(tarea), 'Tarea creada y asignada.'))
+      return res.status(201).json(created(formatearTarea(tarea), 'Tarea creada.'))
     } catch (error) { next(error) }
   },
 
@@ -159,6 +164,7 @@ export const TaskController = {
         ...(input.dueDate !== undefined ? { dueDate: input.dueDate ? new Date(input.dueDate) : null } : {}),
         ...(input.startTime !== undefined ? { startTime: input.startTime } : {}),
         ...(input.endTime !== undefined ? { endTime: input.endTime } : {}),
+        ...(input.materialsUrl !== undefined ? { materialsUrl: input.materialsUrl || null } : {}),
         ...(input.priority !== undefined ? { priority: input.priority } : {}),
         ...(input.notes !== undefined ? { notes: input.notes } : {}),
       })
@@ -191,9 +197,7 @@ export const TaskController = {
       const fechaStr = ahora.toLocaleDateString('es-CO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
       const autor = req.usuario?.name || req.usuario?.email || 'Coordinación'
       const nuevaEntrada = '[' + fechaStr + ' · ' + autor + ']: ' + note
-      const notasActuales = tarea.notes ? tarea.notes + '
-
-' + nuevaEntrada : nuevaEntrada
+      const notasActuales = tarea.notes ? tarea.notes + '\n\n' + nuevaEntrada : nuevaEntrada
 
       await TaskModel.update(req.params.id, { notes: notasActuales })
       await registrar({ req, action: ACCION.EDITAR, entity: 'task', entityId: tarea.id, after: { nuevaNota: note } })
@@ -263,7 +267,6 @@ export const TaskController = {
       const nuevoColaborador = await CollaboratorModel.findById(newCollaboratorId)
       if (!nuevoColaborador) return res.status(404).json({ success: false, message: 'Voluntario no encontrado.' })
 
-      // Limpiar asignaciones previas
       for (const a of tarea.assignments ?? []) {
         await TaskAssignmentModel.delete(a.id).catch(() => null)
       }
@@ -301,8 +304,20 @@ export const TaskController = {
       if (!asignacion || asignacion.taskId !== req.params.taskId) {
         return res.status(404).json({ success: false, message: 'Asignación no encontrada.' })
       }
-      const actualizada = await TaskAssignmentModel.update(req.params.assignmentId, { status: req.validated.status })
-      await registrar({ req, action: ACCION.EDITAR, entity: 'task_assignment', entityId: asignacion.id })
+      const nuevoEstado = req.validated.status
+      const actualizada = await TaskAssignmentModel.update(req.params.assignmentId, { status: nuevoEstado })
+
+      // Si se marca como COMPLETADO desde el portal, enviar email de agradecimiento
+      if (nuevoEstado === 'COMPLETADO' && asignacion.collaborator) {
+        await tareaCompletada({
+          asignacion: actualizada,
+          tarea: asignacion.task,
+          colaborador: asignacion.collaborator,
+          porVoluntario: false,
+        }).catch((err) => console.error('[tasks] error enviando agradecimiento:', err))
+      }
+
+      await registrar({ req, action: ACCION.EDITAR, entity: 'task_assignment', entityId: asignacion.id, after: { status: nuevoEstado } })
       return res.json(ok(formatearAsignacion(actualizada)))
     } catch (error) { next(error) }
   },

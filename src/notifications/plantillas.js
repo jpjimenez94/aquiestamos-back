@@ -336,6 +336,33 @@ export const PLANTILLAS = {
     }),
 
   /** A coordinación: el voluntario respondió a una asignación. */
+  
+  /** Al voluntario: agradecimiento por completar la tarea. */
+  TAREA_AGRADECIMIENTO: (p) =>
+    armar(`[Aquí Estamos] ¡Muchas gracias por tu apoyo con "${p.titulo}"!`, {
+      titulo: `¡Muchas gracias, ${p.nombre}!`,
+      parrafos: [
+        `Queremos agradecerte de corazón por tu valiosa colaboración en la labor <strong>${p.titulo}</strong>.`,
+        'Gracias a tu tiempo y disciplina, el equipo de la Red Aquí Estamos puede seguir brindando acompañamiento oportuno y de calidad a quienes más lo necesitan.',
+        'Pronto te contactaremos cuando tengamos nuevas iniciativas en las que puedas seguir aportando tu talento.',
+      ],
+      boton: { texto: 'Conoce más sobre la Red', url: urlDelSitio('/recursos') },
+    }),
+
+  /** A coordinación: el voluntario marcó la tarea como completada y entregó reporte/link. */
+  TAREA_ENTREGA_COORD: (p) =>
+    armar(`Entrega de labor completada: ${p.nombreVoluntario} — ${p.titulo}`, {
+      titulo: 'Un voluntario completó su labor',
+      parrafos: [
+        `<strong>${p.nombreVoluntario}</strong> marcó como completada la tarea <strong>${p.titulo}</strong>.`,
+      ],
+      datos: [
+        p.completionUrl ? `<strong>Enlace de entrega:</strong> <a href="${p.completionUrl}">${p.completionUrl}</a>` : null,
+        p.completionNote ? `<strong>Comentario del voluntario:</strong> ${p.completionNote}` : null,
+      ].filter(Boolean),
+      boton: { texto: 'Ver la tarea en el portal', url: urlDelSitio(p.ruta) },
+    }),
+
   TAREA_RESPUESTA: (p) =>
     armar(`Respuesta de voluntario: ${p.accion} — ${p.titulo}`, {
       titulo: 'Un voluntario respondió a una tarea asignada',

@@ -83,6 +83,17 @@ const CASOS = {
     tramo: 'profesional',
     ruta: '/portal/personas/abc',
   },
+  TAREA_AGRADECIMIENTO: {
+    nombre: 'Camila',
+    titulo: 'Diseño de piezas para redes',
+  },
+  TAREA_ENTREGA_COORD: {
+    nombreVoluntario: 'Camila Restrepo',
+    titulo: 'Diseño de piezas para redes',
+    completionUrl: 'https://drive.google.com/test',
+    completionNote: 'Entregados 3 artes en alta calidad',
+    ruta: '/portal/tareas/abc',
+  },
   TAREA_INVITACION: {
     nombre: 'Camila',
     titulo: 'Verificar tarjetas profesionales',
