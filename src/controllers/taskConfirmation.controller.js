@@ -27,7 +27,6 @@ export async function obtenerDetallesAsignacion(req, res, next) {
       return res.status(404).json({ success: false, message: 'No encontramos la asignación para este enlace.' })
     }
 
-    // Si ya respondió, decirlo con gracia
     const yaRespondio = ['ACEPTADO', 'RECHAZADO'].includes(asignacion.status)
 
     return res.json(ok({
@@ -40,7 +39,9 @@ export async function obtenerDetallesAsignacion(req, res, next) {
         description: asignacion.task.description,
         area: asignacion.task.area,
         areaLegible: AREA_LEGIBLE[asignacion.task.area] ?? asignacion.task.area,
-        dueDate: asignacion.task.dueDate ? asignacion.task.dueDate.toISOString?.().split('T')[0] ?? asignacion.task.dueDate : null,
+        dueDate: asignacion.task.dueDate ? (asignacion.task.dueDate.toISOString?.().split('T')[0] ?? asignacion.task.dueDate) : null,
+        startTime: asignacion.task.startTime ?? null,
+        endTime: asignacion.task.endTime ?? null,
         notes: asignacion.task.notes,
         priority: asignacion.task.priority,
       },
@@ -80,7 +81,6 @@ export async function responderAsignacion(req, res, next) {
       declineReason: accion === 'RECHAZAR' ? (declineReason ?? null) : null,
     })
 
-    // Si aceptó, actualizar la tarea a EN_PROGRESO si no lo está ya
     if (nuevoEstado === 'ACEPTADO') {
       const tarea = await TaskModel.findById(asignacion.taskId)
       if (tarea && tarea.status === 'ABIERTA') {
@@ -88,7 +88,6 @@ export async function responderAsignacion(req, res, next) {
       }
     }
 
-    // Notificar a coordinación
     await tareaRespondida({
       asignacion: { ...asignacion, status: nuevoEstado, declineReason: accion === 'RECHAZAR' ? (declineReason ?? null) : null },
       tarea: asignacion.task,

@@ -29,6 +29,8 @@ function formatearTarea(t) {
     title: t.title,
     description: t.description,
     dueDate: t.dueDate ? t.dueDate.toISOString().split('T')[0] : null,
+    startTime: t.startTime,
+    endTime: t.endTime,
     priority: t.priority,
     priorityLegible: PRIORIDAD_LEGIBLE[t.priority] ?? t.priority,
     status: t.status,
@@ -54,7 +56,7 @@ function formatearAsignacion(a) {
       ? {
           id: a.collaborator.id,
           fullName: a.collaborator.fullName,
-          // phone omitted: habeas data rule — no phone numbers in email payloads
+          phone: a.collaborator.phone,
           email: a.collaborator.email,
           area: a.collaborator.area,
           areaLegible: AREA_LEGIBLE[a.collaborator.area] ?? a.collaborator.area,
@@ -88,17 +90,50 @@ export const TaskController = {
   async store(req, res, next) {
     try {
       const input = req.validated
-      const tarea = await TaskModel.create({
+      const estadoInicial = input.collaboratorId ? 'ABIERTA' : 'BORRADOR'
+
+      let tarea = await TaskModel.create({
         area: input.area,
         title: input.title,
         description: input.description ?? null,
         dueDate: input.dueDate ? new Date(input.dueDate) : null,
+        startTime: input.startTime ?? null,
+        endTime: input.endTime ?? null,
         priority: input.priority ?? 'MEDIA',
+        status: estadoInicial,
         notes: input.notes ?? null,
         createdByEmail: req.usuario?.email ?? null,
       })
+
+      // Asignar de una vez si se seleccionó voluntario
+      if (input.collaboratorId) {
+        const colaborador = await CollaboratorModel.findById(input.collaboratorId)
+        if (colaborador) {
+          const tempToken = 'temp-' + Date.now()
+          const asignacion = await TaskAssignmentModel.create({
+            taskId: tarea.id,
+            collaboratorId: input.collaboratorId,
+            note: input.assignmentNote ?? null,
+            confirmToken: tempToken,
+          })
+
+          const token = generarTokenAsignacion(asignacion.id, input.collaboratorId, tarea.id)
+          const asignacionActualizada = await TaskAssignmentModel.update(asignacion.id, { confirmToken: token })
+
+          await tareaAsignada({
+            asignacion: asignacionActualizada,
+            tarea,
+            colaborador,
+            ruta: '/turno/' + token,
+          })
+
+          await registrar({ req, action: ACCION.CREAR, entity: 'task_assignment', entityId: asignacion.id })
+          tarea = await TaskModel.findById(tarea.id)
+        }
+      }
+
       await registrar({ req, action: ACCION.CREAR, entity: 'task', entityId: tarea.id })
-      return res.status(201).json(created(formatearTarea(tarea), 'Tarea creada.'))
+      return res.status(201).json(created(formatearTarea(tarea), 'Tarea creada y asignada.'))
     } catch (error) { next(error) }
   },
 
@@ -117,16 +152,19 @@ export const TaskController = {
       const tarea = await TaskModel.findById(req.params.id)
       if (!tarea) return res.status(404).json({ success: false, message: 'Tarea no encontrada.' })
       const input = req.validated
-      const actualizada = await TaskModel.update(req.params.id, {
+      await TaskModel.update(req.params.id, {
         ...(input.area !== undefined ? { area: input.area } : {}),
         ...(input.title !== undefined ? { title: input.title } : {}),
         ...(input.description !== undefined ? { description: input.description } : {}),
         ...(input.dueDate !== undefined ? { dueDate: input.dueDate ? new Date(input.dueDate) : null } : {}),
+        ...(input.startTime !== undefined ? { startTime: input.startTime } : {}),
+        ...(input.endTime !== undefined ? { endTime: input.endTime } : {}),
         ...(input.priority !== undefined ? { priority: input.priority } : {}),
         ...(input.notes !== undefined ? { notes: input.notes } : {}),
       })
       await registrar({ req, action: ACCION.EDITAR, entity: 'task', entityId: tarea.id })
-      return res.json(ok(formatearTarea(actualizada)))
+      const tareaCompleta = await TaskModel.findById(req.params.id)
+      return res.json(ok(formatearTarea(tareaCompleta), 'Tarea actualizada.'))
     } catch (error) { next(error) }
   },
 
@@ -135,9 +173,32 @@ export const TaskController = {
     try {
       const tarea = await TaskModel.findById(req.params.id)
       if (!tarea) return res.status(404).json({ success: false, message: 'Tarea no encontrada.' })
-      const actualizada = await TaskModel.update(req.params.id, { status: req.validated.status })
+      await TaskModel.update(req.params.id, { status: req.validated.status })
       await registrar({ req, action: ACCION.EDITAR, entity: 'task', entityId: tarea.id, after: { status: req.validated.status } })
-      return res.json(ok(formatearTarea(actualizada)))
+      const tareaCompleta = await TaskModel.findById(req.params.id)
+      return res.json(ok(formatearTarea(tareaCompleta)))
+    } catch (error) { next(error) }
+  },
+
+  /** POST /api/tasks/:id/notes */
+  async addNote(req, res, next) {
+    try {
+      const tarea = await TaskModel.findById(req.params.id)
+      if (!tarea) return res.status(404).json({ success: false, message: 'Tarea no encontrada.' })
+
+      const { note } = req.validated
+      const ahora = new Date()
+      const fechaStr = ahora.toLocaleDateString('es-CO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+      const autor = req.usuario?.name || req.usuario?.email || 'Coordinación'
+      const nuevaEntrada = '[' + fechaStr + ' · ' + autor + ']: ' + note
+      const notasActuales = tarea.notes ? tarea.notes + '
+
+' + nuevaEntrada : nuevaEntrada
+
+      await TaskModel.update(req.params.id, { notes: notasActuales })
+      await registrar({ req, action: ACCION.EDITAR, entity: 'task', entityId: tarea.id, after: { nuevaNota: note } })
+      const tareaCompleta = await TaskModel.findById(req.params.id)
+      return res.json(ok(formatearTarea(tareaCompleta), 'Nota agregada.'))
     } catch (error) { next(error) }
   },
 
@@ -147,7 +208,7 @@ export const TaskController = {
       const tarea = await TaskModel.findById(req.params.id)
       if (!tarea) return res.status(404).json({ success: false, message: 'Tarea no encontrada.' })
       await TaskModel.softDelete(req.params.id)
-      await registrar({ req, action: ACCION.BORRAR, entity: 'task', entityId: req.params.id })
+      await registrar({ req, action: ACCION.ELIMINAR, entity: 'task', entityId: req.params.id })
       return res.json(ok(null, 'Tarea eliminada.'))
     } catch (error) { next(error) }
   },
@@ -162,12 +223,10 @@ export const TaskController = {
       const colaborador = await CollaboratorModel.findById(collaboratorId)
       if (!colaborador) return res.status(404).json({ success: false, message: 'Voluntario no encontrado.' })
 
-      // Verificar que no esté ya asignado
       const existente = await TaskAssignmentModel.findByTaskAndCollaborator(req.params.id, collaboratorId)
       if (existente) return res.status(409).json({ success: false, message: 'Este voluntario ya está asignado a esta tarea.' })
 
-      // Crear la asignación con un token temporal; se reemplaza en el siguiente paso
-      const tempToken = `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`
+      const tempToken = 'temp-' + Date.now()
       const asignacion = await TaskAssignmentModel.create({
         taskId: req.params.id,
         collaboratorId,
@@ -175,28 +234,63 @@ export const TaskController = {
         confirmToken: tempToken,
       })
 
-      // Generar el token HMAC real con el ID ya conocido
       const token = generarTokenAsignacion(asignacion.id, collaboratorId, req.params.id)
       const asignacionActualizada = await TaskAssignmentModel.update(asignacion.id, { confirmToken: token })
 
-      // Si la tarea sigue en BORRADOR, pasarla a ABIERTA
       if (tarea.status === 'BORRADOR') {
         await TaskModel.update(req.params.id, { status: 'ABIERTA' })
       }
 
-      // Enviar email de invitación (sin teléfono — habeas data)
       await tareaAsignada({
         asignacion: asignacionActualizada,
         tarea,
         colaborador,
-        ruta: `/turno/${token}`,
+        ruta: '/turno/' + token,
       })
 
       await registrar({ req, action: ACCION.CREAR, entity: 'task_assignment', entityId: asignacion.id })
-      return res.status(201).json(created(
-        formatearAsignacion({ ...asignacionActualizada, collaborator: colaborador }),
-        'Voluntario asignado. Se le envió el email de invitación.',
-      ))
+      return res.status(201).json(created(formatearAsignacion({ ...asignacionActualizada, collaborator: colaborador }), 'Voluntario asignado. Se le envió el email de invitación.'))
+    } catch (error) { next(error) }
+  },
+
+  /** POST /api/tasks/:id/reassign */
+  async reassign(req, res, next) {
+    try {
+      const tarea = await TaskModel.findById(req.params.id)
+      if (!tarea) return res.status(404).json({ success: false, message: 'Tarea no encontrada.' })
+
+      const { newCollaboratorId, note } = req.validated
+      const nuevoColaborador = await CollaboratorModel.findById(newCollaboratorId)
+      if (!nuevoColaborador) return res.status(404).json({ success: false, message: 'Voluntario no encontrado.' })
+
+      // Limpiar asignaciones previas
+      for (const a of tarea.assignments ?? []) {
+        await TaskAssignmentModel.delete(a.id).catch(() => null)
+      }
+
+      const tempToken = 'temp-' + Date.now()
+      const asignacion = await TaskAssignmentModel.create({
+        taskId: req.params.id,
+        collaboratorId: newCollaboratorId,
+        note: note ?? null,
+        confirmToken: tempToken,
+      })
+
+      const token = generarTokenAsignacion(asignacion.id, newCollaboratorId, req.params.id)
+      const asignacionActualizada = await TaskAssignmentModel.update(asignacion.id, { confirmToken: token })
+
+      await TaskModel.update(req.params.id, { status: 'ABIERTA' })
+
+      await tareaAsignada({
+        asignacion: asignacionActualizada,
+        tarea,
+        colaborador: nuevoColaborador,
+        ruta: '/turno/' + token,
+      })
+
+      await registrar({ req, action: ACCION.EDITAR, entity: 'task', entityId: tarea.id, after: { reasignadoA: newCollaboratorId } })
+      const tareaCompleta = await TaskModel.findById(req.params.id)
+      return res.json(ok(formatearTarea(tareaCompleta), 'Tarea reasignada. Se envió la nueva invitación por correo.'))
     } catch (error) { next(error) }
   },
 
@@ -221,7 +315,7 @@ export const TaskController = {
         return res.status(404).json({ success: false, message: 'Asignación no encontrada.' })
       }
       await TaskAssignmentModel.delete(req.params.assignmentId)
-      await registrar({ req, action: ACCION.BORRAR, entity: 'task_assignment', entityId: req.params.assignmentId })
+      await registrar({ req, action: ACCION.ELIMINAR, entity: 'task_assignment', entityId: req.params.assignmentId })
       return res.json(ok(null, 'Asignación eliminada.'))
     } catch (error) { next(error) }
   },

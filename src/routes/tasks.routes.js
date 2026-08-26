@@ -9,6 +9,8 @@ import {
   taskUpdateSchema,
   taskStatusSchema,
   assignCollaboratorSchema,
+  reassignCollaboratorSchema,
+  addNoteSchema,
   updateAssignmentStatusSchema,
 } from '../validators/task.schema.js'
 
@@ -21,10 +23,12 @@ taskRoutes.post('/', authenticate, authorize('tarea:crear'), validateBody(taskCr
 taskRoutes.get('/:id', authenticate, authorize('tarea:leer'), TaskController.show)
 taskRoutes.patch('/:id', authenticate, authorize('tarea:editar'), validateBody(taskUpdateSchema), TaskController.update)
 taskRoutes.patch('/:id/status', authenticate, authorize('tarea:editar'), validateBody(taskStatusSchema), TaskController.changeStatus)
+taskRoutes.post('/:id/notes', authenticate, authorize('tarea:editar'), validateBody(addNoteSchema), TaskController.addNote)
 taskRoutes.delete('/:id', authenticate, authorize('tarea:editar'), TaskController.destroy)
 
-// Asignaciones
+// Asignaciones y Reasignación
 taskRoutes.post('/:id/assign', authenticate, authorize('tarea:asignar'), validateBody(assignCollaboratorSchema), TaskController.assign)
+taskRoutes.post('/:id/reassign', authenticate, authorize('tarea:asignar'), validateBody(reassignCollaboratorSchema), TaskController.reassign)
 taskRoutes.patch('/:taskId/assign/:assignmentId/status', authenticate, authorize('tarea:asignar'), validateBody(updateAssignmentStatusSchema), TaskController.updateAssignmentStatus)
 taskRoutes.delete('/:taskId/assign/:assignmentId', authenticate, authorize('tarea:asignar'), TaskController.removeAssignment)
 

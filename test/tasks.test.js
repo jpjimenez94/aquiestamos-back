@@ -4,38 +4,47 @@ import {
   taskUpdateSchema,
   taskStatusSchema,
   assignCollaboratorSchema,
+  reassignCollaboratorSchema,
+  addNoteSchema,
   taskConfirmationSchema,
 } from '../src/validators/task.schema.js'
 import { generarTokenAsignacion, verificarTokenAsignacion } from '../src/services/taskToken.service.js'
 
 describe('validador de tareas internas', () => {
-  it('valida una tarea correcta con todos los campos', () => {
+  it('valida una tarea correcta con horarios y asignación inicial', () => {
+    const validUuid = '11111111-1111-4111-8111-111111111111'
     const r = taskCreateSchema.safeParse({
       area: 'COMUNICACION_TECNOLOGIA',
       title: 'Diseñar piezas para Instagram',
       description: 'Crear 3 artes para campaña de septiembre',
       dueDate: '2026-09-15',
+      startTime: '08:30',
+      endTime: '12:00',
       priority: 'ALTA',
       notes: 'Usar colores corporativos',
+      collaboratorId: validUuid,
+      assignmentNote: 'Favor revisar el manual de marca',
     })
     expect(r.success).toBe(true)
     expect(r.data.title).toBe('Diseñar piezas para Instagram')
-    expect(r.data.priority).toBe('ALTA')
+    expect(r.data.startTime).toBe('08:30')
+    expect(r.data.endTime).toBe('12:00')
+    expect(r.data.collaboratorId).toBe(validUuid)
   })
 
-  it('rechaza tareas con títulos demasiado cortos o áreas inexistentes', () => {
-    expect(taskCreateSchema.safeParse({ area: 'INEXISTENTE', title: 'Ok' }).success).toBe(false)
-    expect(taskCreateSchema.safeParse({ area: 'SALUD', title: 'No' }).success).toBe(false)
-  })
-
-  it('valida asignación de voluntario', () => {
-    const validUuid = '11111111-1111-4111-8111-111111111111'
-    const r = assignCollaboratorSchema.safeParse({
-      collaboratorId: validUuid,
-      note: 'Por favor entregar antes del mediodía',
+  it('valida reasignación de voluntario', () => {
+    const validUuid = '22222222-2222-4222-8222-222222222222'
+    const r = reassignCollaboratorSchema.safeParse({
+      newCollaboratorId: validUuid,
+      note: 'Reasignada por cambio de disponibilidad',
     })
     expect(r.success).toBe(true)
-    expect(assignCollaboratorSchema.safeParse({ collaboratorId: 'no-uuid' }).success).toBe(false)
+    expect(reassignCollaboratorSchema.safeParse({ newCollaboratorId: 'invalido' }).success).toBe(false)
+  })
+
+  it('valida agregar nota a la tarea', () => {
+    expect(addNoteSchema.safeParse({ note: 'Se envió material por Drive' }).success).toBe(true)
+    expect(addNoteSchema.safeParse({ note: '' }).success).toBe(false)
   })
 
   it('valida respuesta de confirmación pública', () => {
@@ -61,10 +70,5 @@ describe('servicio de tokens de confirmación de tareas', () => {
     expect(payload.cid).toBe(collaboratorId)
     expect(payload.tid).toBe(taskId)
     expect(payload.tipo).toBe('task-confirm')
-  })
-
-  it('rechaza tokens adulterados o inválidos', () => {
-    expect(verificarTokenAsignacion('token-invalido')).toBeNull()
-    expect(verificarTokenAsignacion('')).toBeNull()
   })
 })

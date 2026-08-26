@@ -1169,6 +1169,10 @@ model Task {
   description String?      @db.VarChar(2000)
   /// Fecha límite opcional. Hay tareas sin plazo fijo.
   dueDate     DateTime?    @map("due_date") @db.Date
+  /// Hora de inicio estimada (ej. "08:00")
+  startTime   String?      @map("start_time") @db.VarChar(10)
+  /// Hora de fin estimada (ej. "12:00")
+  endTime     String?      @map("end_time") @db.VarChar(10)
   priority    TaskPriority @default(MEDIA)
   status      TaskStatus   @default(BORRADOR)
   /// Instrucciones, links, materiales. Solo visible para el equipo.
