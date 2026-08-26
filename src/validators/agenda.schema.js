@@ -156,6 +156,8 @@ export const confirmarHorarioSchema = z.object({
   inicio: z.coerce.date({ errorMap: () => ({ message: 'Esa fecha no es válida' }) }),
   fin: z.coerce.date({ errorMap: () => ({ message: 'Esa fecha no es válida' }) }),
   modalidad: z.enum(['PRESENCIAL', 'VIRTUAL']).optional(),
+  meetingUrl: urlOpt,
+  meetingProvider: z.string().trim().max(40).optional(),
   fueraDeFranja: z.boolean().optional().default(false),
 })
 

@@ -352,7 +352,7 @@ export const AppointmentController = {
    */
   async confirmar(req, res, next) {
     try {
-      const { inicio, fin, modalidad, fueraDeFranja } = req.validated
+      const { inicio, fin, modalidad, fueraDeFranja, meetingUrl, meetingProvider } = req.validated
 
       const { cita, asignacion } = await confirmarHorario({
         asignacionId: req.params.id,
@@ -360,6 +360,8 @@ export const AppointmentController = {
         fin,
         modalidad,
         fueraDeFranja,
+        meetingUrl,
+        meetingProvider,
         actorId: req.usuario.id,
       })
 

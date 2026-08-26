@@ -365,6 +365,8 @@ export async function confirmarHorario({
   fin,
   modalidad,
   fueraDeFranja = false,
+  meetingUrl,
+  meetingProvider,
   actorId,
 }) {
   const asignacion = await CaseAssignmentModel.findById(asignacionId)
@@ -383,6 +385,8 @@ export async function confirmarHorario({
       // vale mas que las franjas que declaro hace un mes; quien coordina tiene
       // que marcarlo a mano y queda en la auditoria.
       permitirFueraDeFranja: fueraDeFranja,
+      meetingUrl,
+      meetingProvider,
       actorId,
     })
 
