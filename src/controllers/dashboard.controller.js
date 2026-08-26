@@ -12,11 +12,16 @@ export const DashboardController = {
   /** GET /api/dashboard/badges — contadores para el menú lateral */
   async badges(req, res, next) {
     try {
+      const ahora = new Date()
+      const finDeHoy = new Date(ahora.getTime() + 24 * 3600 * 1000)
+
       const [
         solicitudesNuevas,
         postulacionesNuevas,
         colaboradoresNuevos,
         verificacionesPendientes,
+        citasPendientesAgenda,
+        tareasAbiertas,
       ] = await Promise.all([
         prisma.supportRequest.count({ where: { status: 'NUEVO', deletedAt: null } }),
         prisma.volunteer.count({ where: { status: 'NUEVO', deletedAt: null } }),
@@ -29,7 +34,30 @@ export const DashboardController = {
             documentsSubmittedAt: { not: null },
           },
         }),
+        prisma.appointment.count({
+          where: {
+            status: { in: ['PROGRAMADA', 'CONFIRMADA'] },
+            startsAt: { lte: finDeHoy },
+          },
+        }),
+        prisma.task.count({
+          where: {
+            status: { in: ['ABIERTA', 'EN_PROGRESO'] },
+            deletedAt: null,
+          },
+        }),
       ])
+
+      let miAgendaCount = 0
+      if (req.usuario?.professionalId) {
+        miAgendaCount = await prisma.appointment.count({
+          where: {
+            professionalId: req.usuario.professionalId,
+            status: { in: ['PROGRAMADA', 'CONFIRMADA'] },
+            startsAt: { lte: finDeHoy },
+          },
+        })
+      }
 
       return res.json(
         ok({
@@ -37,6 +65,9 @@ export const DashboardController = {
           postulaciones: postulacionesNuevas,
           colaboradores: colaboradoresNuevos,
           verificaciones: verificacionesPendientes,
+          agenda: citasPendientesAgenda,
+          miAgenda: miAgendaCount,
+          tareas: tareasAbiertas,
         }),
       )
     } catch (error) {
