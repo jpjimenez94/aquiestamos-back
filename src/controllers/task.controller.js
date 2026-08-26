@@ -39,16 +39,39 @@ function formatearTarea(t) {
     notes: t.notes,
     createdByEmail: t.createdByEmail,
     totalAssignments: t._count?.assignments ?? t.assignments?.length ?? 0,
-    assignments: t.assignments?.map(formatearAsignacion) ?? undefined,
+    assignments: t.assignments?.map((a) => formatearAsignacion(a, t)) ?? undefined,
     createdAt: t.createdAt,
     updatedAt: t.updatedAt,
   }
 }
 
-function formatearAsignacion(a) {
+function calcularEstadoDinamico(a, taskDueDate, taskStartTime, taskEndTime) {
+  if (['COMPLETADO', 'RECHAZADO'].includes(a.status)) return a.status
+  const now = new Date()
+  if (taskDueDate) {
+    const dueStr = taskDueDate instanceof Date ? taskDueDate.toISOString().split('T')[0] : String(taskDueDate).split('T')[0]
+    const [hFin, mFin] = taskEndTime ? taskEndTime.split(':').map(Number) : [23, 59]
+    const [hIni, mIni] = taskStartTime ? taskStartTime.split(':').map(Number) : [0, 0]
+    const fechaFin = new Date(`${dueStr}T${String(hFin).padStart(2, '0')}:${String(mFin).padStart(2, '0')}:00`)
+    const fechaIni = new Date(`${dueStr}T${String(hIni).padStart(2, '0')}:${String(mIni).padStart(2, '0')}:00`)
+
+    if (a.status === 'INVITADO') {
+      if (now > fechaFin) return 'NO_RESPONDIO'
+      return 'INVITADO'
+    }
+
+    if (a.status === 'ACEPTADO' || a.status === 'EN_PROGRESO') {
+      if (now >= fechaIni) return 'EN_PROGRESO'
+      return 'ACEPTADO'
+    }
+  }
+  return a.status
+}
+
+function formatearAsignacion(a, tareaPadre)
   return {
     id: a.id,
-    status: a.status,
+    status: tareaPadre ? calcularEstadoDinamico(a, tareaPadre.dueDate, tareaPadre.startTime, tareaPadre.endTime) : a.status,
     note: a.note,
     confirmToken: a.confirmToken,
     respondedAt: a.respondedAt,

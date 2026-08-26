@@ -13,18 +13,35 @@ const AREA_LEGIBLE = {
   OTRA: 'Otra área',
 }
 
+/**
+ * Busca una asignación de forma resiliente:
+ * 1. Primero busca el token exacto en la base de datos (funciona con tokens HMAC y cualquier enlace emitido).
+ * 2. Si no coincide el string exacto, verifica la firma criptográfica y busca por el ID de la asignación.
+ */
+async function buscarAsignacionPorToken(token) {
+  if (!token) return null
+
+  // 1. Búsqueda directa en base de datos
+  const porTokenDirecto = await TaskAssignmentModel.findByToken(token)
+  if (porTokenDirecto) return porTokenDirecto
+
+  // 2. Búsqueda por payload verificado
+  const payload = verificarTokenAsignacion(token)
+  if (payload?.sub) {
+    const porId = await TaskAssignmentModel.findById(payload.sub)
+    if (porId) return porId
+  }
+
+  return null
+}
+
 /** GET /api/turno-confirmacion/:token — el frontend muestra los datos de la tarea */
 export async function obtenerDetallesAsignacion(req, res, next) {
   try {
     const { token } = req.params
-    const payload = verificarTokenAsignacion(token)
-    if (!payload) {
-      return res.status(410).json({ success: false, message: 'Este enlace ya no es válido o venció.' })
-    }
-
-    const asignacion = await TaskAssignmentModel.findByToken(token)
+    const asignacion = await buscarAsignacionPorToken(token)
     if (!asignacion) {
-      return res.status(404).json({ success: false, message: 'No encontramos la asignación para este enlace.' })
+      return res.status(404).json({ success: false, message: 'No encontramos la asignación para este enlace o el turno ya venció.' })
     }
 
     const yaRespondio = ['ACEPTADO', 'RECHAZADO', 'EN_PROGRESO', 'COMPLETADO'].includes(asignacion.status)
@@ -45,7 +62,6 @@ export async function obtenerDetallesAsignacion(req, res, next) {
         dueDate: asignacion.task.dueDate ? (asignacion.task.dueDate.toISOString?.().split('T')[0] ?? asignacion.task.dueDate) : null,
         startTime: asignacion.task.startTime ?? null,
         endTime: asignacion.task.endTime ?? null,
-        // Los materiales solo se muestran al voluntario cuando ya aceptó
         materialsUrl: aceptadoOEnProgreso ? (asignacion.task.materialsUrl ?? null) : null,
         notes: asignacion.task.notes,
         priority: asignacion.task.priority,
@@ -65,34 +81,47 @@ export async function responderAsignacion(req, res, next) {
       return res.status(400).json({ success: false, message: 'Acción inválida.' })
     }
 
-    const payload = verificarTokenAsignacion(token)
-    if (!payload) {
-      return res.status(410).json({ success: false, message: 'Este enlace ya no es válido o venció.' })
-    }
-
-    const asignacion = await TaskAssignmentModel.findByToken(token)
+    const asignacion = await buscarAsignacionPorToken(token)
     if (!asignacion) {
       return res.status(404).json({ success: false, message: 'No encontramos la asignación para este enlace.' })
     }
 
-    if (['ACEPTADO', 'RECHAZADO'].includes(asignacion.status)) {
+    if (['ACEPTADO', 'RECHAZADO', 'COMPLETADO'].includes(asignacion.status)) {
       return res.status(409).json({ success: false, message: 'Ya habías respondido a esta invitación.' })
     }
 
-    const nuevoEstado = accion === 'ACEPTAR' ? 'ACEPTADO' : 'RECHAZADO'
-    await TaskAssignmentModel.update(asignacion.id, {
+    let nuevoEstado = accion === 'ACEPTAR' ? 'ACEPTADO' : 'RECHAZADO'
+
+    // Si acepta y ya estamos en el horario del turno o fecha límite, pasa a EN_PROGRESO
+    if (nuevoEstado === 'ACEPTADO') {
+      const now = new Date()
+      const dueStr = asignacion.task.dueDate ? (asignacion.task.dueDate.toISOString?.().split('T')[0] ?? String(asignacion.task.dueDate).split('T')[0]) : null
+      const horaInicio = asignacion.task.startTime
+
+      if (dueStr) {
+        const [hIni, mIni] = horaInicio ? horaInicio.split(':').map(Number) : [0, 0]
+        const fechaIni = new Date(`${dueStr}T${String(hIni).padStart(2, '0')}:${String(mIni).padStart(2, '0')}:00`)
+        if (now >= fechaIni) {
+          nuevoEstado = 'EN_PROGRESO'
+        }
+      }
+    }
+
+    const actualizada = await TaskAssignmentModel.update(asignacion.id, {
       status: nuevoEstado,
       respondedAt: new Date(),
       declineReason: accion === 'RECHAZAR' ? (declineReason ?? null) : null,
     })
 
-    if (nuevoEstado === 'ACEPTADO') {
+    // Actualizar estado general de la tarea
+    if (['ACEPTADO', 'EN_PROGRESO'].includes(nuevoEstado)) {
       const tarea = await TaskModel.findById(asignacion.taskId)
-      if (tarea && tarea.status === 'ABIERTA') {
+      if (tarea && (tarea.status === 'BORRADOR' || tarea.status === 'ABIERTA')) {
         await TaskModel.update(tarea.id, { status: 'EN_PROGRESO' })
       }
     }
 
+    // Notificar a coordinación
     await tareaRespondida({
       asignacion: { ...asignacion, status: nuevoEstado, declineReason: accion === 'RECHAZAR' ? (declineReason ?? null) : null },
       tarea: asignacion.task,
@@ -100,7 +129,7 @@ export async function responderAsignacion(req, res, next) {
     })
 
     const mensaje = accion === 'ACEPTAR'
-      ? '¡Gracias! Le avisamos al equipo de coordinación que aceptaste.'
+      ? (nuevoEstado === 'EN_PROGRESO' ? '¡Gracias! Tu turno ha sido confirmado y está en progreso.' : '¡Gracias! Tu turno ha sido confirmado.')
       : 'Entendido. Le avisamos al equipo que no puedes en este momento.'
 
     return res.json(ok({ status: nuevoEstado }, mensaje))
@@ -113,12 +142,7 @@ export async function completarLaborVoluntario(req, res, next) {
     const { token } = req.params
     const { completionUrl, completionNote } = req.body
 
-    const payload = verificarTokenAsignacion(token)
-    if (!payload) {
-      return res.status(410).json({ success: false, message: 'Este enlace ya no es válido o venció.' })
-    }
-
-    const asignacion = await TaskAssignmentModel.findByToken(token)
+    const asignacion = await buscarAsignacionPorToken(token)
     if (!asignacion) {
       return res.status(404).json({ success: false, message: 'No encontramos la asignación para este enlace.' })
     }
@@ -133,13 +157,11 @@ export async function completarLaborVoluntario(req, res, next) {
       completionNote: completionNote || null,
     })
 
-    // Si la tarea estaba en progreso, marcarla como COMPLETADA si no quedan otras asignaciones pendientes
     const tarea = await TaskModel.findById(asignacion.taskId)
     if (tarea) {
       await TaskModel.update(tarea.id, { status: 'COMPLETADA' })
     }
 
-    // Despachar agradecimiento al voluntario y aviso a coordinación
     await tareaCompletada({
       asignacion: actualizada,
       tarea: asignacion.task,
