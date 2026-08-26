@@ -38,9 +38,6 @@ export const PERMISOS = {
     'cita:cerrar',
     'documento:subir',
     'documento:leer',
-    'lideres:leer',
-    'lideres:crear',
-    'lideres:editar',
     'tarea:leer',
     'tarea:crear',
     'tarea:editar',
@@ -57,7 +54,6 @@ export const PERMISOS = {
     'profesional:verificar-tarjeta',
     'documento:subir',
     'documento:leer',
-    'lideres:leer',
   ],
 
   // Gestión de Casos y Agenda: solo gestiona el tablero de agenda, citas y personas acompañadas.
@@ -76,8 +72,6 @@ export const PERMISOS = {
     'cita:cerrar',
     'documento:subir',
     'documento:leer',
-    'lideres:leer',
-    'lideres:editar',
     'tarea:leer',
   ],
 
@@ -103,7 +97,6 @@ export const PERMISOS = {
     'usuario:leer',
     'auditoria:leer',
     'documento:leer',
-    'lideres:leer',
     'tarea:leer',
     // Las métricas de impacto: para leer, no para operar. El AGENDADOR no
     // las tiene a propósito — pedido explícito: solo administración y lectura.

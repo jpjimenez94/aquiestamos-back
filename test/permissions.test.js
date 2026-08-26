@@ -192,6 +192,20 @@ describe('matriz de permisos', () => {
     expect(puede(lider, 'metricas:leer')).toBe(false)
   })
 
+  it('el modulo de lideres comunitarios solo es accesible para ADMIN y LIDERES_COMUNITARIOS', () => {
+    // Permitidos
+    expect(puede(admin, 'lideres:leer')).toBe(true)
+    expect(puede({ role: 'LIDERES_COMUNITARIOS' }, 'lideres:leer')).toBe(true)
+
+    // Restringidos
+    for (const rol of ['AGENDADOR', 'ADMISION', 'COORDINADOR_CASOS', 'LECTURA', 'PROFESIONAL']) {
+      expect(puede({ role: rol }, 'lideres:leer')).toBe(false)
+      expect(puede({ role: rol }, 'lideres:crear')).toBe(false)
+      expect(puede({ role: rol }, 'lideres:editar')).toBe(false)
+      expect(puede({ role: rol }, 'lideres:inactivar')).toBe(false)
+    }
+  })
+
   it('permisosDe expone la lista para el portal', () => {
     expect(permisosDe('ADMIN')).toEqual(['*'])
     expect(permisosDe('AGENDADOR')).toContain('cita:crear')
