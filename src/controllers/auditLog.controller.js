@@ -25,7 +25,7 @@ export const AuditLogController = {
   async index(req, res, next) {
     try {
       const page = Math.max(1, Number(req.query.page ?? 1))
-      const perPage = Math.min(200, Math.max(1, Number(req.query.perPage ?? 100)))
+      const perPage = Math.min(1000, Math.max(1, Number(req.query.perPage ?? 500)))
 
       const hastaDia = fecha(req.query.hasta)
       const filtros = {
