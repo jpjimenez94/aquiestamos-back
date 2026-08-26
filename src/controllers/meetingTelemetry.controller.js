@@ -3,6 +3,7 @@ import { AppointmentModel } from '../models/appointment.model.js'
 import { MeetingAccessLogModel } from '../models/meetingAccessLog.model.js'
 import { ok } from '../views/response.view.js'
 import { generarEnlaceVideollamada } from '../services/meeting.service.js'
+import { registrar, ACCION } from '../services/audit.service.js'
 
 function primerNombre(nombre) {
   if (!nombre) return ''
@@ -66,10 +67,11 @@ export const MeetingTelemetryController = {
       const ahora = new Date()
 
       // 1. Crear registro de acceso
+      const nombreParticipante = participantName || (rolValido === 'PACIENTE' ? cita.patient?.fullName : cita.professional?.fullName) || null
       const log = await MeetingAccessLogModel.create({
         appointmentId: cita.id,
         role: rolValido,
-        participantName: participantName || (rolValido === 'PACIENTE' ? cita.patient?.fullName : cita.professional?.fullName) || null,
+        participantName: nombreParticipante,
         joinedAt: ahora,
         lastPingAt: ahora,
         ipAddress: typeof ip === 'string' ? ip.slice(0, 100) : null,
@@ -87,6 +89,29 @@ export const MeetingTelemetryController = {
       if (Object.keys(updates).length > 0) {
         await AppointmentModel.update(cita.id, updates)
       }
+
+      // 3. Registrar en Auditoría General del Sistema
+      const actorEmail = rolValido === 'PACIENTE'
+        ? `paciente:${primerNombre(cita.patient?.fullName)}`
+        : (rolValido === 'PROFESIONAL'
+            ? `profesional:${primerNombre(cita.professional?.fullName)}`
+            : (req.usuario?.email || 'coordinacion'))
+
+      await registrar({
+        req,
+        action: 'ingresar_sala',
+        entity: 'sesion_virtual',
+        entityId: cita.id,
+        actorEmail,
+        after: {
+          rol: rolValido,
+          participante: nombreParticipante,
+          citaId: cita.id,
+          paciente: cita.patient?.fullName,
+          profesional: cita.professional?.fullName,
+          horario: cita.startsAt,
+        },
+      })
 
       const targetUrl = cita.meetingUrl || generarEnlaceVideollamada(cita.id)
 
