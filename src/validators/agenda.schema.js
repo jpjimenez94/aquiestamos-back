@@ -168,3 +168,16 @@ export const cancelarAsignacionSchema = z.object({
     .min(3, 'Cuéntanos por qué no se pudo cuadrar')
     .max(300),
 })
+
+export const convertirAColaboradorSchema = z.object({
+  area: z.enum(['SALUD', 'SOCIAL_LEGAL_EDUCATIVO', 'OPERACION_LOGISTICA', 'COMUNICACION_TECNOLOGIA', 'GESTION_PROYECTOS', 'OTRA']),
+  discipline: z.string().trim().min(2).max(120),
+  disciplineOther: z.string().trim().max(160).optional().nullable(),
+  skills: z.string().trim().max(600).optional().nullable(),
+})
+
+export const rechazarProfesionalSchema = z.object({
+  motivo: z.string().trim().min(2).max(500),
+  detalles: z.string().trim().max(1000).optional().nullable(),
+})
+

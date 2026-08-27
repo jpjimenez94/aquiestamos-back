@@ -24,6 +24,8 @@ import {
   actualizarConsentimientoSchema,
   confirmarHorarioSchema,
   cancelarAsignacionSchema,
+  convertirAColaboradorSchema,
+  rechazarProfesionalSchema,
 } from '../validators/agenda.schema.js'
 
 // ---------------------------------------------------------------- profesionales
@@ -59,6 +61,18 @@ professionalRoutes.post(
   '/:id/solicitar-documentos-email',
   authorize('profesional:verificar-tarjeta'),
   ProfessionalController.solicitarDocumentosEmail,
+)
+professionalRoutes.post(
+  '/:id/convertir-colaborador',
+  authorize('profesional:verificar-tarjeta'),
+  validateBody(convertirAColaboradorSchema),
+  ProfessionalController.convertirAColaborador,
+)
+professionalRoutes.post(
+  '/:id/rechazar',
+  authorize('profesional:verificar-tarjeta'),
+  validateBody(rechazarProfesionalSchema),
+  ProfessionalController.rechazar,
 )
 professionalRoutes.delete('/:id', authorize('profesional:borrar'), ProfessionalController.destroy)
 

@@ -1,6 +1,7 @@
 import { ProfessionalModel } from '../models/professional.model.js'
 import { UserModel } from '../models/user.model.js'
 import { CaseAssignmentModel } from '../models/caseAssignment.model.js'
+import { prisma } from '../config/database.js'
 import { aprobarPostulacion } from '../services/promotion.service.js'
 import { postulacionAprobada, solicitarDocumentosEmail } from '../notifications/eventos.js'
 import { cargaActual } from '../services/scheduling.service.js'
@@ -253,4 +254,80 @@ export const ProfessionalController = {
       next(error)
     }
   },
+
+  /** POST /api/professionals/:id/convertir-colaborador */
+  async convertirAColaborador(req, res, next) {
+    try {
+      const profesional = await ProfessionalModel.findById(req.params.id)
+      if (!profesional) return res.status(404).json(failure('Profesional no encontrado'))
+
+      const { area, discipline, disciplineOther, skills } = req.validated
+
+      // Crear el colaborador en el directorio de voluntariado de apoyo
+      const colaborador = await prisma.collaborator.create({
+        data: {
+          fullName: profesional.fullName,
+          phone: profesional.phone,
+          email: profesional.email,
+          city: profesional.city,
+          area,
+          discipline,
+          disciplineOther: disciplineOther ?? null,
+          skills: skills ?? profesional.notes ?? null,
+          yearsExperience: profesional.yearsExperience ?? null,
+          professionalCard: profesional.professionalCard ?? null,
+          modality: profesional.modality ?? 'VIRTUAL',
+          dataConsent: true,
+          communicationsConsent: true,
+          status: 'ACTIVO',
+        },
+      })
+
+      // Dar de baja el registro de profesional
+      await ProfessionalModel.softDelete(profesional.id)
+
+      await registrar({
+        req,
+        action: ACCION.CREAR,
+        entity: 'colaborador_desde_profesional',
+        entityId: colaborador.id,
+        before: { profesionalId: profesional.id, profesion: profesional.profession },
+        after: { colaboradorId: colaborador.id, area, discipline },
+      })
+
+      return res.status(201).json(created(colaborador, 'Movido exitosamente al Voluntariado de Apoyo.'))
+    } catch (error) {
+      next(error)
+    }
+  },
+
+  /** POST /api/professionals/:id/rechazar */
+  async rechazar(req, res, next) {
+    try {
+      const profesional = await ProfessionalModel.findById(req.params.id)
+      if (!profesional) return res.status(404).json(failure('Profesional no encontrado'))
+
+      const { motivo, detalles } = req.validated
+
+      await ProfessionalModel.update(req.params.id, {
+        status: 'INACTIVO',
+        notes: `[RECHAZADO]: ${motivo}${detalles ? ` — ${detalles}` : ''}`,
+      })
+
+      await ProfessionalModel.softDelete(profesional.id)
+
+      await registrar({
+        req,
+        action: ACCION.BORRAR,
+        entity: 'profesional_rechazado',
+        entityId: profesional.id,
+        after: { motivo, detalles },
+      })
+
+      return res.json(ok({ rechazado: true, id: profesional.id }, 'Postulación rechazada y archivada.'))
+    } catch (error) {
+      next(error)
+    }
+  },
 }
+
