@@ -505,7 +505,7 @@ Nos comunicamos contigo reconociendo tu valioso liderazgo en *{territorio}* y qu
     description: 'Dominio del servidor seguro para salas de videollamada sin bloqueo de moderador.',
     dataType: 'TEXTO',
     variables: [],
-    defaultValue: 'meet.ffrn.de',
+    defaultValue: 'meet.jit.si',
   },
   {
     key: 'TELEFONO_SOPORTE_OFICIAL',

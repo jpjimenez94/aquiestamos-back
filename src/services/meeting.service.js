@@ -14,7 +14,7 @@ export function generarEnlaceVideollamada(appointmentId) {
     .slice(0, 16)
 
   const shortId = String(appointmentId).replace(/-/g, '').slice(0, 8)
-  const jitsiHost = process.env.JITSI_DOMAIN || 'meet.ffrn.de'
+  const jitsiHost = process.env.JITSI_DOMAIN || 'meet.jit.si'
   return `https://${jitsiHost}/AquiEstamos-${shortId}-${hash}`
 }
 

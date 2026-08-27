@@ -20,7 +20,7 @@ export function cita(c) {
     descansoMinutos: c.bufferMinutes,
     ocupaHasta: c.blocksUntil,
     modalidad: c.modality,
-    meetingUrl: c.meetingUrl ?? (c.modality === 'VIRTUAL' ? `https://meet.ffrn.de/AquiEstamos-Sesion-${c.id}` : null),
+    meetingUrl: c.meetingUrl ?? (c.modality === 'VIRTUAL' ? `https://meet.jit.si/AquiEstamos-Sesion-${c.id}` : null),
     meetingProvider: c.meetingProvider ?? (c.modality === 'VIRTUAL' ? 'JITSI' : null),
     salaTokenPaciente: (c.meetingUrl || c.modality === 'VIRTUAL') ? c.id : null,
     salaTokenProfesional: (c.meetingUrl || c.modality === 'VIRTUAL') ? c.id : null,

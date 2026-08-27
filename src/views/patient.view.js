@@ -37,7 +37,7 @@ export function pacienteParaAgendador(p) {
           inicioLocal: formatearLocal(ultimaCita.startsAt),
           finLocal: formatearLocal(ultimaCita.endsAt),
           modalidad: ultimaCita.modality,
-          meetingUrl: ultimaCita.meetingUrl ?? (ultimaCita.modality === 'VIRTUAL' ? `https://meet.ffrn.de/AquiEstamos-Sesion-${ultimaCita.id}` : null),
+          meetingUrl: ultimaCita.meetingUrl ?? (ultimaCita.modality === 'VIRTUAL' ? `https://meet.jit.si/AquiEstamos-Sesion-${ultimaCita.id}` : null),
           salaTokenProfesional: (ultimaCita.meetingUrl || ultimaCita.modality === 'VIRTUAL') ? ultimaCita.id : null,
           salaTokenPaciente: (ultimaCita.meetingUrl || ultimaCita.modality === 'VIRTUAL') ? ultimaCita.id : null,
           estado: ultimaCita.status,

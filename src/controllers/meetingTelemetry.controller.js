@@ -29,7 +29,10 @@ export const MeetingTelemetryController = {
         return res.status(404).json({ success: false, message: 'La sesión no existe o fue cancelada.' })
       }
 
-      const targetUrl = cita.meetingUrl || (cita.modality === 'VIRTUAL' ? generarEnlaceVideollamada(cita.id) : null)
+      let targetUrl = cita.meetingUrl || (cita.modality === 'VIRTUAL' ? generarEnlaceVideollamada(cita.id) : null)
+      if (targetUrl && targetUrl.includes('meet.ffrn.de')) {
+        targetUrl = targetUrl.replace(/meet\.ffrn\.de/g, 'meet.jit.si')
+      }
       const rolParam = req.query.rol ? String(req.query.rol).toUpperCase() : null
       const rolFinal = verified.rol || (rolParam === 'PROFESIONAL' ? 'PROFESIONAL' : 'PACIENTE')
 
@@ -129,7 +132,10 @@ export const MeetingTelemetryController = {
         },
       })
 
-      const targetUrl = cita.meetingUrl || generarEnlaceVideollamada(cita.id)
+      let targetUrl = cita.meetingUrl || generarEnlaceVideollamada(cita.id)
+      if (targetUrl && targetUrl.includes('meet.ffrn.de')) {
+        targetUrl = targetUrl.replace(/meet\.ffrn\.de/g, 'meet.jit.si')
+      }
 
       return res.json(
         ok({
