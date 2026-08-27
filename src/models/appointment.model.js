@@ -15,6 +15,10 @@ const CON_PERSONAS = {
     },
   },
   patient: { select: { id: true, fullName: true, phone: true, email: true, isMinor: true, preferredContact: true } },
+  accessLogs: {
+    orderBy: { lastPingAt: 'desc' },
+    take: 10,
+  },
 }
 
 const esUuid = (val) => typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)

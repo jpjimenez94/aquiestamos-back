@@ -12,6 +12,59 @@ function primerNombre(nombre) {
 
 export const MeetingTelemetryController = {
   /**
+   * GET /api/meetings/live
+   * Retorna todas las sesiones que están teniendo actividad o pings en este momento.
+   */
+  async live(req, res, next) {
+    try {
+      const hace90Seg = new Date(Date.now() - 90 * 1000)
+      const logsActivos = await prisma.meetingAccessLog.findMany({
+        where: { lastPingAt: { gte: hace90Seg } },
+        include: {
+          appointment: {
+            include: {
+              patient: { select: { fullName: true, phone: true } },
+              professional: { select: { fullName: true, phone: true } },
+            },
+          },
+        },
+        orderBy: { lastPingAt: 'desc' },
+      })
+
+      const citasMap = new Map()
+      for (const log of logsActivos) {
+        if (!citasMap.has(log.appointmentId)) {
+          citasMap.set(log.appointmentId, {
+            citaId: log.appointmentId,
+            inicio: log.appointment.startsAt,
+            modalidad: log.appointment.modality,
+            paciente: log.appointment.patient?.fullName ?? 'Persona',
+            profesional: log.appointment.professional?.fullName ?? 'Profesional',
+            pacienteConectado: false,
+            profesionalConectado: false,
+            duracionSegundos: log.appointment.totalCallDurationSeconds || 0,
+            duracionMinutos: Math.round((log.appointment.totalCallDurationSeconds || 0) / 60),
+            participantes: [],
+          })
+        }
+        const item = citasMap.get(log.appointmentId)
+        if (log.role === 'PACIENTE') item.pacienteConectado = true
+        if (log.role === 'PROFESIONAL') item.profesionalConectado = true
+        item.participantes.push({
+          rol: log.role,
+          nombre: log.participantName,
+          haceSegundos: Math.max(0, Math.round((Date.now() - new Date(log.lastPingAt).getTime()) / 1000)),
+        })
+      }
+
+      const enVivo = Array.from(citasMap.values())
+      return res.json(ok({ totalEnVivo: enVivo.length, sesiones: enVivo }))
+    } catch (error) {
+      next(error)
+    }
+  },
+
+  /**
    * GET /api/meetings/:tokenOrId/info
    * Retorna información para la sala de espera institucional validando el token HMAC.
    */

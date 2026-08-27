@@ -29,6 +29,32 @@ export function cita(c) {
     totalCallDurationSeconds: c.totalCallDurationSeconds ?? 0,
     totalCallDurationMinutes: c.totalCallDurationSeconds ? Math.round(c.totalCallDurationSeconds / 60) : 0,
     accessLogs: c.accessLogs ?? [],
+    ...(() => {
+      const ahora = Date.now()
+      const hace60Seg = ahora - 60 * 1000
+      const logs = c.accessLogs ?? []
+      const pacienteLog = logs.find((l) => l.role === 'PACIENTE')
+      const profesionalLog = logs.find((l) => l.role === 'PROFESIONAL')
+
+      const pacienteEnVivo = pacienteLog ? new Date(pacienteLog.lastPingAt).getTime() > hace60Seg : false
+      const profesionalEnVivo = profesionalLog ? new Date(profesionalLog.lastPingAt).getTime() > hace60Seg : false
+      const llamadaEnVivo = pacienteEnVivo || profesionalEnVivo
+      const ambosEnVivo = pacienteEnVivo && profesionalEnVivo
+
+      const pacienteSegundosDesdePing = pacienteLog ? Math.max(0, Math.round((ahora - new Date(pacienteLog.lastPingAt).getTime()) / 1000)) : null
+      const profesionalSegundosDesdePing = profesionalLog ? Math.max(0, Math.round((ahora - new Date(profesionalLog.lastPingAt).getTime()) / 1000)) : null
+
+      return {
+        pacienteEnVivo,
+        profesionalEnVivo,
+        llamadaEnVivo,
+        ambosEnVivo,
+        pacienteSegundosDesdePing,
+        profesionalSegundosDesdePing,
+        pacienteUltimoPing: pacienteLog?.lastPingAt ?? null,
+        profesionalUltimoPing: profesionalLog?.lastPingAt ?? null,
+      }
+    })(),
     estado: c.status,
     estadoLegible: ETIQUETAS[c.status] ?? c.status,
     siguientesEstados: transicionesDesde(c.status),

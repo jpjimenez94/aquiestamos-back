@@ -3,6 +3,7 @@ import { MeetingTelemetryController } from '../controllers/meetingTelemetry.cont
 
 export const meetingTelemetryRoutes = Router()
 
+meetingTelemetryRoutes.get('/live', MeetingTelemetryController.live)
 meetingTelemetryRoutes.get('/:id/info', MeetingTelemetryController.info)
 meetingTelemetryRoutes.post('/:id/join', MeetingTelemetryController.join)
 meetingTelemetryRoutes.post('/logs/:logId/ping', MeetingTelemetryController.ping)
