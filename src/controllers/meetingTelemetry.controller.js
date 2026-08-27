@@ -185,4 +185,119 @@ export const MeetingTelemetryController = {
       next(error)
     }
   },
+
+  /**
+   * POST /api/meetings/:id/leave
+   * Registra la salida de la llamada y guarda la duración efectiva en la auditoría.
+   */
+  async leave(req, res, next) {
+    try {
+      const { id: tokenOrId } = req.params
+      const verified = verificarTokenSala(tokenOrId)
+      const appointmentId = verified ? verified.aid : tokenOrId
+
+      const cita = await AppointmentModel.findById(appointmentId)
+      if (!cita) {
+        return res.json(ok(null, 'Sesión no encontrada.'))
+      }
+
+      const { logId, durationSeconds = 0, role } = req.body || {}
+      const durSec = Math.max(0, Number(durationSeconds) || 0)
+      const durMin = Math.round(durSec / 60)
+
+      if (logId) {
+        await MeetingAccessLogModel.updatePing(logId, durSec).catch(() => {})
+      }
+
+      const allLogs = await MeetingAccessLogModel.findByAppointment(cita.id)
+      const maxDuration = Math.max(...allLogs.map((l) => l.durationSeconds || 0), durSec)
+
+      await AppointmentModel.update(cita.id, {
+        totalCallDurationSeconds: maxDuration,
+      })
+
+      const rolFinal = verified?.rol || role || 'PACIENTE'
+      const nombreParticipante = rolFinal === 'PACIENTE' ? cita.patient?.fullName : cita.professional?.fullName
+
+      const actorEmail = rolFinal === 'PACIENTE'
+        ? `paciente:${primerNombre(cita.patient?.fullName)}`
+        : (rolFinal === 'PROFESIONAL'
+            ? `profesional:${primerNombre(cita.professional?.fullName)}`
+            : (req.usuario?.email || 'coordinacion'))
+
+      await registrar({
+        req,
+        action: 'finalizar_sala',
+        entity: 'sesion_virtual',
+        entityId: cita.id,
+        actorEmail,
+        after: {
+          rol: rolFinal,
+          participante: nombreParticipante,
+          duracionSegundos: durSec,
+          duracionMinutos: durMin,
+          duracionTexto: `${durMin} min (${durSec}s)`,
+          paciente: cita.patient?.fullName,
+          profesional: cita.professional?.fullName,
+          horario: cita.startsAt,
+        },
+      })
+
+      return res.json(ok({ duracionSegundos: durSec, duracionMinutos: durMin }, 'Salida de llamada registrada.'))
+    } catch (error) {
+      next(error)
+    }
+  },
+
+  /**
+   * POST /api/meetings/:id/report-error
+   * Registra incidentes de conexión o caídas del servidor de videollamadas.
+   */
+  async reportError(req, res, next) {
+    try {
+      const { id: tokenOrId } = req.params
+      const verified = verificarTokenSala(tokenOrId)
+      const appointmentId = verified ? verified.aid : tokenOrId
+
+      const cita = await AppointmentModel.findById(appointmentId)
+      if (!cita) {
+        return res.status(404).json({ success: false, message: 'Sesión no encontrada.' })
+      }
+
+      const { motivo, errorDetalle, urlFallida, role } = req.body || {}
+      const rolFinal = verified?.rol || role || 'PACIENTE'
+
+      const actorEmail = rolFinal === 'PACIENTE'
+        ? `paciente:${primerNombre(cita.patient?.fullName)}`
+        : (rolFinal === 'PROFESIONAL'
+            ? `profesional:${primerNombre(cita.professional?.fullName)}`
+            : (req.usuario?.email || 'coordinacion'))
+
+      await registrar({
+        req,
+        action: 'error_videollamada',
+        entity: 'sesion_virtual',
+        entityId: cita.id,
+        actorEmail,
+        after: {
+          motivo: motivo || 'Fallo de conexión en servidor de videollamadas',
+          errorDetalle: String(errorDetalle || 'No se pudo establecer enlace WebRTC').slice(0, 500),
+          urlFallida: urlFallida || null,
+          rol: rolFinal,
+          paciente: cita.patient?.fullName,
+          profesional: cita.professional?.fullName,
+          horario: cita.startsAt,
+          fecha: new Date().toISOString(),
+        },
+      })
+
+      // Generar sala alternativa de respaldo en 8x8.vc
+      const shortId = String(cita.id).replace(/-/g, '').slice(0, 8)
+      const fallbackMeetingUrl = `https://8x8.vc/AquiEstamos-${shortId}-backup`
+
+      return res.json(ok({ fallbackMeetingUrl }, 'Incidente registrado. Se ha generado enlace de respaldo.'))
+    } catch (error) {
+      next(error)
+    }
+  },
 }

@@ -11,6 +11,11 @@ const ACCIONES = [
   'editar',
   'borrar',
   'cambiar_clave',
+  'ingresar_sala',
+  'finalizar_sala',
+  'error_videollamada',
+  'error_servidor',
+  'error_notificacion',
 ]
 
 /** Una fecha de un <input type="date">, o undefined si no vino o no es fecha. */
@@ -28,12 +33,15 @@ export const AuditLogController = {
       const perPage = Math.min(1000, Math.max(1, Number(req.query.perPage ?? 500)))
 
       const hastaDia = fecha(req.query.hasta)
+      const hace24h = new Date(Date.now() - 24 * 3600 * 1000)
+
       const filtros = {
         entity: req.query.entity || undefined,
         actorId: req.query.actorId || undefined,
         // Lo que no está en la lista no filtra: un valor inventado en la URL
         // no debe convertirse en un where.
         action: ACCIONES.includes(req.query.action) ? req.query.action : undefined,
+        soloErrores: req.query.errores === '1',
         rol: ROLES.includes(req.query.rol) ? req.query.rol : undefined,
         soloSistema: req.query.sistema === '1',
         q: String(req.query.q ?? '').trim().slice(0, 120) || undefined,
@@ -42,12 +50,13 @@ export const AuditLogController = {
         hasta: hastaDia ? new Date(hastaDia.getTime() + 24 * 3600 * 1000) : undefined,
       }
 
-      const [entradas, total] = await Promise.all([
+      const [entradas, total, erroresRecientes24h] = await Promise.all([
         AuditLogModel.findAll({ ...filtros, skip: (page - 1) * perPage, take: perPage }),
         AuditLogModel.count(filtros),
+        AuditLogModel.countRecentErrors(hace24h),
       ])
 
-      return res.json(ok(listaAuditoria(entradas), { page, perPage, total }))
+      return res.json(ok(listaAuditoria(entradas), { page, perPage, total, erroresRecientes24h }))
     } catch (error) {
       next(error)
     }

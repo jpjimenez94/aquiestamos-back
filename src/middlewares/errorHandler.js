@@ -33,6 +33,24 @@ export function errorHandler(error, req, res, next) {
   // ruido del día a día, no una falla de la plataforma.
   if (status >= 500) {
     capturarError(`${req.method} ${req.originalUrl}`, error)
+    import('../models/auditLog.model.js')
+      .then(({ AuditLogModel }) => {
+        AuditLogModel.create({
+          actorEmail: req.usuario?.email || null,
+          actorId: req.usuario?.id || null,
+          action: 'error_servidor',
+          entity: 'sistema',
+          entityId: null,
+          ip: req.ip || null,
+          after: {
+            metodo: req.method,
+            ruta: req.originalUrl,
+            error: error.message,
+            stack: error.stack ? error.stack.slice(0, 500) : null,
+          },
+        }).catch((e) => console.error('[auditoria] error registrando 500:', e.message))
+      })
+      .catch(() => {})
   } else {
     console.error('[error]', error)
   }

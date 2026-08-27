@@ -10,10 +10,18 @@ import { prisma } from '../config/database.js'
  * armando el filtro es la receta para que la paginación diga un total y la
  * tabla muestre otro.
  */
-function armarWhere({ entity, action, actorId, rol, soloSistema, q, desde, hasta } = {}) {
+const ACCIONES_ERROR = ['error_servidor', 'error_videollamada', 'error_notificacion', 'acceso_fallido']
+
+function armarWhere({ entity, action, actions, actorId, rol, soloSistema, soloErrores, q, desde, hasta } = {}) {
   return {
     ...(entity ? { entity } : {}),
-    ...(action ? { action } : {}),
+    ...(soloErrores
+      ? { action: { in: ACCIONES_ERROR } }
+      : actions
+        ? { action: { in: actions } }
+        : action
+          ? { action }
+          : {}),
     ...(actorId ? { actorId } : {}),
     // Filtrar por rol usa la relación con la cuenta: las entradas de cuentas
     // borradas (actor null) no salen aquí, y está bien: para eso está "sistema".
@@ -58,5 +66,14 @@ export const AuditLogModel = {
 
   count(filtros = {}) {
     return prisma.auditLog.count({ where: armarWhere(filtros) })
+  },
+
+  countRecentErrors(sinceDate) {
+    return prisma.auditLog.count({
+      where: {
+        action: { in: ACCIONES_ERROR },
+        createdAt: { gte: sinceDate },
+      },
+    })
   },
 }
