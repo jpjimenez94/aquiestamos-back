@@ -1,3 +1,4 @@
+import { conCerrojo, CERROJOS } from '../config/cerrojo.js'
 import { prisma } from '../config/database.js'
 import { cancelarAsignacion } from '../services/appointment.service.js'
 import { asignacionVencida } from '../notifications/eventos.js'
@@ -50,15 +51,17 @@ export function arrancarBarridoAsignaciones() {
 
   // Una pasada al arrancar: si el servidor estuvo caído, lo vencido se
   // libera ya y no dentro de una hora.
-  barrerAsignaciones().catch((error) =>
-    console.error('[asignaciones] primera tanda fallida:', error.message),
-  )
-
-  temporizador = setInterval(() => {
-    barrerAsignaciones().catch((error) =>
-      console.error('[asignaciones] tanda fallida:', error.message),
+  //
+  // El cerrojo se pide aquí y no dentro de la función: las pruebas y los
+  // scripts a mano la siguen llamando directamente.
+  const tanda = (cual) =>
+    conCerrojo(CERROJOS.ASIGNACIONES, barrerAsignaciones).catch((error) =>
+      console.error(`[asignaciones] ${cual} fallida:`, error.message),
     )
-  }, CADA_MS)
+
+  tanda('primera tanda')
+
+  temporizador = setInterval(() => tanda('tanda'), CADA_MS)
 
   temporizador.unref?.()
 

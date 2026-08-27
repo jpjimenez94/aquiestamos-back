@@ -1,3 +1,4 @@
+import { conCerrojo, CERROJOS } from '../config/cerrojo.js'
 import { prisma } from '../config/database.js'
 import { NotificationModel } from '../models/notification.model.js'
 import { construir } from '../notifications/plantillas.js'
@@ -42,11 +43,18 @@ let corriendo = false
 export function arrancarBarridoCitas() {
   if (temporizador) return
 
-  barrerCitas().catch((error) => console.error('[citas] primera tanda fallida:', error.message))
+  // El cerrojo se pide aquí y no dentro de la función: las pruebas y los
+  // scripts a mano la siguen llamando directamente. Aquí importa especialmente
+  // que no se duplique: son recordatorios que le llegan a alguien que está
+  // esperando su sesión.
+  const tanda = (cual) =>
+    conCerrojo(CERROJOS.CITAS, barrerCitas).catch((error) =>
+      console.error(`[citas] ${cual} fallida:`, error.message),
+    )
 
-  temporizador = setInterval(() => {
-    barrerCitas().catch((error) => console.error('[citas] tanda fallida:', error.message))
-  }, CADA_MS)
+  tanda('primera tanda')
+
+  temporizador = setInterval(() => tanda('tanda'), CADA_MS)
 
   temporizador.unref?.()
 

@@ -1,3 +1,4 @@
+import { conCerrojo, CERROJOS } from '../config/cerrojo.js'
 import { prisma } from '../config/database.js'
 import { PatientModel } from '../models/patient.model.js'
 import { TriageResponseModel } from '../models/triageResponse.model.js'
@@ -41,11 +42,18 @@ export function arrancarBarrido() {
 
   // Una pasada al arrancar: si el servidor estuvo caído el fin de semana, lo
   // pendiente se recoge ya y no dentro de una hora.
-  barrer().catch((error) => console.error('[admisión] primera tanda fallida:', error.message))
+  //
+  // El cerrojo se pide aquí y no dentro de `barrer` a propósito: así las
+  // pruebas y los scripts a mano siguen llamando a la función directamente,
+  // sin pelear por un turno que solo tiene sentido entre instancias.
+  const tanda = (cual) =>
+    conCerrojo(CERROJOS.ADMISION, barrer).catch((error) =>
+      console.error(`[admisión] ${cual} fallida:`, error.message),
+    )
 
-  temporizador = setInterval(() => {
-    barrer().catch((error) => console.error('[admisión] tanda fallida:', error.message))
-  }, CADA_MS)
+  tanda('primera tanda')
+
+  temporizador = setInterval(() => tanda('tanda'), CADA_MS)
 
   temporizador.unref?.()
 

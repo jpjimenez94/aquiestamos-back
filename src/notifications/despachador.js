@@ -1,3 +1,4 @@
+import { conCerrojo, CERROJOS } from '../config/cerrojo.js'
 import { NotificationModel } from '../models/notification.model.js'
 import { enviarCorreo, hayCorreoConfigurado, transporteEnUso } from './mailer.js'
 import { construir } from './plantillas.js'
@@ -42,8 +43,17 @@ export function arrancarDespachador() {
     )
   }
 
+  // El cerrojo se pide aquí y no dentro de `despachar`: `npm run
+  // avisos:despachar` y las pruebas la siguen llamando directamente.
+  //
+  // Es el trabajo donde duplicar duele más: un correo enviado no se puede
+  // recoger. La bandera `corriendo` de dentro protege de que una tanda se
+  // monte sobre la anterior en ESTE proceso; esto protege de que dos procesos
+  // manden el mismo aviso a la misma persona.
   temporizador = setInterval(() => {
-    despachar().catch((error) => console.error('[avisos] tanda fallida:', error.message))
+    conCerrojo(CERROJOS.AVISOS, despachar).catch((error) =>
+      console.error('[avisos] tanda fallida:', error.message),
+    )
   }, CADA_MS)
 
   // No debe mantener vivo el proceso: si Node no tiene nada más que hacer,
