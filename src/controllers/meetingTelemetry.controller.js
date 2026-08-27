@@ -82,7 +82,9 @@ export const MeetingTelemetryController = {
         return res.status(404).json({ success: false, message: 'La sesión no existe o fue cancelada.' })
       }
 
-      let targetUrl = cita.meetingUrl || (cita.modality === 'VIRTUAL' ? generarEnlaceVideollamada(cita.id) : null)
+      let targetUrl =
+        cita.meetingUrl ||
+        (cita.modality === 'VIRTUAL' ? await generarEnlaceVideollamada(cita.id) : null)
       if (targetUrl && targetUrl.includes('meet.ffrn.de')) {
         targetUrl = targetUrl.replace(/meet\.ffrn\.de/g, 'meet.jit.si')
       }
@@ -185,7 +187,7 @@ export const MeetingTelemetryController = {
         },
       })
 
-      let targetUrl = cita.meetingUrl || generarEnlaceVideollamada(cita.id)
+      let targetUrl = cita.meetingUrl || (await generarEnlaceVideollamada(cita.id))
       if (targetUrl && targetUrl.includes('meet.ffrn.de')) {
         targetUrl = targetUrl.replace(/meet\.ffrn\.de/g, 'meet.jit.si')
       }

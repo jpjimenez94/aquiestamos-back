@@ -39,6 +39,41 @@ export const env = {
   // Cuanto dura un enlace de caso compartido antes de pedir el correo otra vez.
   sharedCaseTtlHours: Number(process.env.SHARED_CASE_TTL_HOURS ?? 12),
 
+  // Firma de los enlaces de sala de videollamada. Mismo razonamiento que
+  // `sharedCaseSecret`, y por la misma razón se exige siempre salvo en pruebas.
+  //
+  // Aquí hubo un agujero peor que el de antes. `meeting.service.js` firmaba
+  // con `env.jwtSecret || 'aqui-estamos-secret-key'`, y `jwtSecret` NUNCA
+  // existió en este archivo: siempre valía `undefined`, así que todo se
+  // firmaba con ese literal, que está publicado en GitHub. Cualquiera que
+  // leyera el repositorio podía fabricar un token de sala válido y entrar a la
+  // sesión de una persona en terapia.
+  //
+  // Un `||` con valor por defecto convierte un secreto ausente en un secreto
+  // público sin decir nada. Por eso aquí no hay valor por defecto: sin la
+  // variable, el backend no arranca.
+  meetingSecret:
+    process.env.NODE_ENV === 'test'
+      ? process.env.MEETING_SECRET ?? 'secreto-de-sala-solo-para-pruebas'
+      : required('MEETING_SECRET'),
+
+  // Dominio de Jitsi donde se abren las salas. Es solo el valor de arranque:
+  // manda `DOMINIO_JITSI` de Parametrización cuando está configurado.
+  jitsiDomain: process.env.JITSI_DOMAIN ?? 'meet.jit.si',
+
+  /**
+   * ¿Se acepta todavía un UUID de cita crudo como llave de la sala?
+   *
+   * Hoy vale `true` porque no queda más remedio: todos los enlaces que ya
+   * circulan por WhatsApp son de la forma `/sala/<uuid-de-la-cita>`, y
+   * apagarlo de golpe deja tirada a gente con la cita ya confirmada.
+   *
+   * Pero es una puerta abierta: quien conozca el UUID de una cita entra a la
+   * sala. Los enlaces nuevos ya salen firmados. En cuanto pasen las citas
+   * agendadas antes del cambio, poner `SALA_ACEPTA_UUID=false` y cerrarla.
+   */
+  salaAceptaUuid: (process.env.SALA_ACEPTA_UUID ?? 'true').toLowerCase() !== 'false',
+
   // Cuanto dura el enlace del tamizaje. Es mucho mas largo que el del caso a
   // proposito: quien esta en crisis no responde un formulario en el momento en
   // que le llega el mensaje, y un enlace vencido al dia siguiente significa

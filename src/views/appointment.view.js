@@ -20,10 +20,30 @@ export function cita(c) {
     descansoMinutos: c.bufferMinutes,
     ocupaHasta: c.blocksUntil,
     modalidad: c.modality,
-    meetingUrl: c.meetingUrl ?? (c.modality === 'VIRTUAL' ? `https://meet.jit.si/AquiEstamos-Sesion-${c.id}` : null),
+    // Solo la URL que de verdad esté guardada. Antes, si no había ninguna,
+    // aquí se inventaba `https://meet.jit.si/AquiEstamos-Sesion-<uuid>`, y esa
+    // sala NO era la sala: el nombre real lo deriva `generarEnlaceVideollamada`
+    // a partir del secreto, y nunca coincidió con este invento. El resultado
+    // es que el profesional entraba por «Mi agenda» a una sala vacía mientras
+    // la persona esperaba en otra. Las 19 citas virtuales de producción tenían
+    // todas `meetingUrl` en null, así que el invento era el único camino, no
+    // un caso raro.
+    //
+    // Ahora esto dice la verdad —null si no hay— y quien quiera entrar pasa
+    // por `/sala/<token>`, que es la única puerta y además deja telemetría.
+    meetingUrl: c.meetingUrl ?? null,
     meetingProvider: c.meetingProvider ?? (c.modality === 'VIRTUAL' ? 'JITSI' : null),
-    salaTokenPaciente: (c.meetingUrl || c.modality === 'VIRTUAL') ? c.id : null,
-    salaTokenProfesional: (c.meetingUrl || c.modality === 'VIRTUAL') ? c.id : null,
+    // Llaves de sala FIRMADAS, una por rol.
+    //
+    // Aquí salía `c.id`: el UUID de la cita, sin firma. `generarTokenSala`
+    // estaba importado pero no se llamaba desde ningún sitio, así que toda la
+    // capa HMAC era decorativa y cualquiera con el UUID entraba a la sala —y
+    // el rol lo elegía el propio cliente por query string. Ahora el rol viaja
+    // sellado dentro del token y el servidor no acepta que se lo contradigan.
+    salaTokenPaciente:
+      c.meetingUrl || c.modality === 'VIRTUAL' ? generarTokenSala(c.id, 'PACIENTE') : null,
+    salaTokenProfesional:
+      c.meetingUrl || c.modality === 'VIRTUAL' ? generarTokenSala(c.id, 'PROFESIONAL') : null,
     patientFirstJoinedAt: c.patientFirstJoinedAt ?? null,
     professionalFirstJoinedAt: c.professionalFirstJoinedAt ?? null,
     totalCallDurationSeconds: c.totalCallDurationSeconds ?? 0,

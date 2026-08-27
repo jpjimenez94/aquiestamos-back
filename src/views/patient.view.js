@@ -37,9 +37,19 @@ export function pacienteParaAgendador(p) {
           inicioLocal: formatearLocal(ultimaCita.startsAt),
           finLocal: formatearLocal(ultimaCita.endsAt),
           modalidad: ultimaCita.modality,
-          meetingUrl: ultimaCita.meetingUrl ?? (ultimaCita.modality === 'VIRTUAL' ? `https://meet.jit.si/AquiEstamos-Sesion-${ultimaCita.id}` : null),
-          salaTokenProfesional: (ultimaCita.meetingUrl || ultimaCita.modality === 'VIRTUAL') ? ultimaCita.id : null,
-          salaTokenPaciente: (ultimaCita.meetingUrl || ultimaCita.modality === 'VIRTUAL') ? ultimaCita.id : null,
+          // Solo la URL guardada de verdad; ver el comentario largo en
+          // `appointment.view.js`. Para entrar se usa `/sala/<token>`.
+          meetingUrl: ultimaCita.meetingUrl ?? null,
+          // Llaves de sala firmadas por rol. Antes salía el UUID crudo de la
+          // cita; ver el comentario en `appointment.view.js`.
+          salaTokenProfesional:
+            ultimaCita.meetingUrl || ultimaCita.modality === 'VIRTUAL'
+              ? generarTokenSala(ultimaCita.id, 'PROFESIONAL')
+              : null,
+          salaTokenPaciente:
+            ultimaCita.meetingUrl || ultimaCita.modality === 'VIRTUAL'
+              ? generarTokenSala(ultimaCita.id, 'PACIENTE')
+              : null,
           estado: ultimaCita.status,
           estadoLegible: ETIQUETAS_CITA[ultimaCita.status] ?? ultimaCita.status,
           profesional: ultimaCita.professional?.fullName ?? null,
