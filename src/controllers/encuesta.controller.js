@@ -1,3 +1,4 @@
+import { primerNombre as pila } from '../nombre.js'
 import { prisma } from '../config/database.js'
 import { leerEnlaceEncuesta } from '../auth/enlaceEncuesta.js'
 import { ok, failure } from '../views/response.view.js'
@@ -27,10 +28,6 @@ async function asignacionDelToken(token) {
       survey: true,
     },
   })
-}
-
-function pila(nombre) {
-  return String(nombre ?? '').trim().split(/\s+/)[0] || null
 }
 
 function vista(asignacion) {

@@ -1,35 +1,9 @@
+import { primerNombre as pila } from '../nombre.js'
 import { AppointmentModel } from '../models/appointment.model.js'
 import { leerEnlaceConsentimiento } from '../auth/enlaceConsentimiento.js'
 import { formatearLocal } from '../services/timezone.service.js'
 import { ok, failure } from '../views/response.view.js'
 import { registrar, ACCION } from '../services/audit.service.js'
-
-/**
- * CONTROLADOR: consentimiento informado de una cita.
- *
- * La persona firma desde el enlace que le llega por WhatsApp antes de su
- * sesión. Antes el mensaje la mandaba a una página que no existía y sin
- * token: nadie podía firmar nada, y "registrar el consentimiento" era que
- * coordinación subiera un PDF a mano.
- *
- * Es una puerta pública y carga con lo mismo que el tamizaje: token firmado
- * con vencimiento adentro, comparación en tiempo constante, respuestas
- * idénticas para un token inventado y una cita borrada, y una vista que solo
- * enseña lo mínimo para decidir: con quién es la sesión, cuándo, y el nombre
- * de pila de quien firma.
- */
-
-/** Busca la cita detrás del token, o null si el token no sirve. */
-async function citaDelToken(token) {
-  const datos = leerEnlaceConsentimiento(token)
-  if (!datos) return null
-  return AppointmentModel.findById(datos.cita)
-}
-
-/** Solo el nombre de pila: la puerta pública no enseña más. */
-function pila(nombre) {
-  return String(nombre ?? '').trim().split(/\s+/)[0] || null
-}
 
 function vista(cita) {
   return {

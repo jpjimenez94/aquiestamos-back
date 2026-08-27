@@ -1,3 +1,4 @@
+import { primerNombre as pila } from '../nombre.js'
 import { prisma } from '../config/database.js'
 import { leerEnlaceFeedback } from '../auth/enlaceFeedback.js'
 import { ok, failure } from '../views/response.view.js'
@@ -24,10 +25,6 @@ async function pacienteDelToken(token) {
   return paciente
 }
 
-function pila(nombre) {
-  return String(nombre ?? '').trim().split(/\s+/)[0] || null
-}
-
 export const FeedbackController = {
   /** GET /api/experiencia/:token */
   async mostrar(req, res, next) {
@@ -38,12 +35,19 @@ export const FeedbackController = {
       }
 
       const asignacion = paciente.assignments?.[0]
+
+      // Solo el nombre de pila, como en el resto de las puertas sin sesión.
+      //
+      // Esto mandaba también `nombreCompletoPersona` y
+      // `nombreCompletoProfesional`, que el formulario declaraba en su tipo y
+      // no usaba en ningún sitio: saluda con el nombre de pila y ya. Eran dos
+      // nombres completos —el de alguien que recibió atención psicológica y el
+      // de quien se la dio— viajando en una respuesta pública, sin que nadie
+      // los pidiera, en un enlace que vive 60 días.
       return res.json(
         ok({
           persona: pila(paciente.fullName),
-          nombreCompletoPersona: paciente.fullName,
-          profesional: asignacion?.professional?.fullName ? pila(asignacion.professional.fullName) : null,
-          nombreCompletoProfesional: asignacion?.professional?.fullName ?? null,
+          profesional: pila(asignacion?.professional?.fullName),
         }),
       )
     } catch (error) {

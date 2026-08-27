@@ -1,14 +1,10 @@
+import { primerNombre } from '../nombre.js'
 import { prisma } from '../config/database.js'
 import { AppointmentModel } from '../models/appointment.model.js'
 import { MeetingAccessLogModel } from '../models/meetingAccessLog.model.js'
 import { ok } from '../views/response.view.js'
 import { generarEnlaceVideollamada, verificarTokenSala } from '../services/meeting.service.js'
 import { registrar, ACCION } from '../services/audit.service.js'
-
-function primerNombre(nombre) {
-  if (!nombre) return ''
-  return nombre.trim().split(/\s+/)[0]
-}
 
 export const MeetingTelemetryController = {
   /**

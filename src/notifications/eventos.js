@@ -1,3 +1,4 @@
+import { primerNombre as nombreDePila } from '../nombre.js'
 import { NotificationModel } from '../models/notification.model.js'
 import { UserModel } from '../models/user.model.js'
 import { construir } from './plantillas.js'
@@ -283,9 +284,16 @@ export async function reporteRecibido({ reporte, asignacion }) {
 
 // ---------------------------------------------------------------------------
 
-/** En un saludo, el apellido sobra. */
+/**
+ * En un saludo, el apellido sobra.
+ *
+ * Usa el `primerNombre` común, pero conserva su propio respaldo: aquí un
+ * nombre vacío tiene que seguir siendo un saludo. «Hola,» a secas se lee como
+ * un correo roto. Esa diferencia es de este sitio, no del resto, y por eso
+ * vive aquí y no en el módulo compartido.
+ */
 function primerNombre(nombreCompleto) {
-  return String(nombreCompleto ?? '').trim().split(/\s+/)[0] || 'hola'
+  return nombreDePila(nombreCompleto) ?? 'hola'
 }
 
 /**
