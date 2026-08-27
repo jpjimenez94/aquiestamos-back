@@ -1,0 +1,66 @@
+# Purga de retención, una vez al mes.
+#
+# `prisma/purgar.js` implementa la política de la fundación: conservar los
+# datos DOS AÑOS desde que se cierra un caso. El script existe desde hace
+# tiempo y su propio comentario dice «conviene correrlo una vez al mes. En
+# Railway se puede programar como cron». Nunca se programó, así que nunca se
+# corrió: el borrado lógico solo acumulaba filas.
+#
+# Guardar historias de acompañamiento psicológico más allá del plazo que la
+# propia fundación se fijó no es desorden, es incumplimiento. Bajo la Ley 1581
+# los datos de salud son datos sensibles, y la finalidad del tratamiento tiene
+# un límite temporal que aquí ya está decidido.
+#
+# Se programa aquí y no en Railway a propósito: así la decisión vive en el
+# repositorio, se revisa en un PR y no depende de que alguien recuerde una
+# casilla en un panel.
+#
+# Requiere el secreto DATABASE_URL en el repositorio (Settings → Secrets and
+# variables → Actions). Es el único sitio de todo el proyecto donde una acción
+# escribe en producción.
+
+name: Purga de retención
+
+on:
+  schedule:
+    # 06:00 UTC del día 1 de cada mes = 01:00 en Bogotá. Fuera de horario de
+    # atención: si algo va mal, no coincide con nadie usando el portal.
+    - cron: '0 6 1 * *'
+  workflow_dispatch:
+    inputs:
+      simulacro:
+        description: 'Solo mostrar qué se borraría, sin borrar'
+        type: boolean
+        default: true
+
+jobs:
+  purgar:
+    name: Aplicar la política de retención
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx prisma generate
+
+      # En el cron mensual borra de verdad. Lanzado a mano, por defecto es un
+      # simulacro: quien quiera borrar tiene que desmarcar la casilla, que es
+      # el tipo de fricción que conviene tener delante de un borrado.
+      - name: Purgar
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ] || [ "${{ inputs.simulacro }}" = "false" ]; then
+            echo "Modo real: se va a borrar lo que superó la retención."
+            node prisma/purgar.js --si
+          else
+            echo "Simulacro: no se borra nada."
+            node prisma/purgar.js
+          fi
