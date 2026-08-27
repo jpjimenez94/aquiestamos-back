@@ -181,18 +181,25 @@ Al terminar la sesión, entra a ese mismo enlace para dejarnos tu reporte de seg
     key: 'WHATSAPP_RECORDATORIO_PREVIO',
     category: 'MENSAJE_WHATSAPP',
     name: 'Recordatorio Previo de Cita al Profesional (< 60 min)',
-    description: 'Recordatorio enviado 60 minutos o menos antes del inicio de la sesión.',
+    description: 'Recordatorio enviado 60 minutos o menos antes del inicio de la sesión con responsabilidades y enlace seguro.',
     dataType: 'TEXTO',
     variables: ['profesional', 'cuando', 'modalidad', 'enlaceReunion', 'enlaceCaso'],
     defaultValue: `¡Hola {profesional}! Te saludamos desde la coordinación de la Red Aquí Estamos.
 
-Te recordamos que tienes una sesión de acompañamiento psicológico programada para dentro de poco: *{cuando}* ({modalidad}).
+Te recordamos que tienes una sesión de acompañamiento psicológico programada para dentro de poco: *{cuando}* en modalidad *{modalidad}*.
 
-📹 *Enlace de la videollamada:*
-{enlaceReunion}
+· *Enlace de videollamada:* {enlaceReunion}
 
-Puedes consultar los datos del caso aquí:
+*Tu responsabilidad en este acompañamiento:*
+1. Tú das el primer paso: ponte en contacto con ella por WhatsApp unos *15 minutos antes* de la cita para coordinar el inicio de la sesión en la fecha y hora acordadas. Ella ya sabe que la vas a contactar.
+2. Compromiso y puntualidad: la persona te está esperando. Si te surge un imprevisto de fuerza mayor, avísanos de inmediato por aquí para no dejarla esperando y poder reagendar a tiempo.
+
+Los datos de contacto y la información del caso están en tu enlace seguro:
 {enlaceCaso}
+
+Al terminar la sesión, entra a ese mismo enlace para registrar el reporte de cierre (si se realizó, cómo fue y si necesita más sesiones).
+
+Por favor *respóndenos a este mensaje confirmando que lo recibiste y lo tienes agendado*.
 
 ¡Muchísimas gracias por tu tiempo, calidez y compromiso solidario!`,
   },
