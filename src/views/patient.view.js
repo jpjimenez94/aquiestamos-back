@@ -1,6 +1,7 @@
 import { ETIQUETAS_ESTADO_PACIENTE, ETIQUETAS_PRIORIDAD } from '../catalogos.js'
 import { ETIQUETAS as ETIQUETAS_CITA } from '../services/appointmentState.service.js'
 import { formatearLocal } from '../services/timezone.service.js'
+import { generarTokenSala } from '../services/meeting.service.js'
 
 /**
  * VISTA: Patient
@@ -36,6 +37,9 @@ export function pacienteParaAgendador(p) {
           inicioLocal: formatearLocal(ultimaCita.startsAt),
           finLocal: formatearLocal(ultimaCita.endsAt),
           modalidad: ultimaCita.modality,
+          meetingUrl: ultimaCita.meetingUrl ?? (ultimaCita.modality === 'VIRTUAL' ? `https://meet.ffrn.de/AquiEstamos-Sesion-${ultimaCita.id}` : null),
+          salaTokenProfesional: (ultimaCita.meetingUrl || ultimaCita.modality === 'VIRTUAL') ? generarTokenSala(ultimaCita.id, 'PROFESIONAL') : null,
+          salaTokenPaciente: (ultimaCita.meetingUrl || ultimaCita.modality === 'VIRTUAL') ? generarTokenSala(ultimaCita.id, 'PACIENTE') : null,
           estado: ultimaCita.status,
           estadoLegible: ETIQUETAS_CITA[ultimaCita.status] ?? ultimaCita.status,
           profesional: ultimaCita.professional?.fullName ?? null,
