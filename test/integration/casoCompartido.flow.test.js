@@ -269,10 +269,16 @@ describe('el profesional responde qué pasó', () => {
   it('es una bitácora: los reportes se suman, no se pisan', async () => {
     const antes = await prisma.caseReport.count({ where: { assignmentId: ids.asignacion } })
 
-    await request(app)
+    // `followUp` es obligatorio desde la migración `el_reporte_dice_que_sigue`:
+    // un YA_ATENDIDA sin decir qué sigue deja el caso sin siguiente paso. Este
+    // envío no lo traía y el reporte se rechazaba con 422, pero la prueba no
+    // miraba el estado de la respuesta y el fallo salía como un conteo raro.
+    // Por eso ahora se comprueba: si vuelve a romperse, que lo diga.
+    const res = await request(app)
       .post(`/api/shared-cases/${ids.paciente}/reporte`)
       .set('x-shared-case-token', t)
-      .send({ outcome: 'YA_ATENDIDA', modality: 'VIRTUAL' })
+      .send({ outcome: 'YA_ATENDIDA', modality: 'VIRTUAL', followUp: 'SUFICIENTE' })
+    expect(res.status).toBe(201)
 
     const despues = await prisma.caseReport.count({ where: { assignmentId: ids.asignacion } })
     expect(despues).toBe(antes + 1)
