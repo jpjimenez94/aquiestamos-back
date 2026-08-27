@@ -1,3 +1,4 @@
+import { puede } from '../auth/permissions.js'
 import { ETIQUETAS_ESTADO_PROFESIONAL } from '../catalogos.js'
 
 /**
@@ -38,7 +39,7 @@ export function profesionalAdmin(p) {
 }
 
 export function profesionalSegunRol(p, usuario) {
-  return usuario?.role === 'ADMIN' ? profesionalAdmin(p) : profesionalBase(p)
+  return puede(usuario, 'dato-sensible:ver') ? profesionalAdmin(p) : profesionalBase(p)
 }
 
 export function profesionalLista(lista, usuario) {

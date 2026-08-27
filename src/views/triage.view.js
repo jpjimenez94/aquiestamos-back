@@ -1,3 +1,4 @@
+import { puede } from '../auth/permissions.js'
 import { ETIQUETAS_PRIORIDAD } from '../catalogos.js'
 
 /**
@@ -37,7 +38,7 @@ export function tamizajeCompleto(t) {
 }
 
 export function tamizajeSegunRol(t, usuario) {
-  return usuario?.role === 'ADMIN' ? tamizajeCompleto(t) : tamizajeResumen(t)
+  return puede(usuario, 'dato-sensible:ver') ? tamizajeCompleto(t) : tamizajeResumen(t)
 }
 
 /**

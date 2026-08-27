@@ -1,3 +1,4 @@
+import { puede } from '../auth/permissions.js'
 import { PatientModel } from '../models/patient.model.js'
 import { PatientNoteModel } from '../models/patientNote.model.js'
 import { CaseAssignmentModel } from '../models/caseAssignment.model.js'
@@ -229,7 +230,7 @@ export const PatientController = {
 
       const asignacion = await CaseAssignmentModel.findAbiertaDePaciente(paciente.id)
       if (asignacion) {
-        if (req.usuario?.role === 'ADMIN') {
+        if (puede(req.usuario, 'paciente:borrar')) {
           await CaseAssignmentModel.cancelar(
             asignacion.id,
             'Registro eliminado por administración',
