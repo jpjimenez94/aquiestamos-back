@@ -1,11 +1,11 @@
 import { prisma } from '../config/database.js'
 
 /**
- * Catálogo completo de configuraciones, plantillas de WhatsApp y correos con sus valores de fábrica.
+ * Catálogo completo de configuraciones, plantillas de WhatsApp y correos con sus valores exactos de fábrica.
  */
 export const DEFAULT_SETTINGS = [
   // =========================================================================
-  // CATEGORÍA 1: MENSAJES DE WHATSAPP (13 plantillas)
+  // CATEGORÍA 1: MENSAJES DE WHATSAPP (14 plantillas operativas)
   // =========================================================================
   {
     key: 'WHATSAPP_TAMIZAJE',
@@ -16,12 +16,17 @@ export const DEFAULT_SETTINGS = [
     variables: ['nombre', 'enlace'],
     defaultValue: `Hola {nombre}, te escribimos de la Red Aquí Estamos.
 
-Para poder buscar a la persona de nuestro equipo que mejor te pueda acompañar, te pedimos llenar este formulario breve:
+Recibimos tu solicitud de acompañamiento. Gracias por dar este paso: pedir compañía no siempre es fácil. Ya estamos buscando a la persona que va a acompañarte.
+
+Mientras tanto, nos gustaría conocerte un poco mejor para acompañarte bien desde el comienzo. Son *7 preguntas cortas* en nuestro sitio, redaquiestamos.org — se responden en un minuto, tocando una opción en cada una:
+
 {enlace}
 
-No es un examen ni un diagnóstico: nos dice cómo te has sentido estos días y en qué momentos tienes tiempo para que podamos coordinar la atención.
+No hay respuestas buenas ni malas, y no es una evaluación ni un diagnóstico: lo que respondas queda entre tú y el equipo de la red.
 
-Si tienes alguna pregunta, escríbenos por aquí con confianza.`,
+Cuando las respondas, cuéntanos por aquí.
+
+Si en este momento estás en peligro o sientes que puedes hacerte daño, no esperes nuestra respuesta: llama al *106* (línea 106) o al *192* (línea 192). Son gratuitas y atienden a toda hora.`,
   },
   {
     key: 'WHATSAPP_PROPUESTA_PROFESIONAL',
@@ -29,19 +34,43 @@ Si tienes alguna pregunta, escríbenos por aquí con confianza.`,
     name: 'Paso 2 · Propuesta de Caso al Profesional',
     description: 'Enviado al psicólogo cuando el agendador le propone un nuevo caso según su disponibilidad.',
     dataType: 'TEXTO',
-    variables: ['profesional', 'ciudad', 'prioridad', 'modalidad', 'horarios', 'enlace'],
-    defaultValue: `Hola {profesional}, te escribimos de la Red Aquí Estamos.
+    variables: ['profesional', 'ciudad', 'modalidad', 'horarios', 'urgencia', 'enlace'],
+    defaultValue: `Hola {profesional}, te escribimos de Red Aquí Estamos.
 
-Tenemos un caso disponible para acompañamiento:
-· Ciudad: {ciudad}
-· Prioridad: {prioridad}
-· Modalidad: {modalidad}
-· Disponibilidad de la persona: {horarios}
+Queremos proponerte un acompañamiento. Cuéntanos si puedes tomarlo:
 
-Por favor ingresa al siguiente enlace para ver los detalles y confirmar si puedes recibirlo:
+· La persona está en {ciudad}.
+· Prefiere que sea {modalidad}.
+· Puede {horarios}.
+
+{urgencia}
+
+Entra aquí con el correo con el que te registraste y dinos si puedes. Si aceptas, ahí mismo nos dejas los días y las horas en las que podrías:
 {enlace}
 
-¡Muchas gracias por tu valioso tiempo y dedicación!`,
+Con eso cuadramos el horario con ella y te confirmamos. Sus datos de contacto aparecen cuando aceptas, no antes.
+
+Si no puedes, dínoslo en esa misma pantalla y se lo proponemos a otra persona. No pasa nada: es voluntario.
+
+Es un acompañamiento confidencial. Te pedimos manejarlo con responsabilidad ética y profesional, y no compartir los datos de la persona con nadie más.
+
+Gracias por tu tiempo.`,
+  },
+  {
+    key: 'WHATSAPP_CUADRAR_HORARIO_PERSONA',
+    category: 'MENSAJE_WHATSAPP',
+    name: 'Paso 2b · Proponer Horarios a la Persona Acompañada',
+    description: 'Enviado a la persona cuando el profesional ya aceptó y dejó sus franjas disponibles para coordinar la cita.',
+    dataType: 'TEXTO',
+    variables: ['nombre', 'profesional', 'horarios'],
+    defaultValue: `Hola {nombre}, te escribimos de la Red Aquí Estamos.
+
+Ya tenemos quién te acompañe: {profesional}, profesional de la red.
+
+Estos son los horarios en los que puede atenderte:
+{horarios}
+
+*¿Cuál de esos te sirve?* Respóndenos por aquí y lo dejamos agendado. Si ninguno te queda bien, dinos tú cuándo puedes y lo miramos.`,
   },
   {
     key: 'WHATSAPP_CONFIRMAR_CITA_PERSONA',
@@ -208,12 +237,23 @@ Muchas gracias por tu comprensión y paciencia.`,
     description: 'Solicitud al psicólogo para cargar su tarjeta profesional y cédula de ciudadanía por enlace seguro.',
     dataType: 'TEXTO',
     variables: ['profesional', 'enlace'],
-    defaultValue: `Hola {profesional}, te escribimos de la Red Aquí Estamos.
+    defaultValue: `Hola {profesional}, te escribimos de Red Aquí Estamos.
 
-Para completar tu activación en la red y empezar a asignarte acompañamientos, te pedimos subir tu tarjeta profesional y documento de identidad a través de este enlace seguro:
+Recibimos tu postulación para acompañar en la red. Gracias por dar este paso: nos alegra contar contigo.
+
+Para dejar tu perfil listo y poder asignarte acompañamientos, nos faltan dos documentos. Es por la seguridad de todos — de quienes acompañan y de quienes son acompañados:
+· Si ya eres graduado/a: tu *tarjeta profesional* (foto o PDF).
+· Si estás en formación: tu *certificado de estudios* o constancia de matrícula.
+· Tu *documento de identidad*.
+
+Los puedes subir en esta página de nuestro sitio, redaquiestamos.org:
 {enlace}
 
-Es por la tranquilidad y seguridad de las personas que acompañamos. ¡Muchas gracias por tu apoyo!`,
+Quedan en un almacenamiento privado y cifrado: solo los ve el equipo de la red, y cada consulta queda registrada.
+
+Si este mensaje te genera dudas, respóndenos por aquí antes de abrir el enlace: verificar siempre está bien.
+
+Gracias por tu tiempo.`,
   },
   {
     key: 'WHATSAPP_FEEDBACK_PERSONA',
@@ -475,7 +515,7 @@ const CACHE_TTL_MS = 60 * 1000 // 1 minuto
 
 export const SettingsService = {
   /**
-   * Asegura que todas las configuraciones por defecto existan en la BD.
+   * Asegura que todas las configuraciones por defecto existan en la BD y sincroniza valores de fábrica.
    */
   async ensureDefaults() {
     try {
