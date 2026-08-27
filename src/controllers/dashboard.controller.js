@@ -551,9 +551,137 @@ export const DashboardController = {
         recomendaria: encuestas.filter((e) => e.wouldRecommend).length,
       }
 
+      // ---------- el camino completo, desde que alguien pide ayuda ----------
+      //
+      // Lo de arriba mide tramos sueltos. Esto mide el camino entero y, sobre
+      // todo, DÓNDE se cae la gente: entre pedir ayuda y sentarse con un
+      // profesional hay seis puertas, y hasta ahora nadie sabía cuál era la
+      // que se traga a más personas.
+      //
+      // El tamizaje no aparecía en ninguna métrica y es la primera puerta: se
+      // manda por WhatsApp y hay que abrir un enlace. Si mucha gente no lo
+      // responde, el problema no está en la agenda ni en los profesionales,
+      // está en el primer mensaje.
+      // `Patient.supportRequestId` es una columna suelta, sin relación de
+      // Prisma, así que las dos consultas se cruzan aquí. Con 34 solicitudes y
+      // 28 personas eso no es un problema; si algún día lo fuera, la respuesta
+      // es declarar la relación en el esquema, no complicar esto.
+      const solicitudes = await prisma.supportRequest.findMany({
+        where: { deletedAt: null },
+        select: {
+          id: true,
+          createdAt: true,
+          triageResponses: { select: { id: true }, take: 1 },
+        },
+      })
+
+      const admitidos = await prisma.patient.findMany({
+        where: { deletedAt: null, supportRequestId: { not: null } },
+        select: {
+          supportRequestId: true,
+          assignments: {
+            where: { deletedAt: null },
+            select: { status: true, respondedAt: true },
+          },
+          appointments: { select: { status: true, startsAt: true } },
+        },
+      })
+      const personaDeLaSolicitud = new Map(admitidos.map((p) => [p.supportRequestId, p]))
+
+      const conTamizaje = solicitudes.filter((s) => s.triageResponses.length > 0)
+      const admitidas = solicitudes.filter((s) => personaDeLaSolicitud.has(s.id))
+      const personaDe = (s) => personaDeLaSolicitud.get(s.id)
+
+      const conPropuesta = admitidas.filter((s) => personaDe(s).assignments.length > 0)
+      const conAceptacion = admitidas.filter((s) =>
+        personaDe(s).assignments.some(
+          (a) => a.respondedAt || ['ACEPTADA', 'ACTIVA', 'CERRADA'].includes(a.status),
+        ),
+      )
+      const conCita = admitidas.filter((s) => personaDe(s).appointments.length > 0)
+      const conSesion = admitidas.filter((s) =>
+        personaDe(s).appointments.some((c) => c.status === 'REALIZADA'),
+      )
+
+      /** Días entre pedir ayuda y sentarse por primera vez con alguien. */
+      const diasHastaLaPrimeraSesion = conSesion
+        .map((s) => {
+          const realizadas = personaDe(s)
+            .appointments.filter((c) => c.status === 'REALIZADA')
+            .map((c) => new Date(c.startsAt).getTime())
+          if (realizadas.length === 0) return null
+          return (Math.min(...realizadas) - new Date(s.createdAt).getTime()) / DIA
+        })
+        .filter((d) => d !== null && d >= 0)
+
+      /**
+       * Mediana además del promedio: con pocos casos, uno que tardó dos meses
+       * mueve el promedio y hace parecer lento un servicio que atiende a casi
+       * todo el mundo en una semana.
+       */
+      const mediana = (valores) => {
+        if (valores.length === 0) return null
+        const orden = [...valores].sort((a, b) => a - b)
+        const medio = Math.floor(orden.length / 2)
+        const v = orden.length % 2 ? orden[medio] : (orden[medio - 1] + orden[medio]) / 2
+        return Math.round(v * 10) / 10
+      }
+
+      /**
+       * Los pasos tienen que estar encajados de verdad: cada uno es un
+       * subconjunto del anterior. Si no, la resta entre dos pasos no significa
+       * nada.
+       *
+       * «Respondieron el tamizaje» NO va aquí, aunque ocurra antes en el
+       * tiempo: se puede admitir a alguien que nunca lo respondió —el barrido
+       * de admisión lo hace a propósito— así que había más admitidas que
+       * respuestas y la caída salía en negativo. El tamizaje se mide aparte,
+       * que es donde su número quiere decir algo.
+       */
+      const pasos = [
+        ['Pidieron ayuda', solicitudes.length],
+        ['Fueron admitidas', admitidas.length],
+        ['Recibieron una propuesta', conPropuesta.length],
+        ['Un profesional aceptó', conAceptacion.length],
+        ['Quedó cita agendada', conCita.length],
+        ['Tuvieron su sesión', conSesion.length],
+      ]
+
+      const camino = pasos.map(([etapa, cuantas], i) => ({
+        etapa,
+        cuantas,
+        // Respecto al total: la caída acumulada de un vistazo.
+        porcentaje: solicitudes.length > 0 ? Math.round((cuantas / solicitudes.length) * 100) : null,
+        // Respecto al paso anterior: dónde está la puerta que atasca.
+        seQuedaronAqui: i === 0 ? null : pasos[i - 1][1] - cuantas,
+      }))
+
       return res.json(
         ok({
           personas: { total: personas.length, porEstado, porPrioridad },
+          camino,
+          // Cuántas solicitudes sostienen todo lo de arriba. Va explícito
+          // porque con pocos casos un porcentaje engaña: «83 %» sobre seis
+          // solicitudes es una persona, no una tendencia, y la pantalla tiene
+          // que poder decirlo.
+          caminoSobreCuantas: solicitudes.length,
+          tamizaje: {
+            enviados: solicitudes.length,
+            respondidos: conTamizaje.length,
+            tasaRespuesta:
+              solicitudes.length > 0
+                ? Math.round((conTamizaje.length / solicitudes.length) * 100)
+                : null,
+            // Las que entraron igual sin responder: las recoge el barrido de
+            // admisión, y su prioridad es una suposición del sistema, no algo
+            // que la persona haya dicho. A esas hay que llamarlas.
+            admitidasSinResponder: admitidas.filter((s) => s.triageResponses.length === 0).length,
+          },
+          esperaHastaLaPrimeraSesion: {
+            diasMediana: mediana(diasHastaLaPrimeraSesion),
+            diasPromedio: prom(diasHastaLaPrimeraSesion),
+            sobreCuantasPersonas: diasHastaLaPrimeraSesion.length,
+          },
           embudo: {
             diasPromedioHastaPrimeraPropuesta: prom(diasHastaPrimeraPropuesta),
             diasPromedioRespuestaDelProfesional: prom(diasPropuestaARespuesta),
