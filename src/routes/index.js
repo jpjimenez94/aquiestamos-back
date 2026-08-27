@@ -27,6 +27,7 @@ import {
 } from './communityLeader.routes.js'
 import { taskRoutes, taskConfirmationRoutes } from './tasks.routes.js'
 import { meetingTelemetryRoutes } from './meetingTelemetry.routes.js'
+import { settingsRoutes } from './settings.routes.js'
 
 export const apiRoutes = Router()
 
@@ -83,3 +84,6 @@ apiRoutes.use('/turno-confirmacion', taskConfirmationRoutes)
 
 // --- Telemetría de Salas de Videollamada y Espera ---
 apiRoutes.use('/meetings', meetingTelemetryRoutes)
+
+// --- Parametrización y Configuración del Sistema ---
+apiRoutes.use('/settings', settingsRoutes)

@@ -1262,3 +1262,42 @@ model TaskAssignment {
   @@index([confirmToken])
   @@map("task_assignments")
 }
+
+// ===========================================================================
+// Módulo de Parametrización y Configuración del Sistema
+//
+// Permite a la coordinación y administración editar dinámicamente:
+// 1. Mensajes y plantillas de WhatsApp con variables {nombre}, {enlace}, etc.
+// 2. Plantillas de correos electrónicos.
+// 3. Parámetros operativos (duraciones, SLAs, descansos, enlaces institucionales).
+// ===========================================================================
+
+enum SettingCategory {
+  MENSAJE_WHATSAPP
+  PLANTILLA_CORREO
+  PARAMETRO_GENERAL
+}
+
+model SystemSetting {
+  id             String          @id @default(uuid()) @db.Uuid
+  key            String          @unique @db.VarChar(100)
+  category       SettingCategory
+  name           String          @db.VarChar(200)
+  description    String?         @db.VarChar(500)
+  /// Contenido de la plantilla o valor del parámetro
+  value          String          @db.Text
+  /// Valor de fábrica original para poder restablecer
+  defaultValue   String          @map("default_value") @db.Text
+  /// Lista de variables permitidas en la plantilla (ej. ["nombre", "fecha", "enlace"])
+  variables      String[]        @default([])
+  /// Tipo de dato: TEXTO, NUMERO, BOOLEANO, JSON
+  dataType       String          @default("TEXTO") @map("data_type") @db.VarChar(30)
+  updatedByEmail String?         @map("updated_by_email") @db.VarChar(160)
+
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime        @updatedAt      @map("updated_at") @db.Timestamptz(3)
+
+  @@index([category])
+  @@index([key])
+  @@map("system_settings")
+}
