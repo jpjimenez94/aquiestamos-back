@@ -21,7 +21,16 @@ import { env } from '../config/env.js'
  * enviados por WhatsApp siguen abriendo hasta su vencimiento natural.
  */
 
-export const CODIGO = { tamizaje: 1, consentimiento: 2, encuesta: 3, documentos: 4, feedback: 5 }
+export const CODIGO = {
+  tamizaje: 1,
+  consentimiento: 2,
+  encuesta: 3,
+  documentos: 4,
+  feedback: 5,
+  // La agenda de la persona. Es el único de los seis que apunta a la PERSONA y
+  // no a un trámite concreto, y por eso sobrevive a un cambio de profesional.
+  agenda: 6,
+}
 
 const LARGO_CUERPO = 21
 const LARGO_FIRMA = 16

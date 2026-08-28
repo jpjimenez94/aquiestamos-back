@@ -13,6 +13,7 @@ import { triageRoutes } from './triage.routes.js'
 import { consentimientoRoutes } from './consentimiento.routes.js'
 import { encuestaRoutes } from './encuesta.routes.js'
 import { feedbackRoutes } from './feedback.routes.js'
+import { agendaPersonaRoutes } from './agendaPersona.routes.js'
 import { documentosProfesionalRoutes } from './documentosProfesional.routes.js'
 import { documentoRoutes } from './documento.routes.js'
 import {
@@ -58,6 +59,9 @@ apiRoutes.use('/triage', triageRoutes)
 apiRoutes.use('/consentimiento', consentimientoRoutes)
 apiRoutes.use('/encuesta', encuestaRoutes)
 apiRoutes.use('/experiencia', feedbackRoutes)
+
+// --- La persona agenda sus propias sesiones, desde su enlace ---
+apiRoutes.use('/mi-agenda', agendaPersonaRoutes)
 apiRoutes.use('/documentos-profesional', documentosProfesionalRoutes)
 
 // --- Portal ---
