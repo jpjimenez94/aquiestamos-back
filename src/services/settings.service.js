@@ -641,6 +641,21 @@ export const SettingsService = {
           },
         })
       }
+      /**
+       * Y el caché queda caliente al arrancar.
+       *
+       * Los correos consultan su plantilla justo antes de salir. Con el caché
+       * frío, la primera consulta cuesta unos dos segundos —la conexión de
+       * Prisma se abre ahí— y ese retraso se lo come el primer correo que sale
+       * tras cada despliegue, que suele ser el que le dice a alguien que ya
+       * tiene profesional.
+       *
+       * Aquí ya se ha recorrido cada ajuste, así que llenar el mapa no cuesta
+       * ni una consulta más.
+       */
+      const todos = await prisma.systemSetting.findMany({ select: { key: true, value: true } })
+      for (const s of todos) settingsCache.set(s.key, s.value)
+      lastCacheSync = Date.now()
     } catch (err) {
       console.warn('[SettingsService] No se pudieron sincronizar defaults con BD:', err.message)
     }
@@ -687,10 +702,21 @@ export const SettingsService = {
       return settingsCache.get(key)
     }
 
+    /**
+     * El caché estaba muerto: `lastCacheSync` solo se marcaba al GUARDAR, así
+     * que la comprobación de arriba nunca daba cierta y cada lectura iba a la
+     * base. Con una sola pantalla daba igual; desde que los correos consultan
+     * su plantilla antes de salir, eso es una consulta por correo enviado.
+     *
+     * Marcarlo aquí no hace que un valor sin cachear se dé por bueno: la
+     * condición exige ADEMÁS que la clave esté en el mapa. Lo que cambia es que
+     * la ventana de un minuto por fin empieza a contar.
+     */
     try {
       const item = await prisma.systemSetting.findUnique({ where: { key } })
       if (item) {
         settingsCache.set(key, item.value)
+        lastCacheSync = Date.now()
         return item.value
       }
     } catch {}

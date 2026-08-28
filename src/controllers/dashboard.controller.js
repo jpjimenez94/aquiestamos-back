@@ -22,6 +22,9 @@ export const DashboardController = {
         verificacionesPendientes,
         citasPendientesAgenda,
         tareasAbiertas,
+        personasSinAsignar,
+        sesionesSinReportar,
+        asignadasSinHora,
       ] = await Promise.all([
         prisma.supportRequest.count({ where: { status: 'NUEVO', deletedAt: null } }),
         prisma.volunteer.count({ where: { status: 'NUEVO', deletedAt: null } }),
@@ -46,6 +49,44 @@ export const DashboardController = {
             deletedAt: null,
           },
         }),
+
+        /**
+         * El punto de «Acompañadas» cuenta TAREAS, no personas.
+         *
+         * Las demás secciones marcan lo que está sin revisar —solicitudes
+         * nuevas, postulaciones nuevas— y esa idea no traduce directo aquí: una
+         * persona no se «revisa» una vez, se acompaña durante semanas. Si el
+         * punto contara cuántas hay, marcaría nueve para siempre y en dos días
+         * nadie volvería a mirarlo.
+         *
+         * Cuenta las tres cosas que alguien puede destrabar hoy con un mensaje,
+         * las mismas que la columna «Qué sigue» de la lista: sin profesional,
+         * sesión sin reportar, y asignada sin elegir hora. Cuando no hay nada
+         * pendiente, el punto se apaga — que es lo que lo hace creíble.
+         */
+        prisma.patient.count({
+          where: {
+            deletedAt: null,
+            status: { in: ['NUEVO', 'EN_ADMISION'] },
+            assignments: { none: { status: { in: VIVOS }, deletedAt: null } },
+          },
+        }),
+
+        prisma.appointment.count({
+          where: {
+            startsAt: { lt: ahora },
+            status: { in: ['PROGRAMADA', 'CONFIRMADA'] },
+          },
+        }),
+
+        prisma.caseAssignment.count({
+          where: {
+            status: 'ACEPTADA',
+            deletedAt: null,
+            // Un día de margen: avisar el mismo día que se asigna sería ruido.
+            startedAt: { lt: new Date(ahora.getTime() - 24 * 3600 * 1000) },
+          },
+        }),
       ])
 
       let miAgendaCount = 0
@@ -68,6 +109,7 @@ export const DashboardController = {
           agenda: citasPendientesAgenda,
           miAgenda: miAgendaCount,
           tareas: tareasAbiertas,
+          personas: personasSinAsignar + sesionesSinReportar + asignadasSinHora,
         }),
       )
     } catch (error) {

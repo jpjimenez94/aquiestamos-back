@@ -32,7 +32,7 @@ export const ETIQUETAS_ESTADO_PACIENTE = {
   NUEVO: 'Nuevo',
   EN_ADMISION: 'En admision',
   ASIGNADO: 'Asignado',
-  EN_ACOMPANAMIENTO: 'En acompanamiento',
+  EN_ACOMPANAMIENTO: 'En acompañamiento',
   CERRADO: 'Cerrado',
 }
 
@@ -59,7 +59,7 @@ export const ETIQUETAS_RESULTADO = {
   YA_ATENDIDA: 'Ya la acompane',
   NO_CONTESTA: 'No contesta',
   DATOS_ERRADOS: 'Los datos no corresponden',
-  NO_QUIERE: 'No quiere el acompanamiento',
+  NO_QUIERE: 'No quiere el acompañamiento',
   SIGO_INTENTANDO: 'Sigo intentando',
   NO_ASISTIO: 'Teníamos sesión y no se presentó',
   OTRO: 'Otra cosa',
