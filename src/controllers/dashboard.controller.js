@@ -113,6 +113,55 @@ export const DashboardController = {
         prisma.appointment.groupBy({ by: ['status'], _count: { _all: true } }),
       ])
 
+      /**
+       * Lo que puede pararse hoy sin que nadie lo note.
+       *
+       * El tablero contaba lo que entra —solicitudes, personas sin asignar— y
+       * lo que hay —profesionales, citas—, pero no lo que se está atascando. Y
+       * desde que asignar dejó de ser pedir permiso, el atasco se movió de
+       * sitio: ya no muere en el «sí» del profesional, muere en el silencio de
+       * después.
+       *
+       * Los tres se resuelven hoy con un mensaje. Si nadie mira, se resuelven
+       * solos de la peor manera: el caso se libera, la sesión ocurre sin
+       * consentimiento, o nadie se entera de que la persona no apareció.
+       */
+      const [asignadasSinHora, citasHoySinConsentimiento, sesionesSinReporte] = await Promise.all([
+        // Asignadas, con el profesional avisado, y ella todavía sin elegir
+        // hora. A los 3 días el barrido las libera: esta es la ventana para
+        // escribirle antes de que eso pase.
+        prisma.caseAssignment.findMany({
+          where: { status: 'ACEPTADA', deletedAt: null },
+          select: { respondedAt: true, startedAt: true },
+          orderBy: { startedAt: 'asc' },
+        }),
+
+        // Sesiones de hoy que empiezan sin el consentimiento firmado. Es
+        // requisito para empezar y solo se puede resolver antes de la hora.
+        prisma.appointment.count({
+          where: {
+            startsAt: { gte: ahora, lt: finDeHoy },
+            status: { in: ['PROGRAMADA', 'CONFIRMADA'] },
+            consentSigned: false,
+          },
+        }),
+
+        // Sesiones que ya pasaron y nadie contó qué pasó. Es el único canal por
+        // el que se sabe si la persona apareció.
+        prisma.appointment.count({
+          where: {
+            startsAt: { lt: ahora },
+            status: { in: ['PROGRAMADA', 'CONFIRMADA'] },
+          },
+        }),
+      ])
+
+      const TRES_DIAS = 3 * 86400000
+      const esperaDe = (a) => Date.now() - new Date(a.respondedAt ?? a.startedAt).getTime()
+      const masEsperaSinHora = asignadasSinHora.length
+        ? Math.max(...asignadasSinHora.map(esperaDe))
+        : 0
+
       // Cuanto lleva esperando la persona que mas ha esperado sin asignar.
       const masAntigua = await prisma.patient.findFirst({
         where: {
@@ -144,6 +193,16 @@ export const DashboardController = {
             citasProximas24h: citasHoy,
             citasProximos7dias: citasSemana,
             porEstado: Object.fromEntries(porEstado.map((f) => [f.status, f._count._all])),
+          },
+          atascos: {
+            sinElegirHora: asignadasSinHora.length,
+            sinElegirHoraDiasMax: Math.floor(masEsperaSinHora / 86400000),
+            // Cuántas están a menos de un día de que el barrido las libere.
+            sinElegirHoraPorVencer: asignadasSinHora.filter(
+              (a) => esperaDe(a) > TRES_DIAS - 86400000,
+            ).length,
+            citasHoySinConsentimiento,
+            sesionesSinReporte,
           },
         }),
       )
@@ -556,6 +615,86 @@ export const DashboardController = {
       const tasaAsistencia =
         realizadas + noAsistio > 0 ? Math.round((realizadas / (realizadas + noAsistio)) * 100) : null
 
+      /* ---------- telemetría de las sesiones virtuales ----------
+       *
+       * Esto no lo calculaba nadie. La pantalla pedía `telemetriaVirtual`, el
+       * backend nunca lo mandaba, y el panel entero —«Métricas técnicas en
+       * tiempo real»— pintaba ceros y guiones desde el primer día sin que
+       * saltara ningún error: la pantalla estaba escrita para tolerar que
+       * faltara, y toleró que no llegara nunca.
+       *
+       * Es de lo que no se descubre mirando: unos ceros en una pantalla de
+       * métricas se leen como «todavía no hay datos», no como «esto no está
+       * conectado».
+       *
+       * Solo cuentan las sesiones virtuales que YA PASARON. Una cita de la
+       * semana que viene sin nadie conectado no es una ausencia, es una cita
+       * que aún no ocurrió, y meterla hundiría todas las tasas.
+       */
+      const virtuales = await prisma.appointment.findMany({
+        where: {
+          // Las citas no tienen borrado lógico; cancelar es su forma de irse.
+          modality: 'VIRTUAL',
+          status: { notIn: ['CANCELADA'] },
+          /**
+           * Ya pasó su hora, O alguien entró de verdad a la sala.
+           *
+           * Con solo lo primero, una sesión que ocurre antes de su hora
+           * agendada —se adelantaron, se reagendó de palabra, se está probando
+           * el enlace— no contaba: podían haber hablado cuarenta minutos y el
+           * informe seguía diciendo cero sesiones virtuales.
+           *
+           * La telemetría es la prueba de que ocurrió. Si alguien abrió la
+           * sala, hubo sesión, diga lo que diga el calendario.
+           *
+           * Y al revés sigue valiendo: una cita futura donde nadie entró no es
+           * una ausencia, es una cita que aún no llega, y contarla hundiría
+           * todas las tasas del informe.
+           */
+          OR: [
+            { startsAt: { lte: new Date() } },
+            { patientFirstJoinedAt: { not: null } },
+            { professionalFirstJoinedAt: { not: null } },
+          ],
+        },
+        select: {
+          patientFirstJoinedAt: true,
+          professionalFirstJoinedAt: true,
+          totalCallDurationSeconds: true,
+        },
+      })
+
+      const conPaciente = virtuales.filter((c) => c.patientFirstJoinedAt != null)
+      const conProfesional = virtuales.filter((c) => c.professionalFirstJoinedAt != null)
+      const conAmbos = virtuales.filter(
+        (c) => c.patientFirstJoinedAt != null && c.professionalFirstJoinedAt != null,
+      )
+      const conAlguien = virtuales.filter(
+        (c) => c.patientFirstJoinedAt != null || c.professionalFirstJoinedAt != null,
+      )
+
+      // El promedio se saca solo sobre las que midieron algo: incluir ceros de
+      // sesiones donde la telemetría no llegó haría parecer cortas las que sí.
+      const conDuracion = virtuales
+        .map((c) => c.totalCallDurationSeconds ?? 0)
+        .filter((seg) => seg > 0)
+
+      const tasa = (cuantas) =>
+        virtuales.length > 0 ? Math.round((cuantas / virtuales.length) * 100) : null
+
+      const telemetriaVirtual = {
+        totalSesionesVirtuales: virtuales.length,
+        sesionesConIngreso: conAlguien.length,
+        sesionesCompletasConAmbos: conAmbos.length,
+        tasaConexionAmbos: tasa(conAmbos.length),
+        tasaIngresoPaciente: tasa(conPaciente.length),
+        tasaIngresoProfesional: tasa(conProfesional.length),
+        duracionPromedioMinutos:
+          conDuracion.length > 0
+            ? Math.round(conDuracion.reduce((a, b) => a + b, 0) / conDuracion.length / 60)
+            : null,
+      }
+
       // ---------- encuesta del cierre ----------
       const encuestas = await prisma.closureSurvey.findMany({
         select: { helped: true, wouldRecommend: true },
@@ -738,6 +877,7 @@ export const DashboardController = {
             .slice(0, 10)
             .map(([nombre, casos]) => ({ nombre, casos })),
           citas: { porEstado: citas, tasaAsistencia },
+          telemetriaVirtual,
           encuesta,
         }),
       )
