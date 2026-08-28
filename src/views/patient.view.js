@@ -64,6 +64,15 @@ export function pacienteParaAgendador(p) {
           estado: ultimaAsignacion.status,
           notaDisponibilidad: ultimaAsignacion.availabilityNote ?? null,
           motivoCierre: ultimaAsignacion.closeReason ?? null,
+          /**
+           * Si el profesional ya contó qué pasó con alguna sesión.
+           *
+           * Va el booleano, no los reportes: la lista solo necesita saber si
+           * hay que preguntarle, y el contenido de un reporte es lo que se
+           * habló en una sesión. Meterlo en una tabla que ve todo el equipo
+           * sería guardar historia clínica por la puerta de atrás.
+           */
+          hayReporte: (ultimaAsignacion._count?.reports ?? 0) > 0,
           profesional: {
             id: ultimaAsignacion.professional?.id,
             nombre: ultimaAsignacion.professional?.fullName,

@@ -49,7 +49,19 @@ export const PatientModel = {
         assignments: {
           where: { deletedAt: null },
           orderBy: { createdAt: 'desc' },
-          include: { professional: true },
+          include: {
+            professional: true,
+            /**
+             * Solo CUÁNTOS reportes hay, no los reportes.
+             *
+             * La lista necesita saber si el profesional ya contó qué pasó con
+             * la última sesión, para decidir si hay que preguntarle. Traer el
+             * contenido sería traer lo que se habló en una sesión a una tabla
+             * que ve todo el equipo — y la red no guarda historia clínica
+             * justamente para no tener que cuidar eso.
+             */
+            _count: { select: { reports: true } },
+          },
         },
         appointments: {
           orderBy: { startsAt: 'desc' },
