@@ -478,6 +478,8 @@ export const DashboardController = {
           closeReason: true,
           professional: { select: { fullName: true } },
           patient: { select: { createdAt: true } },
+          // Para saber cuánto tarda la persona en elegir hora tras la asignación.
+          appointments: { select: { createdAt: true } },
         },
       })
 
@@ -488,7 +490,19 @@ export const DashboardController = {
       const motivosDeCierre = {}
       const porProfesional = {}
       const diasHastaPrimeraPropuesta = []
-      const diasPropuestaARespuesta = []
+      /**
+       * El cuello de botella se movió, y la métrica con él.
+       *
+       * Se medía cuánto tardaba el profesional en responder a la propuesta.
+       * Desde que se asigna y se avisa, ya no responde nada: la asignación nace
+       * respondida y ese número vale cero siempre. Una métrica clavada en cero
+       * no dice que el proceso sea instantáneo, dice que dejó de mirar.
+       *
+       * Lo que ahora puede quedarse parado es lo siguiente: que la persona
+       * entre a su enlace y elija hora. De ahí a que se le suelte el
+       * acompañamiento hay 3 días, y esto es lo que avisa antes de que pase.
+       */
+      const diasHastaElegirHora = []
 
       const primeraPropuestaDe = {}
       for (const a of asignaciones) {
@@ -516,9 +530,12 @@ export const DashboardController = {
           porProfesional[nombre] = (porProfesional[nombre] ?? 0) + 1
         }
 
-        if (a.respondedAt) {
-          diasPropuestaARespuesta.push((a.respondedAt - a.startedAt) / DIA)
-        }
+        // Desde que se le asigna hasta que hay cita. La primera cita de esa
+        // asignación es la que cuenta: las siguientes ya son seguimiento.
+        const primeraCita = (a.appointments ?? [])
+          .map((c) => new Date(c.createdAt).getTime())
+          .sort((x, y) => x - y)[0]
+        if (primeraCita) diasHastaElegirHora.push((primeraCita - a.startedAt) / DIA)
       }
 
       const personaPorId = new Map(personas.map((p) => [p.id, p]))
@@ -593,11 +610,6 @@ export const DashboardController = {
       const personaDe = (s) => personaDeLaSolicitud.get(s.id)
 
       const conPropuesta = admitidas.filter((s) => personaDe(s).assignments.length > 0)
-      const conAceptacion = admitidas.filter((s) =>
-        personaDe(s).assignments.some(
-          (a) => a.respondedAt || ['ACEPTADA', 'ACTIVA', 'CERRADA'].includes(a.status),
-        ),
-      )
       const conCita = admitidas.filter((s) => personaDe(s).appointments.length > 0)
       const conSesion = admitidas.filter((s) =>
         personaDe(s).appointments.some((c) => c.status === 'REALIZADA'),
@@ -638,12 +650,24 @@ export const DashboardController = {
        * respuestas y la caída salía en negativo. El tamizaje se mide aparte,
        * que es donde su número quiere decir algo.
        */
+      /**
+       * «Un profesional aceptó» ya no es una etapa.
+       *
+       * Lo era cuando asignar significaba pedir permiso y esperar. Desde que se
+       * asigna y se avisa, esa etapa vale siempre lo mismo que la anterior: un
+       * escalón que nunca baja, que ocupa sitio y que le dice a quien mira el
+       * informe que ahí no hay nada que arreglar.
+       *
+       * Un embudo con un peldaño que siempre marca 100 % no informa: tranquiliza.
+       * Los que declinan se cuentan aparte, en «Propuestas a profesionales»,
+       * donde un rechazo se lee como lo que es —el profesional no podía— y no
+       * como una fuga del sistema.
+       */
       const pasos = [
         ['Pidieron ayuda', solicitudes.length],
         ['Fueron admitidas', admitidas.length],
-        ['Recibieron una propuesta', conPropuesta.length],
-        ['Un profesional aceptó', conAceptacion.length],
-        ['Quedó cita agendada', conCita.length],
+        ['Se les asignó profesional', conPropuesta.length],
+        ['Eligieron hora', conCita.length],
         ['Tuvieron su sesión', conSesion.length],
       ]
 
@@ -684,7 +708,7 @@ export const DashboardController = {
           },
           embudo: {
             diasPromedioHastaPrimeraPropuesta: prom(diasHastaPrimeraPropuesta),
-            diasPromedioRespuestaDelProfesional: prom(diasPropuestaARespuesta),
+            diasPromedioHastaElegirHora: prom(diasHastaElegirHora),
           },
           asignaciones: {
             total: asignaciones.length,
@@ -692,8 +716,21 @@ export const DashboardController = {
             rechazadas,
             vencidasSinRespuesta,
             canceladasOtras,
-            tasaAceptacion:
-              asignaciones.length > 0 ? Math.round((aceptadas / asignaciones.length) * 100) : null,
+            /**
+             * Cuántas declinó el profesional, no cuántas aceptó.
+             *
+             * La tasa de aceptación tenía sentido cuando aceptar era un acto:
+             * ahora toda asignación nace aceptada y ese porcentaje sería 100 %
+             * para siempre, en la pantalla que existe justamente para enseñar
+             * lo que va mal.
+             *
+             * Se le da la vuelta. Que suba esta cifra es la señal de que a los
+             * profesionales se les está asignando lo que no pueden tomar —por
+             * ciudad, por carga o por perfil— y que hay que mirar el criterio,
+             * no insistirles.
+             */
+            tasaDeclinada:
+              asignaciones.length > 0 ? Math.round((rechazadas / asignaciones.length) * 100) : null,
           },
           motivosDeCierre,
           casosPorProfesional: Object.entries(porProfesional)

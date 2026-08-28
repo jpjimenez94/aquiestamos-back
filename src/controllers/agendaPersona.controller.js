@@ -5,7 +5,7 @@ import { PatientModel } from '../models/patient.model.js'
 import { AppointmentModel } from '../models/appointment.model.js'
 import { huecosDisponibles, DURACION_MINIMA } from '../services/scheduling.service.js'
 import { crearCita, confirmarHorario } from '../services/appointment.service.js'
-import { formatearLocal } from '../services/timezone.service.js'
+import { enPalabras } from '../services/timezone.service.js'
 import { citaAgendada } from '../notifications/eventos.js'
 import { registrar, ACCION } from '../services/audit.service.js'
 import { ok, created, failure } from '../views/response.view.js'
@@ -138,12 +138,12 @@ export const AgendaPersonaController = {
           modalidad: paciente.preferredModality ?? null,
           estado: asignacion.status,
           proxima: proxima
-            ? { inicio: proxima.startsAt, cuando: formatearLocal(proxima.startsAt) }
+            ? { inicio: proxima.startsAt, cuando: enPalabras(proxima.startsAt) }
             : null,
           huecos: libresParaElla.slice(0, 60).map((h) => ({
             inicio: h.inicio,
             fin: h.fin,
-            cuando: formatearLocal(h.inicio),
+            cuando: enPalabras(h.inicio),
           })),
         }),
       )
@@ -234,7 +234,7 @@ export const AgendaPersonaController = {
       await citaAgendada({
         cita,
         profesional: asignacion.professional,
-        cuando: formatearLocal(cita.startsAt),
+        cuando: enPalabras(cita.startsAt),
       })
 
       // Quien agendó fue la persona, no la coordinación. El rastro tiene que
@@ -253,7 +253,7 @@ export const AgendaPersonaController = {
         created(
           {
             inicio: cita.startsAt,
-            cuando: formatearLocal(cita.startsAt),
+            cuando: enPalabras(cita.startsAt),
             profesional: asignacion.professional.fullName,
           },
           'Listo, tu sesión quedó agendada.',

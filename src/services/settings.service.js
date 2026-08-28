@@ -31,46 +31,51 @@ Si en este momento estás en peligro o sientes que puedes hacerte daño, no espe
   {
     key: 'WHATSAPP_PROPUESTA_PROFESIONAL',
     category: 'MENSAJE_WHATSAPP',
-    name: 'Paso 2 · Propuesta de Caso al Profesional',
-    description: 'Enviado al psicólogo cuando el agendador le propone un nuevo caso según su disponibilidad.',
+    name: 'Paso 2 · Aviso de caso asignado al Profesional',
+    description:
+      'Enviado al psicólogo cuando se le asigna un acompañamiento. Ya no se le pide permiso y se espera: se le avisa, y si no puede lo dice desde su enlace y el caso pasa a otra persona el mismo día.',
     dataType: 'TEXTO',
-    variables: ['profesional', 'ciudad', 'modalidad', 'horarios', 'urgencia', 'enlace'],
+    variables: ['profesional', 'ciudad', 'modalidad', 'urgencia', 'enlace'],
     defaultValue: `Hola {profesional}, te escribimos de Red Aquí Estamos.
 
-Queremos proponerte un acompañamiento. Cuéntanos si puedes tomarlo:
+Te asignamos un acompañamiento:
 
 · La persona está en {ciudad}.
 · Prefiere que sea {modalidad}.
-· Puede {horarios}.
 
 {urgencia}
 
-Entra aquí con el correo con el que te registraste y dinos si puedes. Si aceptas, ahí mismo nos dejas los días y las horas en las que podrías:
+Ella va a elegir la hora directamente de tu agenda, entre los espacios que ya tienes marcados como libres. Cuando lo haga te llega la confirmación con el día, la hora y el enlace de la videollamada.
+
+Aquí ves el caso, entrando con el correo con el que te registraste:
 {enlace}
 
-Con eso cuadramos el horario con ella y te confirmamos. Sus datos de contacto aparecen cuando aceptas, no antes.
+Si en este momento no puedes tomarlo, dilo ahí mismo y se lo pasamos a otra persona hoy. No pasa nada: es voluntario, y decirlo pronto ayuda más que un sí que no llega.
 
-Si no puedes, dínoslo en esa misma pantalla y se lo proponemos a otra persona. No pasa nada: es voluntario.
-
-Es un acompañamiento confidencial. Te pedimos manejarlo con responsabilidad ética y profesional, y no compartir los datos de la persona con nadie más.
+Sus datos de contacto aparecen en esa pantalla. Es un acompañamiento confidencial: te pedimos manejarlo con responsabilidad ética y profesional, y no compartir los datos de la persona con nadie más.
 
 Gracias por tu tiempo.`,
   },
   {
     key: 'WHATSAPP_CUADRAR_HORARIO_PERSONA',
     category: 'MENSAJE_WHATSAPP',
-    name: 'Paso 2b · Proponer Horarios a la Persona Acompañada',
-    description: 'Enviado a la persona cuando el profesional ya aceptó y dejó sus franjas disponibles para coordinar la cita.',
+    name: 'Paso 2b · Enlace de agenda a la Persona Acompañada',
+    description:
+      'Enviado a la persona en cuanto tiene profesional. Con el enlace elige ella misma la hora, entre las que él tiene libres. El enlace le sirve para todas sus sesiones y sigue funcionando si más adelante la acompaña otra persona.',
     dataType: 'TEXTO',
-    variables: ['nombre', 'profesional', 'horarios'],
+    variables: ['nombre', 'profesional', 'enlaceAgenda', 'nota'],
     defaultValue: `Hola {nombre}, te escribimos de la Red Aquí Estamos.
 
 Ya tenemos quién te acompañe: {profesional}, profesional de la red.
 
-Estos son los horarios en los que puede atenderte:
-{horarios}
+*Aquí puedes elegir tú misma la hora que te sirva*, entre las que tiene libres:
+{enlaceAgenda}
 
-*¿Cuál de esos te sirve?* Respóndenos por aquí y lo dejamos agendado. Si ninguno te queda bien, dinos tú cuándo puedes y lo miramos.`,
+Guarda ese enlace: te sirve para esta sesión y para las siguientes.
+
+{nota}
+
+Si prefieres, dinos por aquí cuándo puedes y lo cuadramos nosotros. Como te quede más cómodo.`,
   },
   {
     key: 'WHATSAPP_CONFIRMAR_CITA_PERSONA',
@@ -548,6 +553,30 @@ export const SettingsService = {
   async ensureDefaults() {
     try {
       for (const def of DEFAULT_SETTINGS) {
+        const actual = await prisma.systemSetting.findUnique({ where: { key: def.key } })
+
+        /**
+         * Si nadie lo tocó, el texto nuevo también entra.
+         *
+         * Antes esto sincronizaba el nombre, la descripción, las variables y el
+         * valor de fábrica —todo menos `value`, que es lo único que se envía—.
+         * Así que corregir una plantilla en el código no cambiaba ni un mensaje:
+         * el texto viejo se quedaba en la base para siempre, y solo salía si a
+         * alguien se le ocurría entrar a Parametrización y pulsar «restablecer».
+         *
+         * Se vio con el mensaje del enlace de agenda. El código decía una cosa,
+         * la persona recibía otra: «Estos son los horarios en los que puede
+         * atenderte:» seguido de nada, porque la variable que llenaba esa lista
+         * ya no existía. La plantilla estaba bien conectada; lo que estaba viejo
+         * era el texto guardado.
+         *
+         * Solo se pisa si `value` sigue siendo idéntico al valor de fábrica, que
+         * es la marca de que nadie lo editó. Lo que la coordinación escribió con
+         * sus palabras no se toca nunca: es suyo, y que un despliegue se lo
+         * borre sería peor que el problema que esto arregla.
+         */
+        const sinTocar = actual != null && actual.value === actual.defaultValue
+
         await prisma.systemSetting.upsert({
           where: { key: def.key },
           update: {
@@ -556,6 +585,7 @@ export const SettingsService = {
             variables: def.variables,
             defaultValue: def.defaultValue,
             dataType: def.dataType,
+            ...(sinTocar ? { value: def.defaultValue } : {}),
           },
           create: {
             key: def.key,

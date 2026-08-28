@@ -1,3 +1,4 @@
+import { enPalabras } from '../services/timezone.service.js'
 import { envolver, envolverTexto, urlDelSitio } from './envoltura.js'
 import {
   ETIQUETAS_PRIORIDAD,
@@ -20,22 +21,6 @@ import {
  * identifica. Hay una prueba que falla si alguien mete un teléfono.
  */
 
-/** Fecha ISO → «lunes, 25 de agosto, 7:30 p. m.» en hora de Bogotá. */
-function cuandoLegible(iso) {
-  try {
-    return new Intl.DateTimeFormat('es-CO', {
-      timeZone: 'America/Bogota',
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    }).format(new Date(iso))
-  } catch {
-    return String(iso)
-  }
-}
 
 function armar(asunto, contenido) {
   return {
@@ -239,20 +224,20 @@ export const PLANTILLAS = {
 
   /** Fecha ISO → «lunes 25 de agosto, 7:30 p. m.» en hora de Bogotá. */
   RECORDATORIO_CITA_PROFESIONAL: (p) =>
-    armar(`Recordatorio: tienes sesión ${cuandoLegible(p.cuando)}`, {
+    armar(`Recordatorio: tienes sesión ${enPalabras(p.cuando)}`, {
       titulo: `Hola ${p.nombre}, tu sesión se acerca`,
       parrafos: [
-        `Te recordamos que tienes una sesión de acompañamiento <strong>${cuandoLegible(p.cuando)}</strong> (${String(p.modalidad ?? '').toLowerCase()}).`,
+        `Te recordamos que tienes una sesión de acompañamiento <strong>${enPalabras(p.cuando)}</strong> (${String(p.modalidad ?? '').toLowerCase()}).`,
         'Los datos de contacto de la persona están en tu enlace del caso, como siempre.',
       ],
       boton: { texto: 'Abrir mi caso', url: urlDelSitio(p.ruta) },
     }),
 
   RECORDATORIO_CITA_PERSONA: (p) =>
-    armar(`Recordatorio: tu acompañamiento es ${cuandoLegible(p.cuando)}`, {
+    armar(`Recordatorio: tu acompañamiento es ${enPalabras(p.cuando)}`, {
       titulo: `Hola ${p.nombre}, tu espacio se acerca`,
       parrafos: [
-        `Te recordamos tu sesión de acompañamiento con <strong>${p.profesional}</strong>: <strong>${cuandoLegible(p.cuando)}</strong> (${String(p.modalidad ?? '').toLowerCase()}).`,
+        `Te recordamos tu sesión de acompañamiento con <strong>${p.profesional}</strong>: <strong>${enPalabras(p.cuando)}</strong> (${String(p.modalidad ?? '').toLowerCase()}).`,
         `${p.profesional} se pondrá en contacto contigo para ese momento. No tienes que hacer nada más.`,
         'Si te surge algo y no puedes, respóndenos por WhatsApp con tiempo y lo movemos. No pasa nada.',
         'Si en este momento estás en peligro o sientes que puedes hacerte daño, no esperes: llama al 123 (emergencias) o al 106 (salud mental). Son gratuitas y atienden a toda hora.',
@@ -264,7 +249,7 @@ export const PLANTILLAS = {
     armar('¿Cómo te fue? Cuéntanos desde tu enlace', {
       titulo: `Hola ${p.nombre}, pasó la hora de tu sesión`,
       parrafos: [
-        `Tu sesión estaba agendada para ${cuandoLegible(p.cuando)}. Entra a tu enlace del caso y cuéntanos tres cosas: si se pudo hacer, cómo te fue, y si crees que la persona necesita más sesiones o con esta fue suficiente.`,
+        `Tu sesión estaba agendada para ${enPalabras(p.cuando)}. Entra a tu enlace del caso y cuéntanos tres cosas: si se pudo hacer, cómo te fue, y si crees que la persona necesita más sesiones o con esta fue suficiente.`,
         'Con eso cerramos esta cita y cuadramos la siguiente si hace falta, sin tener que escribirte a preguntar.',
       ],
       boton: { texto: 'Contar cómo me fue', url: urlDelSitio(p.ruta) },
