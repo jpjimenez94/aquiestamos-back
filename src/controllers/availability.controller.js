@@ -73,6 +73,17 @@ export const AvailabilityController = {
       await AvailabilityModel.reemplazarReglas(req.params.id, req.validated.franjas)
       const nuevas = await AvailabilityModel.reglasDe(req.params.id)
 
+      /**
+       * Tocar la agenda ES confirmarla.
+       *
+       * El barrido mensual pregunta a quien lleve demasiado sin confirmar; si
+       * guardar sus horarios no contara como respuesta, se le seguiría
+       * preguntando cada mes a alguien que acaba de actualizarlos. Un
+       * recordatorio que llega después de haber hecho lo que pedía es la forma
+       * más rápida de que alguien deje de leer los correos de la red.
+       */
+      await ProfessionalModel.update(req.params.id, { availabilityConfirmedAt: new Date() })
+
       await registrar({
         req,
         action: ACCION.EDITAR,

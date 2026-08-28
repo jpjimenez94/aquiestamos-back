@@ -8,6 +8,10 @@ import {
   detenerBarridoAsignaciones,
 } from './asignacion/barrido.js'
 import { arrancarBarridoCitas, detenerBarridoCitas } from './citas/barrido.js'
+import {
+  arrancarBarridoDisponibilidad,
+  detenerBarridoDisponibilidad,
+} from './disponibilidad/barrido.js'
 import { vigilarProceso } from './monitoreo/errores.js'
 import { hayAlmacenamientoConfigurado } from './almacenamiento/documentos.js'
 import { esBaseLocal, describirBaseParaHumanos } from './config/baseSegura.js'
@@ -55,6 +59,11 @@ const server = app.listen(env.port, () => {
   // prioridad ALTA que se está quedando en la cola.
   arrancarBarridoCitas()
 
+  // Preguntarle cada mes al profesional si su agenda sigue al día. Es lo que
+  // sostiene que se le asigne sin consultarle: la persona elige su hora de esa
+  // agenda, y una vieja la manda a una hora en la que él ya no está.
+  arrancarBarridoDisponibilidad()
+
   // Sin Supabase configurado, TODO lo de documentos falla: la subida por
   // enlace, los consentimientos escaneados y las tarjetas. Pasó en
   // producción y el primero en enterarse fue un profesional con su cédula
@@ -73,6 +82,7 @@ async function shutdown(signal) {
   detenerBarrido()
   detenerBarridoAsignaciones()
   detenerBarridoCitas()
+  detenerBarridoDisponibilidad()
   server.close(async () => {
     await disconnectDatabase()
     process.exit(0)

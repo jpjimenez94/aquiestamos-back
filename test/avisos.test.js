@@ -109,6 +109,12 @@ const CASOS = {
     motivoRechazo: null,
     ruta: '/portal/tareas/abc',
   },
+  CONFIRMAR_DISPONIBILIDAD: {
+    nombre: 'Sofía',
+    agenda: 'lunes de 8:00 a. m. a 12:00 p. m., miércoles de 2:00 p. m. a 6:00 p. m.',
+    desdeCuando: 'lunes, 3 de marzo, 9:00 a. m.',
+    ruta: '/portal/profesionales/abc',
+  },
 }
 
 describe('plantillas de avisos', () => {

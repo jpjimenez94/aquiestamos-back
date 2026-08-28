@@ -337,12 +337,14 @@ Nos comunicamos contigo reconociendo tu valioso liderazgo en *{territorio}* y qu
     dataType: 'JSON',
     variables: ['nombre'],
     defaultValue: JSON.stringify({
-      asunto: 'Recibimos tu postulación · Red Aquí Estamos',
-      titulo: 'Gracias por sumarte, {nombre}',
-      parrafos: [
-        'Recibimos tu postulación a la red de acompañamiento. Vamos a revisarla y te escribimos en cuanto tengamos una respuesta.',
-        'Mientras tanto no tienes que hacer nada. Si necesitas corregir algo de lo que enviaste, respóndenos por WhatsApp y lo ajustamos.',
-      ],
+          "asunto": "Recibimos tu postulación",
+          "titulo": "Gracias por sumarte, {nombre}",
+          "parrafos": [
+                "Recibimos tu postulación a la red de acompañamiento. Vamos a revisarla y te escribimos en cuanto tengamos una respuesta.",
+                "Mientras tanto no tienes que hacer nada. Si necesitas corregir algo de lo que enviaste, respóndenos por WhatsApp y lo ajustamos."
+          ],
+          "datos": [],
+          "botonTexto": null
     }),
   },
   {
@@ -353,13 +355,15 @@ Nos comunicamos contigo reconociendo tu valioso liderazgo en *{territorio}* y qu
     dataType: 'JSON',
     variables: ['nombre'],
     defaultValue: JSON.stringify({
-      asunto: 'Tu postulación fue aprobada · Red Aquí Estamos',
-      titulo: 'Bienvenido(a) a la red, {nombre}',
-      parrafos: [
-        'Tu postulación quedó aprobada. Ya haces parte de la red de acompañamiento.',
-        'Cuando te asignemos un acompañamiento te vamos a escribir por WhatsApp con un enlace seguro. Ahí verás los datos de la persona —entrando con este mismo correo— y desde ahí mismo nos cuentas cómo te fue.',
-        'No tienes que crear ninguna contraseña: el enlace y tu correo son suficientes.',
-      ],
+          "asunto": "Tu postulación fue aprobada",
+          "titulo": "Bienvenido a la red, {nombre}",
+          "parrafos": [
+                "Tu postulación quedó aprobada. Ya haces parte de la red de acompañamiento.",
+                "Cuando te asignemos un acompañamiento te vamos a escribir por WhatsApp con un enlace. Ahí verás los datos de la persona —entrando con este mismo correo— y desde ahí mismo nos cuentas cómo te fue.",
+                "No tienes que crear ninguna contraseña: el enlace y tu correo son suficientes."
+          ],
+          "datos": [],
+          "botonTexto": null
     }),
   },
   {
@@ -370,13 +374,14 @@ Nos comunicamos contigo reconociendo tu valioso liderazgo en *{territorio}* y qu
     dataType: 'JSON',
     variables: ['nombre', 'ruta'],
     defaultValue: JSON.stringify({
-      asunto: 'Carga de documentos para tu perfil · Red Aquí Estamos',
-      titulo: 'Hola {nombre}, completa tu perfil',
-      parrafos: [
-        'Para completar la activación de tu perfil y poder asignarte acompañamientos psicológicos en la red, necesitamos que cargues tu tarjeta profesional (o certificado de estudios si estás en formación) y tu documento de identidad.',
-        'Puedes cargarlos en cualquier momento desde tu teléfono o computador ingresando al enlace personal y seguro a continuación.',
-      ],
-      botonTexto: 'Cargar mis documentos',
+          "asunto": "Carga de documentos para tu perfil · Red Aquí Estamos",
+          "titulo": "Hola {nombre}, completa tu perfil",
+          "parrafos": [
+                "Para completar la activación de tu perfil y poder asignarte acompañamientos psicológicos en la red, necesitamos que cargues tu tarjeta profesional (o certificado de estudios si estás en formación) y tu documento de identidad.",
+                "Puedes cargarlos en cualquier momento desde tu teléfono o computador ingresando al enlace personal y seguro a continuación. Los documentos se almacenan de manera protegida en nuestro almacenamiento privado."
+          ],
+          "datos": [],
+          "botonTexto": "Cargar mis documentos"
     }),
   },
   {
@@ -387,13 +392,17 @@ Nos comunicamos contigo reconociendo tu valioso liderazgo en *{territorio}* y qu
     dataType: 'JSON',
     variables: ['nombre', 'cuando', 'modalidad', 'ruta'],
     defaultValue: JSON.stringify({
-      asunto: 'Tienes una cita agendada · Red Aquí Estamos',
-      titulo: 'Nueva cita de acompañamiento',
-      parrafos: [
-        'Hola {nombre}, te agendamos un acompañamiento.',
-        'Los datos de contacto de la persona están en el enlace de abajo. Entras con este mismo correo.',
-      ],
-      botonTexto: 'Ver el caso en el portal',
+          "asunto": "Te agendamos una cita",
+          "titulo": "Tienes una cita agendada",
+          "parrafos": [
+                "Hola {nombre}, te agendamos un acompañamiento.",
+                "Los datos de contacto de la persona están en el enlace de abajo. Entras con este mismo correo."
+          ],
+          "datos": [
+                "<strong>Cuándo:</strong> {cuando}",
+                "<strong>Modalidad:</strong> {modalidad}"
+          ],
+          "botonTexto": "Ver el caso"
     }),
   },
   {
@@ -402,14 +411,19 @@ Nos comunicamos contigo reconociendo tu valioso liderazgo en *{territorio}* y qu
     name: 'Correo · Reporte Post-Sesión a Coordinación',
     description: 'Aviso al equipo de coordinación cuando un profesional envía su reporte de cierre de sesión.',
     dataType: 'JSON',
-    variables: ['profesional', 'resultado', 'queSigue', 'dificultades', 'ruta'],
+    variables: ['resultado', 'profesional', 'queSigue', 'dificultades', 'ruta'],
     defaultValue: JSON.stringify({
-      asunto: 'Reporte de caso recibido · {profesional}',
-      titulo: 'El profesional respondió',
-      parrafos: [
-        '<strong>{profesional}</strong> nos contó qué pasó con un caso asignado.',
-      ],
-      botonTexto: 'Ver el caso en el portal',
+          "asunto": "Respuesta sobre un caso: {resultado}",
+          "titulo": "El profesional respondió",
+          "parrafos": [
+                "<strong>{profesional}</strong> nos contó qué pasó con un caso que tú asignaste."
+          ],
+          "datos": [
+                "<strong>Respondió:</strong> {resultado}",
+                "<strong>Qué sigue:</strong> {queSigue}",
+                "<strong>Dificultades:</strong> {dificultades}"
+          ],
+          "botonTexto": "Ver el caso en el portal"
     }),
   },
   {
@@ -418,17 +432,20 @@ Nos comunicamos contigo reconociendo tu valioso liderazgo en *{territorio}* y qu
     name: 'Correo · Invitación a Tarea de Apoyo a Voluntario',
     description: 'Invitación a un voluntario de apoyo para que confirme o decline una tarea interna.',
     dataType: 'JSON',
-    variables: ['nombre', 'titulo', 'descripcion', 'nota', 'fechaLimite', 'ruta'],
+    variables: ['titulo', 'nombre', 'descripcion', 'nota', 'fechaLimite', 'ruta'],
     defaultValue: JSON.stringify({
-      asunto: '[Aquí Estamos] Te necesitamos para una tarea: {titulo}',
-      titulo: 'Hola {nombre}, ¿puedes apoyarnos?',
-      parrafos: [
-        'El equipo de coordinación de la Red Aquí Estamos te está invitando a apoyar con la siguiente tarea:',
-        '<strong>{titulo}</strong>',
-        '{descripcion}',
-        'Haz clic abajo para ver los detalles y confirmar si puedes apoyarnos.',
-      ],
-      botonTexto: 'Ver tarea y confirmar',
+          "asunto": "[Aquí Estamos] Te necesitamos para una tarea: {titulo}",
+          "titulo": "Hola {nombre}, ¿puedes apoyarnos?",
+          "parrafos": [
+                "El equipo de coordinación de la Red Aquí Estamos te está invitando a apoyar con la siguiente tarea:",
+                "<strong>{titulo}</strong>",
+                "{descripcion}",
+                "<em>Nota del coordinador:</em> {nota}",
+                "<strong>Fecha límite:</strong> {fechaLimite}",
+                "Haz clic abajo para ver los detalles y confirmar si puedes apoyarnos. Si no puedes en este momento, también puedes declinarlo desde el mismo enlace."
+          ],
+          "datos": [],
+          "botonTexto": "Ver tarea y confirmar"
     }),
   },
   {
@@ -437,14 +454,18 @@ Nos comunicamos contigo reconociendo tu valioso liderazgo en *{territorio}* y qu
     name: 'Correo · Respuesta de Voluntario a Tarea',
     description: 'Aviso a coordinación cuando un voluntario acepta o rechaza una tarea asignada.',
     dataType: 'JSON',
-    variables: ['nombreVoluntario', 'titulo', 'accion', 'motivoRechazo', 'ruta'],
+    variables: ['accion', 'titulo', 'nombreVoluntario', 'motivoRechazo', 'ruta'],
     defaultValue: JSON.stringify({
-      asunto: 'Respuesta de voluntario: {accion} — {titulo}',
-      titulo: 'Un voluntario respondió a una tarea asignada',
-      parrafos: [
-        '<strong>{nombreVoluntario}</strong> respondió a la tarea <strong>{titulo}</strong>.',
-      ],
-      botonTexto: 'Ver la tarea en el portal',
+          "asunto": "Respuesta de voluntario: {accion} — {titulo}",
+          "titulo": "Un voluntario respondió a una tarea asignada",
+          "parrafos": [
+                "<strong>{nombreVoluntario}</strong> respondió a la tarea <strong>{titulo}</strong>."
+          ],
+          "datos": [
+                "<strong>Respuesta:</strong> ❌ No puede en este momento",
+                "<strong>Motivo:</strong> {motivoRechazo}"
+          ],
+          "botonTexto": "Ver la tarea en el portal"
     }),
   },
   {
@@ -455,12 +476,14 @@ Nos comunicamos contigo reconociendo tu valioso liderazgo en *{territorio}* y qu
     dataType: 'JSON',
     variables: ['nombre', 'disciplina'],
     defaultValue: JSON.stringify({
-      asunto: 'Quedaste en el directorio de la red · Red Aquí Estamos',
-      titulo: 'Gracias por sumarte, {nombre}',
-      parrafos: [
-        'Quedaste registrado en el voluntariado de apoyo como <strong>{disciplina}</strong>.',
-        'Esto no te compromete a nada. Cuando aparezca una necesidad que encaje con lo que sabes hacer, te buscamos y te escribimos.',
-      ],
+          "asunto": "Quedaste en el directorio de la red",
+          "titulo": "Gracias por sumarte, {nombre}",
+          "parrafos": [
+                "Quedaste registrado en el voluntariado de apoyo como <strong>{disciplina}</strong>.",
+                "Esto no te compromete a nada. Cuando aparezca una necesidad que encaje con lo que sabes hacer, te buscamos y te escribimos."
+          ],
+          "datos": [],
+          "botonTexto": null
     }),
   },
 
@@ -575,7 +598,26 @@ export const SettingsService = {
          * sus palabras no se toca nunca: es suyo, y que un despliegue se lo
          * borre sería peor que el problema que esto arregla.
          */
-        const sinTocar = actual != null && actual.value === actual.defaultValue
+        /**
+         * «Nadie lo tocó» son dos cosas, y hacían falta las dos.
+         *
+         * La primera es que el texto siga siendo idéntico al de fábrica. La
+         * segunda, que nadie lo haya guardado nunca desde el portal —lo dice
+         * `updatedByEmail`, que solo se rellena cuando alguien pulsa guardar—.
+         *
+         * Con solo la primera, un valor de fábrica ANTIGUO se comportaba como
+         * si fuera una edición: al cambiar el texto en el código dejaba de
+         * coincidir, y la base se quedaba sirviendo para siempre una versión
+         * que nadie escribió a mano. Se vio al conectar los correos: el asunto
+         * seguía saliendo con el sufijo viejo aunque el código ya decía otra
+         * cosa.
+         *
+         * Lo que una persona escribió con sus palabras sigue intocable: en
+         * cuanto guarda una vez, `updatedByEmail` queda puesto y ningún
+         * despliegue se lo pisa.
+         */
+        const nadieLoGuardo = actual != null && actual.updatedByEmail == null
+        const sinTocar = actual != null && (actual.value === actual.defaultValue || nadieLoGuardo)
 
         await prisma.systemSetting.upsert({
           where: { key: def.key },

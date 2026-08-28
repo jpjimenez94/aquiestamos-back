@@ -129,9 +129,18 @@ describe('las plantillas llegan a quien manda los mensajes', () => {
     const clave = 'WHATSAPP_CUADRAR_HORARIO_PERSONA'
     const original = (await prisma.systemSetting.findUnique({ where: { key: clave } }))?.value
 
+    /**
+     * Con `updatedByEmail`, como lo deja el portal al guardar.
+     *
+     * Sin ese campo, `ensureDefaults` lo trata como un valor de fábrica y lo
+     * restablece en el siguiente arranque — que es justo lo que tiene que
+     * hacer: así se corrigen los textos viejos que nadie escribió a mano. Lo
+     * que hay que proteger es lo que una persona guardó, y eso se reconoce por
+     * esta marca.
+     */
     await prisma.systemSetting.update({
       where: { key: clave },
-      data: { value: `TEXTO EDITADO ${MARCA}` },
+      data: { value: `TEXTO EDITADO ${MARCA}`, updatedByEmail: 'alguien@pruebas.local' },
     })
 
     const res = await request(app)
@@ -139,6 +148,9 @@ describe('las plantillas llegan a quien manda los mensajes', () => {
       .set('Authorization', `Bearer ${token}`)
     expect(res.body.data[clave]).toBe(`TEXTO EDITADO ${MARCA}`)
 
-    await prisma.systemSetting.update({ where: { key: clave }, data: { value: original } })
+    await prisma.systemSetting.update({
+      where: { key: clave },
+      data: { value: original, updatedByEmail: null },
+    })
   })
 })

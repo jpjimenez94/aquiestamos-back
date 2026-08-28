@@ -569,6 +569,17 @@ model Professional {
   professionalCardVerifiedAt  DateTime?               @map("professional_card_verified_at") @db.Timestamptz(3)
   professionalCardVerifiedBy  String?                 @map("professional_card_verified_by") @db.VarChar(160)
 
+  /// Cuándo confirmó por última vez que su agenda sigue al día.
+  ///
+  /// Desde que asignar dejó de ser pedir permiso, a nadie se le consulta caso
+  /// por caso: se le asigna y la persona elige hora de su agenda. Eso solo es
+  /// justo si esa agenda es de verdad — y una agenda cargada hace ocho meses,
+  /// cuando cambió de trabajo, manda a alguien a una hora en la que no está.
+  ///
+  /// Null significa «nunca ha confirmado»; entonces cuenta la fecha en que se
+  /// registró, que es cuando la cargó.
+  availabilityConfirmedAt DateTime? @map("availability_confirmed_at") @db.Timestamptz(3)
+
   /// Documento de identidad, subido por el propio profesional desde su
   /// enlace. Mismo bucket privado que la tarjeta; solo lo ve el equipo.
   identityDocumentUrl String? @map("identity_document_url") @db.VarChar(500)

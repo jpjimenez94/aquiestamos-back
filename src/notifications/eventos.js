@@ -498,3 +498,29 @@ export async function tareaCompletada({ asignacion, tarea, colaborador, porVolun
     })
   }
 }
+
+/**
+ * Pedirle al profesional que confirme que su agenda sigue al día.
+ *
+ * La clave de deduplicación lleva el mes: así se manda como mucho uno por
+ * profesional y por mes, aunque el barrido corra veinte veces —o aunque el
+ * servidor se reinicie— sin necesidad de recordar a quién ya se le escribió.
+ */
+export async function pedirConfirmacionDeDisponibilidad({ profesional, agenda, desdeCuando, ruta }) {
+  const mes = new Date().toISOString().slice(0, 7)
+
+  await encolar({
+    plantilla: 'CONFIRMAR_DISPONIBILIDAD',
+    para: profesional.email,
+    nombre: profesional.fullName,
+    payload: {
+      nombre: primerNombre(profesional.fullName),
+      agenda: agenda || 'no tienes horarios cargados',
+      desdeCuando,
+      ruta,
+    },
+    entidad: 'profesional',
+    entidadId: profesional.id,
+    clave: `confirmar-disponibilidad:${profesional.id}:${mes}`,
+  })
+}
