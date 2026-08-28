@@ -80,9 +80,22 @@ describe('asignar un caso', () => {
     expect(transicionesDesde(ESTADOS.ACEPTADA)).toContain(ESTADOS.ACTIVA)
   })
 
-  it('el profesional sigue pudiendo declinar', async () => {
-    // Asignar sin preguntar solo es justo si decir que no es fácil. La salida
-    // tiene que existir.
+  it('el profesional puede declinar DESDE DONDE nace la asignación', async () => {
+    /**
+     * Esta línea decía PROPUESTA y por eso no sirvió de nada.
+     *
+     * Comprobaba que se pudiera declinar desde un estado por el que, tras este
+     * mismo cambio, ya no pasa ninguna asignación nueva. Estuvo en verde
+     * mientras el profesional no tenía forma de negarse: el mensaje le decía
+     * «si no puedes, dilo ahí mismo» y desde ACEPTADA —donde nace ahora— la
+     * única salida era CANCELADA, que ni es suya ni dice lo mismo.
+     *
+     * Una prueba que mira el camino que ya nadie recorre da la peor de las
+     * señales: la de que algo está cubierto.
+     */
+    expect(transicionesDesde(ESTADOS.ACEPTADA)).toContain(ESTADOS.RECHAZADA)
+
+    // Y se conserva para las de antes del cambio.
     expect(transicionesDesde(ESTADOS.PROPUESTA)).toContain(ESTADOS.RECHAZADA)
 
     const asignacion = await prisma.caseAssignment.findFirst({

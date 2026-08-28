@@ -24,14 +24,29 @@ describe('máquina de estados de la asignación', () => {
   })
 
   /**
-   * De ACEPTADA solo se sale agendando o cancelando. No se puede volver a
-   * PROPUESTA: proponerle el caso otra vez a quien ya dijo que sí no es un
-   * paso atrás, es otra asignación.
+   * Desde ACEPTADA se agenda, se declina o se cancela.
+   *
+   * Aquí se afirmaba lo contrario —que declinar desde ACEPTADA no valía— y
+   * tenía sentido cuando ACEPTADA significaba «ya dijo que sí»: volver a
+   * preguntarle no era un paso atrás, era otra asignación.
+   *
+   * Dejó de tenerlo cuando la asignación pasó a NACER ahí. El profesional ya no
+   * dice que sí: se le asigna y se le avisa. Con la regla vieja, el mensaje le
+   * prometía «si no puedes, dilo ahí mismo» y no había ahí mismo — la única
+   * salida vivía en PROPUESTA, un estado por el que ya no pasa nadie.
+   *
+   * Esta prueba estaba en verde mientras el profesional no podía negarse.
+   * Por eso se cambia y no se borra: es la línea que marca cuándo se le
+   * devolvió esa puerta.
    */
-  it('una vez aceptada, solo se agenda o se cancela', () => {
-    expect(transicionesDesde(ESTADOS.ACEPTADA).sort()).toEqual(['ACTIVA', 'CANCELADA'].sort())
+  it('una vez asignada, se agenda, se declina o se cancela', () => {
+    expect(transicionesDesde(ESTADOS.ACEPTADA).sort()).toEqual(
+      ['ACTIVA', 'CANCELADA', 'RECHAZADA'].sort(),
+    )
+    expect(puedeTransicionar(ESTADOS.ACEPTADA, ESTADOS.RECHAZADA)).toBe(true)
+
+    // Volver a PROPUESTA sigue sin valer: eso sería otra asignación.
     expect(puedeTransicionar(ESTADOS.ACEPTADA, ESTADOS.PROPUESTA)).toBe(false)
-    expect(puedeTransicionar(ESTADOS.ACEPTADA, ESTADOS.RECHAZADA)).toBe(false)
   })
 
   it('no se puede saltar de propuesta a activa sin que nadie acepte', () => {

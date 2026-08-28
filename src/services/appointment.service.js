@@ -411,7 +411,22 @@ export async function cancelarAsignacion({ asignacionId, motivo }) {
     },
   })
 
-  // Vuelve a estar disponible para que se le proponga a otro profesional.
-  await PatientModel.update(asignacion.patientId, { status: 'EN_ADMISION' })
+  await devolverALaCola(asignacion.patientId)
   return cancelada
+}
+
+/**
+ * La persona vuelve a «Por asignar».
+ *
+ * Vive aquí y no dentro de cancelar porque un acompañamiento puede romperse por
+ * dos caminos distintos —se cancela, o el profesional declina— y los dos tienen
+ * que dejarla igual de visible. Solo lo hacía cancelar, así que declinar la
+ * dejaba sin profesional y fuera de la lista a la vez: nadie la ve esperando
+ * porque el tablero cree que está acompañada.
+ *
+ * Es la peor forma de perder a alguien. No falla nada, no salta ningún aviso, y
+ * la persona que pidió ayuda simplemente deja de aparecer.
+ */
+export async function devolverALaCola(patientId) {
+  await PatientModel.update(patientId, { status: 'EN_ADMISION' })
 }

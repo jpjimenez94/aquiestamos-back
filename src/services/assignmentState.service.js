@@ -46,9 +46,26 @@ export const FINALES = [ESTADOS.RECHAZADA, ESTADOS.CANCELADA, ESTADOS.CERRADA]
 
 const TRANSICIONES = {
   PROPUESTA: [ESTADOS.ACEPTADA, ESTADOS.RECHAZADA, ESTADOS.CANCELADA],
-  // De ACEPTADA se sale agendando (ACTIVA) o cancelando: si la persona no
-  // responde o ningún horario le sirve, el caso vuelve a la cola.
-  ACEPTADA: [ESTADOS.ACTIVA, ESTADOS.CANCELADA],
+  /**
+   * De ACEPTADA se sale agendando, declinando o cancelando.
+   *
+   * RECHAZADA tuvo que entrar aquí cuando asignar dejó de ser pedir permiso.
+   * Antes el profesional declinaba desde PROPUESTA, que era su primera parada;
+   * ahora nace en ACEPTADA y esa puerta se había quedado en un estado por el
+   * que ya no pasa nadie. El mensaje que le llega le dice «si no puedes, dilo
+   * ahí mismo» — y no había ahí mismo.
+   *
+   * No es un detalle de estados: asignar sin preguntar solo es justo si decir
+   * que no sigue siendo un toque. Sin esta transición, lo que se quitó no fue
+   * un paso, fue su capacidad de negarse.
+   *
+   * Declinar es distinto de cancelar y por eso son dos salidas. RECHAZADA dice
+   * «este profesional no podía» y el caso vuelve a la cola para otro; CANCELADA
+   * dice «no se pudo cuadrar», que suele ser cosa de horarios y no de él. Que
+   * en los cierres se distingan es lo único que permite saber si se está
+   * asignando mal.
+   */
+  ACEPTADA: [ESTADOS.ACTIVA, ESTADOS.RECHAZADA, ESTADOS.CANCELADA],
   ACTIVA: [ESTADOS.CERRADA, ESTADOS.CANCELADA],
   RECHAZADA: [],
   CANCELADA: [],
