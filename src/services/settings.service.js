@@ -34,7 +34,7 @@ Si en este momento estás en peligro o sientes que puedes hacerte daño, no espe
     name: 'Paso 2 · Propuesta de Caso al Profesional',
     description: 'Enviado al psicólogo cuando el agendador le propone un nuevo caso según su disponibilidad.',
     dataType: 'TEXTO',
-    variables: ['profesional', 'ciudad', 'modalidad', 'horarios', 'urgencia', 'enlace'],
+    variables: ['profesional', 'ciudad', 'modalidad', 'horarios', 'urgencia', 'enlace', 'plazo'],
     defaultValue: `Hola {profesional}, te escribimos de Red Aquí Estamos.
 
 Queremos proponerte un acompañamiento. Cuéntanos si puedes tomarlo:
@@ -50,7 +50,9 @@ Entra aquí con el correo con el que te registraste y dinos si puedes. Si acepta
 
 Con eso cuadramos el horario con ella y te confirmamos. Sus datos de contacto aparecen cuando aceptas, no antes.
 
-Si no puedes, dínoslo en esa misma pantalla y se lo proponemos a otra persona. No pasa nada: es voluntario.
+Te pedimos responder dentro de las próximas {plazo}. Si para entonces no sabemos de ti, le proponemos el caso a otro profesional para que la persona no siga esperando. No es un reclamo: del otro lado hay alguien que pidió ayuda, y preferimos que el silencio no le cueste días.
+
+Si no puedes, dínoslo en esa misma pantalla y se lo proponemos a otra persona. No pasa nada: es voluntario, y decir que no a tiempo ayuda más que un sí que no llega.
 
 Es un acompañamiento confidencial. Te pedimos manejarlo con responsabilidad ética y profesional, y no compartir los datos de la persona con nadie más.
 
