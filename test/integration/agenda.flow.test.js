@@ -3,7 +3,7 @@ import request from 'supertest'
 import { createApp } from '../../src/app.js'
 import { prisma } from '../../src/config/database.js'
 import { hashearClave } from '../../src/auth/password.js'
-import { deLocalAUtc } from '../../src/services/timezone.service.js'
+import { deLocalAUtc, diaDeLaSemana, partesLocales } from '../../src/services/timezone.service.js'
 
 /**
  * El recorrido completo: una postulación y una solicitud entran por el
@@ -21,12 +21,23 @@ const CLAVE = 'claveDePrueba2026'
 const tokens = {}
 const ids = {}
 
-/** Un martes futuro, a la hora local que se pida. */
+/**
+ * Un martes futuro, a la hora de Bogotá que se pida.
+ *
+ * El calendario se recorre con las partes LOCALES de Bogotá, no con
+ * `getDate()`/`getDay()`, que leen el reloj del proceso. Corriendo en UTC —como
+ * lo hace el servidor de verdad— por la noche ya es el día siguiente, así que
+ * esto habría elegido a veces un miércoles y buscado huecos donde el
+ * profesional no atiende. Una prueba que falla según la hora a la que se lanza
+ * enseña a relanzarla, no a mirarla.
+ */
 function martesA(minutosDelDia, semanasAdelante = 2) {
-  const base = new Date()
-  base.setDate(base.getDate() + semanasAdelante * 7)
-  while (base.getDay() !== 2) base.setDate(base.getDate() + 1)
-  return deLocalAUtc(base.getFullYear(), base.getMonth() + 1, base.getDate(), minutosDelDia)
+  const DIA = 24 * 60 * 60 * 1000
+  let cursor = new Date(Date.now() + semanasAdelante * 7 * DIA)
+  while (diaDeLaSemana(cursor) !== 'MARTES') cursor = new Date(cursor.getTime() + DIA)
+
+  const p = partesLocales(cursor)
+  return deLocalAUtc(p.year, p.month, p.day, minutosDelDia)
 }
 
 async function entrar(email) {
