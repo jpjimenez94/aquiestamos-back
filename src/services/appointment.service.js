@@ -297,15 +297,33 @@ export async function proponerCaso({ professionalId, patientId, actorId }) {
   }
 
   try {
+    /**
+     * Se asigna. No se pide permiso.
+     *
+     * Antes esto nacía en PROPUESTA y ahí se quedaba hasta que el profesional
+     * dijera que sí. Los datos contaron lo que costaba: de las ocho
+     * asignaciones que se hicieron para una persona con prioridad ALTA, siete
+     * murieron con el motivo «el profesional no respondió». Siete de los ocho
+     * cierres de toda la base son por silencio.
+     *
+     * El profesional ya se registró, ya cargó su agenda y ya dijo cuántos
+     * casos puede llevar. Volver a preguntarle caso por caso no le da más
+     * margen a él: deja el caso parado. Ahora queda asignado y se le avisa; si
+     * no puede, lo dice desde su enlace y se reasigna al instante.
+     *
+     * Lo que cambia de fondo es qué significa el silencio. Antes detenía el
+     * caso; ahora deja que siga. Y eso solo es justo si declinar cuesta un
+     * toque y si únicamente se asigna a quien tiene agenda cargada y cupo
+     * libre — las dos condiciones ya se comprueban arriba.
+     */
     const asignacion = await CaseAssignmentModel.create({
       professionalId,
       patientId,
       createdById: actorId ?? null,
+      status: 'ACEPTADA',
+      respondedAt: new Date(),
     })
 
-    // El paciente NO pasa a ASIGNADO todavía: nadie ha aceptado nada. Decir
-    // "asignado" en el tablero cuando solo hay una propuesta en el aire es
-    // justo la mentira que este cambio viene a quitar.
     return asignacion
   } catch (error) {
     throw traducirChoque(error)

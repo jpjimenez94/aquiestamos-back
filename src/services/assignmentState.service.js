@@ -55,9 +55,20 @@ const TRANSICIONES = {
   CERRADA: [],
 }
 
+/**
+ * ACEPTADA es ahora la puerta de entrada, no el segundo paso.
+ *
+ * Una asignación nace ahí: al profesional se le asigna el caso y se le avisa,
+ * en vez de pedirle permiso y quedarse esperando. Puede declinar desde su
+ * enlace —eso lo lleva a RECHAZADA— pero mientras no diga nada, el caso
+ * avanza. Antes el silencio lo detenía, y así se perdieron siete de cada ocho.
+ *
+ * PROPUESTA se queda por las asignaciones que nacieron antes del cambio.
+ * Ninguna nueva pasa por ahí.
+ */
 export const ETIQUETAS = {
-  PROPUESTA: 'Propuesta enviada',
-  ACEPTADA: 'Aceptada, falta cuadrar horario',
+  PROPUESTA: 'Propuesta enviada (asignación antigua)',
+  ACEPTADA: 'Asignado, falta que elija hora',
   ACTIVA: 'En acompañamiento',
   RECHAZADA: 'El profesional no pudo',
   CANCELADA: 'No se pudo cuadrar',
@@ -67,10 +78,10 @@ export const ETIQUETAS = {
 /** Qué le toca hacer a quien coordina cuando ve este estado. */
 export const SIGUIENTE_PASO = {
   PROPUESTA: 'Esperando que el profesional entre a su enlace y responda.',
-  ACEPTADA: 'Escríbele a la persona con los horarios que ofreció y cuadra uno.',
+  ACEPTADA: 'Mándale a la persona su enlace de agenda para que elija hora.',
   ACTIVA: 'Ya hay cita. Haz seguimiento cuando pase.',
-  RECHAZADA: 'Proponle el caso a otro profesional.',
-  CANCELADA: 'Proponle el caso a otro profesional.',
+  RECHAZADA: 'Asígnale otro profesional.',
+  CANCELADA: 'Asígnale otro profesional.',
   CERRADA: 'Nada: el acompañamiento terminó.',
 }
 
