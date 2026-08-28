@@ -198,7 +198,7 @@ describe('el camino completo de una persona', () => {
   it('5 · la profesional acepta', async () => {
     await prisma.caseAssignment.updateMany({
       where: { patientId: creados.paciente, status: 'PROPUESTA' },
-      data: { status: 'ACEPTADA', respondedAt: new Date(), acceptedDays: ['LUNES', 'MARTES'], acceptedSlots: ['TARDE'] },
+      data: { status: 'ACEPTADA', respondedAt: new Date() },
     })
 
     paso(

@@ -411,8 +411,6 @@ export async function propuestaRespondida({ asignacion, profesional }) {
     plantilla: asignacion.status === 'ACEPTADA' ? 'COORD_PROPUESTA_ACEPTADA' : 'COORD_PROPUESTA_RECHAZADA',
     payload: {
       profesional: profesional.fullName,
-      dias: asignacion.acceptedDays ?? [],
-      franjas: asignacion.acceptedSlots ?? [],
       nota: asignacion.availabilityNote || null,
       motivo: asignacion.declineReason || null,
       ruta: `/portal/personas/${asignacion.patientId}`,

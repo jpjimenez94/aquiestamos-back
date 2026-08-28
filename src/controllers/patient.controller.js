@@ -146,8 +146,6 @@ export const PatientController = {
                 desde: asignacion.startedAt,
                 respondioEn: asignacion.respondedAt,
                 // Lo que el profesional puso él mismo desde su enlace.
-                diasQuePuede: asignacion.acceptedDays ?? [],
-                franjasQuePuede: asignacion.acceptedSlots ?? [],
                 nota: asignacion.availabilityNote,
                 motivoRechazo: asignacion.declineReason,
                 profesional: {

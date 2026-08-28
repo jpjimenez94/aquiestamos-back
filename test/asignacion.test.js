@@ -78,19 +78,30 @@ describe('máquina de estados de la asignación', () => {
 })
 
 describe('la respuesta del profesional', () => {
-  const aceptando = { acepta: true, dias: ['MARTES'], franjas: ['TARDE'] }
-
-  it('acepta con días y franjas', () => {
-    expect(respuestaPropuestaSchema.safeParse(aceptando).success).toBe(true)
+  /**
+   * Aceptar es un toque.
+   *
+   * Aquí se afirmaba lo contrario: que aceptar sin decir días ni franjas
+   * debía fallar, porque «deja el caso igual de parado que no aceptar». Esa
+   * regla se fue con los campos.
+   *
+   * El profesional ya nos dio su agenda al registrarse —los 48 asignables la
+   * tienen— y es de ahí de donde la persona elige su hora. Pedírsela otra vez
+   * era pedirle dos veces lo mismo, y encima en el paso donde se perdían siete
+   * de cada ocho asignaciones. El caso ya no se queda parado esperando esos
+   * datos: se queda parado si él no contesta, y para eso está el plazo.
+   */
+  it('aceptar no pide nada más: su agenda ya está cargada', () => {
+    expect(respuestaPropuestaSchema.safeParse({ acepta: true }).success).toBe(true)
   })
 
-  /**
-   * Aceptar sin decir cuándo deja el caso igual de parado que no aceptar, y
-   * encima con quien coordina creyendo que avanzó.
-   */
-  it('no deja aceptar sin decir cuándo puede', () => {
-    expect(respuestaPropuestaSchema.safeParse({ acepta: true, dias: [], franjas: ['TARDE'] }).success).toBe(false)
-    expect(respuestaPropuestaSchema.safeParse({ acepta: true, dias: ['MARTES'], franjas: [] }).success).toBe(false)
+  it('la nota sigue, para el matiz que una agenda no dice', () => {
+    const r = respuestaPropuestaSchema.safeParse({
+      acepta: true,
+      nota: 'Después de las 4 mejor',
+    })
+    expect(r.success).toBe(true)
+    expect(r.data.nota).toBe('Después de las 4 mejor')
   })
 
   /** Saber por qué no puede distingue un problema del caso de uno de la red. */
@@ -99,20 +110,6 @@ describe('la respuesta del profesional', () => {
     expect(
       respuestaPropuestaSchema.safeParse({ acepta: false, motivo: 'Me queda muy lejos' }).success,
     ).toBe(true)
-  })
-
-  it('rechazar no exige horarios: no los va a usar nadie', () => {
-    const r = respuestaPropuestaSchema.safeParse({ acepta: false, motivo: 'Sin cupo este mes' })
-    expect(r.success).toBe(true)
-  })
-
-  it('no se cuela un día ni una franja que no existan', () => {
-    expect(
-      respuestaPropuestaSchema.safeParse({ ...aceptando, dias: ['LUNESITO'] }).success,
-    ).toBe(false)
-    expect(
-      respuestaPropuestaSchema.safeParse({ ...aceptando, franjas: ['MADRUGADA'] }).success,
-    ).toBe(false)
   })
 
   it('decidir es obligatorio: no vale mandar el formulario en blanco', () => {

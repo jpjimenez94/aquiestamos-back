@@ -685,11 +685,17 @@ model CaseAssignment {
 
   /// Cuándo respondió el profesional, sea que aceptara o no.
   respondedAt        DateTime? @map("responded_at") @db.Timestamptz(3)
-  /// Los días y franjas en los que dijo que puede, puestos por él mismo desde
-  /// el enlace de su caso. No los transcribe nadie: el dato es suyo.
-  acceptedDays       Weekday[] @map("accepted_days")
-  acceptedSlots      DaySlot[] @map("accepted_slots")
-  /// El matiz que no cabe en días y franjas: "después de las 4 mejor".
+  /// Aquí vivían `acceptedDays` y `acceptedSlots`: los días y franjas que el
+  /// profesional escribía al aceptar un caso. Se fueron porque le pedían por
+  /// segunda vez algo que ya nos había dado —su disponibilidad está cargada
+  /// desde que se registró—, y encima en el paso donde más se moría el
+  /// proceso: de cada ocho asignaciones, siete se perdían esperando esa
+  /// respuesta.
+  ///
+  /// Ahora la agenda del profesional es la ÚNICA fuente de cuándo puede, y la
+  /// persona elige de ella directamente.
+  ///
+  /// El matiz que no cabe en una agenda: "después de las 4 mejor".
   availabilityNote   String?   @map("availability_note") @db.VarChar(600)
   /// Por qué no pudo. Es lo que permite saber si el problema es de la red
   /// —siempre los mismos días, siempre la misma ciudad— o del caso.

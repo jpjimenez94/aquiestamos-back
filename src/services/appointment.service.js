@@ -11,9 +11,7 @@ import { exigirTransicion, ESTADOS } from './appointmentState.service.js'
 import { exigirTransicion as exigirTransicionAsignacion } from './assignmentState.service.js'
 import {
   dentroDeDisponibilidad,
-  dentroDeLoOfrecido,
   franjasEnPalabras,
-  ofertaEnPalabras,
   DURACION_MINIMA,
   DESCANSO,
 } from './scheduling.service.js'
@@ -123,32 +121,23 @@ export async function crearCita({
 
   const disponibilidad = await dentroDeDisponibilidad({ professionalId, inicio, fin })
 
-  // Si ya existe una asignación activa, la cita cuelga de ella. Se busca
-  // antes de validar porque trae la otra fuente de disponibilidad: lo que el
-  // profesional ofreció PARA ESTE CASO desde su enlace.
+  // Si ya existe una asignación activa, la cita cuelga de ella.
   const asignacion = await CaseAssignmentModel.findAbiertaDePaciente(patientId)
 
   /**
-   * Un BLOQUEO no se salta nunca: si dijo "estas dos semanas no estoy", no
-   * está. La franja de su agenda de perfil sí se puede saltar, por dos vías:
+   * Un BLOQUEO no se salta nunca: si dijo «estas dos semanas no estoy», no
+   * está. La franja de su agenda sí se puede saltar, pero solo si quien
+   * coordina lo marca a mano, porque el profesional aceptó ESE horario
+   * concreto por fuera de lo que tenía declarado.
    *
-   * - El horario cae en lo que él ofreció para este caso. Eso no es saltarse
-   *   nada: es su palabra más reciente, y frenar aquí sería pedirle permiso a
-   *   quien coordina para hacer lo que el profesional ya autorizó.
-   * - Quien coordina lo marca a mano, porque el profesional aceptó ese
-   *   horario concreto por fuera de todo lo que había dicho.
+   * Aquí había una segunda vía: que el horario cayera en los días y franjas
+   * que el profesional escribía al aceptar el caso. Se fue con esos campos.
+   * Ahora su agenda es la única fuente de cuándo puede —y es también de donde
+   * elige la persona—, así que ya no hay dos listas de horarios capaces de
+   * contradecirse. Antes podían: el error llegó a decir «lunes» cuando para
+   * ese caso él había dicho «miércoles».
    */
-  const ofrecido =
-    asignacion != null &&
-    dentroDeLoOfrecido({
-      dias: asignacion.acceptedDays ?? [],
-      franjas: asignacion.acceptedSlots ?? [],
-      inicio,
-      fin,
-    })
-
-  const saltable =
-    (permitirFueraDeFranja || ofrecido) && disponibilidad.motivo === 'FUERA_DE_FRANJA'
+  const saltable = permitirFueraDeFranja && disponibilidad.motivo === 'FUERA_DE_FRANJA'
 
   if (!disponibilidad.cabe && !saltable) {
     if (disponibilidad.motivo === 'BLOQUEO') {
@@ -158,27 +147,13 @@ export async function crearCita({
       )
     }
 
-    /**
-     * El error solo enseña lo que el profesional respondió al aceptar ESTE
-     * caso: esa es su palabra para esta persona y el único dato contra el que
-     * quien coordina debe cuadrar. Su agenda general de perfil no se mienta
-     * aquí —puede estar vieja y mezclarla es lo que hacía que el error dijera
-     * «lunes» cuando para este caso él dijo «miércoles»—. Solo cuando no hay
-     * oferta (una cita sin negociación de por medio) se cae a la agenda,
-     * porque no queda otra fuente.
-     */
-    const oferta = ofertaEnPalabras(asignacion?.acceptedDays, asignacion?.acceptedSlots)
-
-    let mensaje
-    if (oferta) {
-      mensaje = `Ese horario no está en lo que ${profesional.fullName} ofreció para este caso. Ofreció: ${oferta}.`
-    } else {
-      const franjas = await franjasEnPalabras(professionalId)
-      mensaje = franjas
+    const franjas = await franjasEnPalabras(professionalId)
+    throw new DomainError(
+      'FUERA_DE_FRANJA',
+      franjas
         ? `Ese horario está por fuera de la agenda de ${profesional.fullName} (declaró: ${franjas}).`
-        : `Ese horario está por fuera de la agenda de ${profesional.fullName}, que no tiene franjas cargadas.`
-    }
-    throw new DomainError('FUERA_DE_FRANJA', mensaje)
+        : `Ese horario está por fuera de la agenda de ${profesional.fullName}, que no tiene franjas cargadas.`,
+    )
   }
 
   // Si la persona ya había firmado el consentimiento informado en una cita previa o en este caso,

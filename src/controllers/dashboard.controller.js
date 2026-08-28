@@ -289,8 +289,6 @@ export const DashboardController = {
                 estado: asignacion.status,
                 // Lo que el profesional ofreció al aceptar, para que quien
                 // coordina lo vea sin abrir la ficha.
-                diasOfrecidos: asignacion.acceptedDays ?? [],
-                franjasOfrecidas: asignacion.acceptedSlots ?? [],
                 notaDisponibilidad: asignacion.availabilityNote ?? null,
                 // Cuántos días faltan para que el barrido libere el caso. El
                 // reloj de la PROPUESTA corre desde que se propuso; el de la
