@@ -6,6 +6,7 @@ import { CaseReportModel } from '../models/caseReport.model.js'
 import { AppointmentModel } from '../models/appointment.model.js'
 import { cita } from '../views/appointment.view.js'
 import { crearEnlaceEncuesta } from '../auth/enlaceEncuesta.js'
+import { crearEnlaceAgenda } from '../auth/enlaceAgenda.js'
 import { crearEnlaceFeedback } from '../auth/enlaceFeedback.js'
 import { env } from '../config/env.js'
 import { prisma } from '../config/database.js'
@@ -80,6 +81,20 @@ export const PatientController = {
         include: { assignment: { include: { professional: { select: { fullName: true } } } } },
       })
       const enlaceFeedback = `${env.sitioUrl.replace(/\/$/, '')}/experiencia/${crearEnlaceFeedback(paciente.id)}`
+
+      /**
+       * El enlace con el que la persona agenda sus propias sesiones.
+       *
+       * Se genera aquí y no se guarda en la base porque es determinista: sale
+       * de su id y del secreto, así que se reconstruye igual cada vez. Eso
+       * importa — el enlace que se le mandó por WhatsApp el primer día es el
+       * mismo que ve la coordinación hoy, y no hay dos versiones que puedan
+       * discrepar.
+       *
+       * Va siempre, incluso antes de que tenga profesional: en ese caso la
+       * pantalla se lo dice y le pide guardarlo, en vez de fallar.
+       */
+      const enlaceAgenda = `${env.sitioUrl.replace(/\/$/, '')}/agenda/${crearEnlaceAgenda(paciente.id)}`
 
       /**
        * Con el caso cerrado, la ficha trae la encuesta: el enlace para
@@ -164,6 +179,7 @@ export const PatientController = {
             createdAt: f.createdAt,
           })),
           enlaceFeedback,
+          enlaceAgenda,
           citas: citas.map(cita),
           encuesta,
         }),

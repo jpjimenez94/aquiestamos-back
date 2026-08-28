@@ -14,6 +14,38 @@ export const SettingsController = {
     }
   },
 
+  /**
+   * GET /api/settings/plantillas
+   *
+   * Los textos de los mensajes, para que el portal escriba con ELLOS y no con
+   * copias quemadas en el código. Devuelve solo `{ clave: texto }`: sin
+   * descripciones, sin valores de fábrica, sin los parámetros del sistema.
+   *
+   * Va aparte de `GET /api/settings` por una razón concreta: ese exige
+   * `configuracion:leer`, que el AGENDADOR no tiene —y el AGENDADOR es
+   * justamente quien manda estos mensajes todo el día. Con el otro endpoint,
+   * la ficha de una persona no podría pintar el texto que está a punto de
+   * enviarse.
+   *
+   * Basta con haber iniciado sesión: son los textos que quien opera va a
+   * copiar en un WhatsApp de todos modos. Restringirlos más no protege nada y
+   * sí rompe a quien tiene que trabajar.
+   */
+  async plantillas(req, res, next) {
+    try {
+      const items = await SettingsService.getAll()
+      const textos = {}
+      for (const item of items) {
+        if (item.category === 'MENSAJE_WHATSAPP' || item.category === 'PLANTILLA_CORREO') {
+          textos[item.key] = item.value ?? item.defaultValue ?? ''
+        }
+      }
+      return res.json(ok(textos))
+    } catch (error) {
+      next(error)
+    }
+  },
+
   /** GET /api/settings/:key */
   async show(req, res, next) {
     try {

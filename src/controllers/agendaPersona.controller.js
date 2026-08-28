@@ -6,6 +6,7 @@ import { AppointmentModel } from '../models/appointment.model.js'
 import { huecosDisponibles, DURACION_MINIMA } from '../services/scheduling.service.js'
 import { crearCita, confirmarHorario } from '../services/appointment.service.js'
 import { formatearLocal } from '../services/timezone.service.js'
+import { citaAgendada } from '../notifications/eventos.js'
 import { registrar, ACCION } from '../services/audit.service.js'
 import { ok, created, failure } from '../views/response.view.js'
 
@@ -219,6 +220,22 @@ export const AgendaPersonaController = {
               modalidad,
               actorId: null,
             })
+
+      /**
+       * Avisarle al profesional. Sin esto, la persona agenda y él no se entera.
+       *
+       * `citaAgendada` se dispara desde el controlador del portal, no desde
+       * `crearCita`, así que cada camino nuevo que cree una cita tiene que
+       * acordarse de llamarlo. Es la misma forma que ya causó problemas antes:
+       * una regla que se decide en cada sitio en vez de en uno. Lo correcto
+       * sería moverlo dentro del servicio; mientras tanto, aquí queda anotado
+       * por qué está repetido.
+       */
+      await citaAgendada({
+        cita,
+        profesional: asignacion.professional,
+        cuando: formatearLocal(cita.startsAt),
+      })
 
       // Quien agendó fue la persona, no la coordinación. El rastro tiene que
       // decirlo: si alguien revisa por qué apareció esta cita, la respuesta no
