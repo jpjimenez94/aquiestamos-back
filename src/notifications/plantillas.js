@@ -1,3 +1,4 @@
+import { enPalabras } from '../services/timezone.service.js'
 import { envolver, envolverTexto, urlDelSitio } from './envoltura.js'
 import {
   ETIQUETAS_PRIORIDAD,
@@ -20,28 +21,21 @@ import {
  * identifica. Hay una prueba que falla si alguien mete un teléfono.
  */
 
-/** Fecha ISO → «lunes, 25 de agosto, 7:30 p. m.» en hora de Bogotá. */
-function cuandoLegible(iso) {
-  try {
-    return new Intl.DateTimeFormat('es-CO', {
-      timeZone: 'America/Bogota',
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    }).format(new Date(iso))
-  } catch {
-    return String(iso)
-  }
-}
 
 function armar(asunto, contenido) {
   return {
     asunto,
     html: envolver(contenido),
     texto: envolverTexto(contenido),
+    /**
+     * El contenido en crudo, para poder rehacerlo con otro texto.
+     *
+     * Hace falta por el botón: su URL la calcula el código a partir del
+     * payload, y al reescribir el cuerpo desde el portal hay que conservarla.
+     * Sin esto, un correo con texto editado perdería el enlace y llegaría
+     * diciéndole a alguien que entrara a un sitio sin decirle cuál.
+     */
+    contenido,
   }
 }
 
@@ -239,20 +233,20 @@ export const PLANTILLAS = {
 
   /** Fecha ISO → «lunes 25 de agosto, 7:30 p. m.» en hora de Bogotá. */
   RECORDATORIO_CITA_PROFESIONAL: (p) =>
-    armar(`Recordatorio: tienes sesión ${cuandoLegible(p.cuando)}`, {
+    armar(`Recordatorio: tienes sesión ${enPalabras(p.cuando)}`, {
       titulo: `Hola ${p.nombre}, tu sesión se acerca`,
       parrafos: [
-        `Te recordamos que tienes una sesión de acompañamiento <strong>${cuandoLegible(p.cuando)}</strong> (${String(p.modalidad ?? '').toLowerCase()}).`,
+        `Te recordamos que tienes una sesión de acompañamiento <strong>${enPalabras(p.cuando)}</strong> (${String(p.modalidad ?? '').toLowerCase()}).`,
         'Los datos de contacto de la persona están en tu enlace del caso, como siempre.',
       ],
       boton: { texto: 'Abrir mi caso', url: urlDelSitio(p.ruta) },
     }),
 
   RECORDATORIO_CITA_PERSONA: (p) =>
-    armar(`Recordatorio: tu acompañamiento es ${cuandoLegible(p.cuando)}`, {
+    armar(`Recordatorio: tu acompañamiento es ${enPalabras(p.cuando)}`, {
       titulo: `Hola ${p.nombre}, tu espacio se acerca`,
       parrafos: [
-        `Te recordamos tu sesión de acompañamiento con <strong>${p.profesional}</strong>: <strong>${cuandoLegible(p.cuando)}</strong> (${String(p.modalidad ?? '').toLowerCase()}).`,
+        `Te recordamos tu sesión de acompañamiento con <strong>${p.profesional}</strong>: <strong>${enPalabras(p.cuando)}</strong> (${String(p.modalidad ?? '').toLowerCase()}).`,
         `${p.profesional} se pondrá en contacto contigo para ese momento. No tienes que hacer nada más.`,
         'Si te surge algo y no puedes, respóndenos por WhatsApp con tiempo y lo movemos. No pasa nada.',
         'Si en este momento estás en peligro o sientes que puedes hacerte daño, no esperes: llama al 123 (emergencias) o al 106 (salud mental). Son gratuitas y atienden a toda hora.',
@@ -264,7 +258,7 @@ export const PLANTILLAS = {
     armar('¿Cómo te fue? Cuéntanos desde tu enlace', {
       titulo: `Hola ${p.nombre}, pasó la hora de tu sesión`,
       parrafos: [
-        `Tu sesión estaba agendada para ${cuandoLegible(p.cuando)}. Entra a tu enlace del caso y cuéntanos tres cosas: si se pudo hacer, cómo te fue, y si crees que la persona necesita más sesiones o con esta fue suficiente.`,
+        `Tu sesión estaba agendada para ${enPalabras(p.cuando)}. Entra a tu enlace del caso y cuéntanos tres cosas: si se pudo hacer, cómo te fue, y si crees que la persona necesita más sesiones o con esta fue suficiente.`,
         'Con eso cerramos esta cita y cuadramos la siguiente si hace falta, sin tener que escribirte a preguntar.',
       ],
       boton: { texto: 'Contar cómo me fue', url: urlDelSitio(p.ruta) },
@@ -401,14 +395,82 @@ export const PLANTILLAS = {
         boton: { texto: 'Buscarle profesional', url: urlDelSitio(p.ruta) },
       },
     ),
+
+  /**
+   * Al profesional, cada tantos meses: ¿tu agenda sigue como está?
+   *
+   * Es la condición que hace justo asignar sin preguntar. Desde que ya no se le
+   * consulta caso por caso, la agenda de su perfil es lo único que dice cuándo
+   * puede — y una cargada hace ocho meses, antes de que cambiara de trabajo,
+   * manda a alguien a una hora en la que él no está. Quien se queda esperando
+   * es la persona que pidió ayuda.
+   *
+   * El tono no es de trámite ni de control de asistencia: es un voluntario al
+   * que se le agradece y se le pregunta, con la puerta de «ahora no puedo»
+   * abierta en la misma frase. Si se siente vigilado, deja de responder — y
+   * entonces esto no sirve para nada.
+   */
+  CONFIRMAR_DISPONIBILIDAD: (p) =>
+    armar('¿Tu disponibilidad sigue igual?', {
+      titulo: `Hola ${p.nombre}, una pregunta rápida`,
+      parrafos: [
+        'Cuando te llega un acompañamiento, la persona elige su hora directamente de la agenda que tienes en tu perfil. Por eso te preguntamos de vez en cuando si sigue estando al día.',
+        'Si nada cambió, no tienes que hacer nada: con eso nos vale. Si cambió —otro trabajo, otros horarios, o simplemente este no es buen momento— entra y ajústala, o dinos y te dejamos en pausa.',
+        'Estar en pausa no es irse de la red. Es no recibir casos hasta que vuelvas a decirnos que sí.',
+      ],
+      datos: [
+        `<strong>Tu agenda hoy:</strong> ${p.agenda}`,
+        `<strong>La cargaste:</strong> ${p.desdeCuando}`,
+      ],
+      boton: { texto: 'Revisar mi disponibilidad', url: urlDelSitio(p.ruta) },
+    }),
 }
+
+/**
+ * Al profesional, cada mes: ¿tu agenda sigue como está?
+ *
+ * Es la condición que hace justo asignar sin preguntar. Desde que ya no se le
+ * consulta caso por caso, la agenda de su perfil es lo único que dice cuándo
+ * puede — y una agenda cargada hace ocho meses, cuando cambió de trabajo,
+ * manda a alguien a una hora en la que él no está. Quien queda esperando es la
+ * persona que pidió ayuda.
+ *
+ * El tono importa: no es un trámite ni un control de asistencia. Es un
+ * voluntario al que se le agradece y se le pregunta, con la puerta de «ahora
+ * no puedo» siempre abierta.
+ */
+export const AVISO_DISPONIBILIDAD = 'CONFIRMAR_DISPONIBILIDAD'
 
 export function existePlantilla(clave) {
   return Object.prototype.hasOwnProperty.call(PLANTILLAS, clave)
 }
 
-export function construir(clave, payload) {
+/**
+ * Arma un aviso. Si la coordinación reescribió el texto, gana el suyo.
+ *
+ * `editado` llega ya resuelto y con las variables puestas. Esto es síncrono a
+ * propósito: lo llaman también sitios que solo quieren el asunto para una
+ * etiqueta, y no deberían tocar la base por eso. Quien envía de verdad es el
+ * despachador, y es él quien lo trae.
+ *
+ * El envoltorio de la marca, el botón y su URL siguen siendo del código: lo
+ * que se edita es lo que se DICE, no a dónde lleva el enlace. Un enlace
+ * editable en un correo es una puerta que no queremos abrir.
+ */
+export function construir(clave, payload, editado = null) {
   const plantilla = PLANTILLAS[clave]
   if (!plantilla) throw new Error(`No existe la plantilla de aviso "${clave}"`)
-  return plantilla(payload)
+
+  const delCodigo = plantilla(payload)
+  if (!editado) return delCodigo
+
+  const boton = delCodigo.contenido?.boton
+  return armar(editado.asunto, {
+    titulo: editado.titulo ?? delCodigo.contenido?.titulo,
+    parrafos: editado.parrafos,
+    datos: editado.datos?.length ? editado.datos : delCodigo.contenido?.datos,
+    // El botón se conserva entero y solo se le cambia el texto: la URL la
+    // calcula el código a partir del payload y no sale a ninguna pantalla.
+    boton: boton ? { ...boton, texto: editado.botonTexto ?? boton.texto } : undefined,
+  })
 }

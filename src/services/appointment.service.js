@@ -11,9 +11,7 @@ import { exigirTransicion, ESTADOS } from './appointmentState.service.js'
 import { exigirTransicion as exigirTransicionAsignacion } from './assignmentState.service.js'
 import {
   dentroDeDisponibilidad,
-  dentroDeLoOfrecido,
   franjasEnPalabras,
-  ofertaEnPalabras,
   DURACION_MINIMA,
   DESCANSO,
 } from './scheduling.service.js'
@@ -123,32 +121,23 @@ export async function crearCita({
 
   const disponibilidad = await dentroDeDisponibilidad({ professionalId, inicio, fin })
 
-  // Si ya existe una asignación activa, la cita cuelga de ella. Se busca
-  // antes de validar porque trae la otra fuente de disponibilidad: lo que el
-  // profesional ofreció PARA ESTE CASO desde su enlace.
+  // Si ya existe una asignación activa, la cita cuelga de ella.
   const asignacion = await CaseAssignmentModel.findAbiertaDePaciente(patientId)
 
   /**
-   * Un BLOQUEO no se salta nunca: si dijo "estas dos semanas no estoy", no
-   * está. La franja de su agenda de perfil sí se puede saltar, por dos vías:
+   * Un BLOQUEO no se salta nunca: si dijo «estas dos semanas no estoy», no
+   * está. La franja de su agenda sí se puede saltar, pero solo si quien
+   * coordina lo marca a mano, porque el profesional aceptó ESE horario
+   * concreto por fuera de lo que tenía declarado.
    *
-   * - El horario cae en lo que él ofreció para este caso. Eso no es saltarse
-   *   nada: es su palabra más reciente, y frenar aquí sería pedirle permiso a
-   *   quien coordina para hacer lo que el profesional ya autorizó.
-   * - Quien coordina lo marca a mano, porque el profesional aceptó ese
-   *   horario concreto por fuera de todo lo que había dicho.
+   * Aquí había una segunda vía: que el horario cayera en los días y franjas
+   * que el profesional escribía al aceptar el caso. Se fue con esos campos.
+   * Ahora su agenda es la única fuente de cuándo puede —y es también de donde
+   * elige la persona—, así que ya no hay dos listas de horarios capaces de
+   * contradecirse. Antes podían: el error llegó a decir «lunes» cuando para
+   * ese caso él había dicho «miércoles».
    */
-  const ofrecido =
-    asignacion != null &&
-    dentroDeLoOfrecido({
-      dias: asignacion.acceptedDays ?? [],
-      franjas: asignacion.acceptedSlots ?? [],
-      inicio,
-      fin,
-    })
-
-  const saltable =
-    (permitirFueraDeFranja || ofrecido) && disponibilidad.motivo === 'FUERA_DE_FRANJA'
+  const saltable = permitirFueraDeFranja && disponibilidad.motivo === 'FUERA_DE_FRANJA'
 
   if (!disponibilidad.cabe && !saltable) {
     if (disponibilidad.motivo === 'BLOQUEO') {
@@ -158,27 +147,13 @@ export async function crearCita({
       )
     }
 
-    /**
-     * El error solo enseña lo que el profesional respondió al aceptar ESTE
-     * caso: esa es su palabra para esta persona y el único dato contra el que
-     * quien coordina debe cuadrar. Su agenda general de perfil no se mienta
-     * aquí —puede estar vieja y mezclarla es lo que hacía que el error dijera
-     * «lunes» cuando para este caso él dijo «miércoles»—. Solo cuando no hay
-     * oferta (una cita sin negociación de por medio) se cae a la agenda,
-     * porque no queda otra fuente.
-     */
-    const oferta = ofertaEnPalabras(asignacion?.acceptedDays, asignacion?.acceptedSlots)
-
-    let mensaje
-    if (oferta) {
-      mensaje = `Ese horario no está en lo que ${profesional.fullName} ofreció para este caso. Ofreció: ${oferta}.`
-    } else {
-      const franjas = await franjasEnPalabras(professionalId)
-      mensaje = franjas
+    const franjas = await franjasEnPalabras(professionalId)
+    throw new DomainError(
+      'FUERA_DE_FRANJA',
+      franjas
         ? `Ese horario está por fuera de la agenda de ${profesional.fullName} (declaró: ${franjas}).`
-        : `Ese horario está por fuera de la agenda de ${profesional.fullName}, que no tiene franjas cargadas.`
-    }
-    throw new DomainError('FUERA_DE_FRANJA', mensaje)
+        : `Ese horario está por fuera de la agenda de ${profesional.fullName}, que no tiene franjas cargadas.`,
+    )
   }
 
   // Si la persona ya había firmado el consentimiento informado en una cita previa o en este caso,
@@ -322,15 +297,33 @@ export async function proponerCaso({ professionalId, patientId, actorId }) {
   }
 
   try {
+    /**
+     * Se asigna. No se pide permiso.
+     *
+     * Antes esto nacía en PROPUESTA y ahí se quedaba hasta que el profesional
+     * dijera que sí. Los datos contaron lo que costaba: de las ocho
+     * asignaciones que se hicieron para una persona con prioridad ALTA, siete
+     * murieron con el motivo «el profesional no respondió». Siete de los ocho
+     * cierres de toda la base son por silencio.
+     *
+     * El profesional ya se registró, ya cargó su agenda y ya dijo cuántos
+     * casos puede llevar. Volver a preguntarle caso por caso no le da más
+     * margen a él: deja el caso parado. Ahora queda asignado y se le avisa; si
+     * no puede, lo dice desde su enlace y se reasigna al instante.
+     *
+     * Lo que cambia de fondo es qué significa el silencio. Antes detenía el
+     * caso; ahora deja que siga. Y eso solo es justo si declinar cuesta un
+     * toque y si únicamente se asigna a quien tiene agenda cargada y cupo
+     * libre — las dos condiciones ya se comprueban arriba.
+     */
     const asignacion = await CaseAssignmentModel.create({
       professionalId,
       patientId,
       createdById: actorId ?? null,
+      status: 'ACEPTADA',
+      respondedAt: new Date(),
     })
 
-    // El paciente NO pasa a ASIGNADO todavía: nadie ha aceptado nada. Decir
-    // "asignado" en el tablero cuando solo hay una propuesta en el aire es
-    // justo la mentira que este cambio viene a quitar.
     return asignacion
   } catch (error) {
     throw traducirChoque(error)
@@ -418,7 +411,22 @@ export async function cancelarAsignacion({ asignacionId, motivo }) {
     },
   })
 
-  // Vuelve a estar disponible para que se le proponga a otro profesional.
-  await PatientModel.update(asignacion.patientId, { status: 'EN_ADMISION' })
+  await devolverALaCola(asignacion.patientId)
   return cancelada
+}
+
+/**
+ * La persona vuelve a «Por asignar».
+ *
+ * Vive aquí y no dentro de cancelar porque un acompañamiento puede romperse por
+ * dos caminos distintos —se cancela, o el profesional declina— y los dos tienen
+ * que dejarla igual de visible. Solo lo hacía cancelar, así que declinar la
+ * dejaba sin profesional y fuera de la lista a la vez: nadie la ve esperando
+ * porque el tablero cree que está acompañada.
+ *
+ * Es la peor forma de perder a alguien. No falla nada, no salta ningún aviso, y
+ * la persona que pidió ayuda simplemente deja de aparecer.
+ */
+export async function devolverALaCola(patientId) {
+  await PatientModel.update(patientId, { status: 'EN_ADMISION' })
 }

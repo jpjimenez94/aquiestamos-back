@@ -1,3 +1,4 @@
+import { contenidoDelPortal } from './plantillaEditable.js'
 import { conCerrojo, CERROJOS } from '../config/cerrojo.js'
 import { NotificationModel } from '../models/notification.model.js'
 import { enviarCorreo, hayCorreoConfigurado, transporteEnUso } from './mailer.js'
@@ -107,7 +108,12 @@ export async function despachar() {
 
     for (const aviso of avisos) {
       try {
-        const { asunto, html, texto } = construir(aviso.template, aviso.payload)
+        // Lo que la coordinación escribió en Parametrización, si escribió algo.
+        // Devuelve null ante cualquier duda —sin plantilla, JSON roto, base
+        // caída— y entonces sale el texto del código: nadie se queda sin correo
+        // porque una pantalla de configuración no respondiera.
+        const editado = await contenidoDelPortal(aviso.template, aviso.payload ?? {})
+        const { asunto, html, texto } = construir(aviso.template, aviso.payload, editado)
 
         await enviarCorreo({
           para: aviso.toEmail,

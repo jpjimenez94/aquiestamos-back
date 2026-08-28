@@ -1,3 +1,4 @@
+import { primerNombre as nombreDePila } from '../nombre.js'
 import { NotificationModel } from '../models/notification.model.js'
 import { UserModel } from '../models/user.model.js'
 import { construir } from './plantillas.js'
@@ -283,9 +284,16 @@ export async function reporteRecibido({ reporte, asignacion }) {
 
 // ---------------------------------------------------------------------------
 
-/** En un saludo, el apellido sobra. */
+/**
+ * En un saludo, el apellido sobra.
+ *
+ * Usa el `primerNombre` común, pero conserva su propio respaldo: aquí un
+ * nombre vacío tiene que seguir siendo un saludo. «Hola,» a secas se lee como
+ * un correo roto. Esa diferencia es de este sitio, no del resto, y por eso
+ * vive aquí y no en el módulo compartido.
+ */
 function primerNombre(nombreCompleto) {
-  return String(nombreCompleto ?? '').trim().split(/\s+/)[0] || 'hola'
+  return nombreDePila(nombreCompleto) ?? 'hola'
 }
 
 /**
@@ -403,8 +411,6 @@ export async function propuestaRespondida({ asignacion, profesional }) {
     plantilla: asignacion.status === 'ACEPTADA' ? 'COORD_PROPUESTA_ACEPTADA' : 'COORD_PROPUESTA_RECHAZADA',
     payload: {
       profesional: profesional.fullName,
-      dias: asignacion.acceptedDays ?? [],
-      franjas: asignacion.acceptedSlots ?? [],
       nota: asignacion.availabilityNote || null,
       motivo: asignacion.declineReason || null,
       ruta: `/portal/personas/${asignacion.patientId}`,
@@ -491,4 +497,30 @@ export async function tareaCompletada({ asignacion, tarea, colaborador, porVolun
       clave: `tarea-entrega:${asignacion.id}`,
     })
   }
+}
+
+/**
+ * Pedirle al profesional que confirme que su agenda sigue al día.
+ *
+ * La clave de deduplicación lleva el mes: así se manda como mucho uno por
+ * profesional y por mes, aunque el barrido corra veinte veces —o aunque el
+ * servidor se reinicie— sin necesidad de recordar a quién ya se le escribió.
+ */
+export async function pedirConfirmacionDeDisponibilidad({ profesional, agenda, desdeCuando, ruta }) {
+  const mes = new Date().toISOString().slice(0, 7)
+
+  await encolar({
+    plantilla: 'CONFIRMAR_DISPONIBILIDAD',
+    para: profesional.email,
+    nombre: profesional.fullName,
+    payload: {
+      nombre: primerNombre(profesional.fullName),
+      agenda: agenda || 'no tienes horarios cargados',
+      desdeCuando,
+      ruta,
+    },
+    entidad: 'profesional',
+    entidadId: profesional.id,
+    clave: `confirmar-disponibilidad:${profesional.id}:${mes}`,
+  })
 }

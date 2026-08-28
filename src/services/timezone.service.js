@@ -108,3 +108,32 @@ export const FRANJAS = {
   TARDE: { desde: 12 * 60, hasta: 18 * 60 },
   NOCHE: { desde: 18 * 60, hasta: 21 * 60 },
 }
+
+/**
+ * Un instante dicho como lo diría una persona: «lunes, 25 de agosto, 7:30 p. m.».
+ *
+ * `formatearLocal` de arriba es para máquinas —ordena, compara, se guarda—. Esto
+ * es para leerse. Se separan porque mezclarlos es lo que puso «2026-08-28 13:45»
+ * como el texto de un botón en la pantalla donde alguien que está mal elige la
+ * hora de su primera sesión.
+ *
+ * Vivía dentro de `notifications/plantillas.js`, privado, así que quien
+ * necesitaba lo mismo en otro sitio lo volvía a escribir o tiraba del formato de
+ * máquina. Es el mismo patrón que ya nos costó salas de video vacías y nombres
+ * en blanco: una regla derivada en dos sitios acaba diciendo dos cosas.
+ */
+export function enPalabras(fecha) {
+  try {
+    return new Intl.DateTimeFormat('es-CO', {
+      timeZone: ZONA,
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    }).format(new Date(fecha))
+  } catch {
+    return String(fecha)
+  }
+}

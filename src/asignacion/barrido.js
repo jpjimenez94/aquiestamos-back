@@ -26,7 +26,17 @@ import { registrar, ACCION } from '../services/audit.service.js'
  * exactamente la clase de cosa que no se configura.
  */
 
-/** Días que se espera al profesional antes de proponer el caso a otro. */
+/**
+ * Días que se espera al profesional antes de dar el caso a otro.
+ *
+ * Ya no se aplica a ninguna asignación nueva. Desde que asignar dejó de ser
+ * pedir permiso, nacen en ACEPTADA: al profesional se le avisa y puede
+ * declinar, pero no hay una propuesta en el aire que pueda vencerse.
+ *
+ * Esto se queda por las que nacieron antes del cambio y siguen en PROPUESTA.
+ * Sin ello se quedarían ahí para siempre, porque nadie va a entrar a
+ * responderlas.
+ */
 export const PROPUESTA_VENCE_DIAS = Number(process.env.PROPUESTA_VENCE_DIAS ?? 2)
 
 /**

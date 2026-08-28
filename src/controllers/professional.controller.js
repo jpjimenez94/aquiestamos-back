@@ -1,3 +1,4 @@
+import { tieneRol } from '../auth/permissions.js'
 import { ProfessionalModel } from '../models/professional.model.js'
 import { UserModel } from '../models/user.model.js'
 import { CaseAssignmentModel } from '../models/caseAssignment.model.js'
@@ -112,7 +113,7 @@ export const ProfessionalController = {
       if (req.validated.userId) {
         const cuenta = await UserModel.findById(req.validated.userId)
         if (!cuenta) return res.status(404).json(failure('Esa cuenta no existe'))
-        if (cuenta.role !== 'PROFESIONAL') {
+        if (!tieneRol(cuenta, 'PROFESIONAL')) {
           return res
             .status(422)
             .json(failure('La cuenta debe tener el rol PROFESIONAL para enlazarla'))

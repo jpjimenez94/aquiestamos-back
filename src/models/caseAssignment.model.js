@@ -66,15 +66,23 @@ export const CaseAssignmentModel = {
     })
   },
 
-  /** Marca la respuesta del profesional a una propuesta. */
-  responder(id, { acepta, dias = [], franjas = [], nota = null, motivo = null }) {
+  /**
+   * La respuesta del profesional.
+   *
+   * Ya no se le piden días ni franjas. Su agenda está cargada desde que se
+   * registró y es la única fuente de cuándo puede; pedírselos otra vez era
+   * pedirle dos veces lo mismo, y encima en el paso donde más se moría el
+   * proceso. Lo único que hace falta saber es si puede tomar este caso.
+   *
+   * `nota` se queda: es el matiz que no cabe en una agenda —«después de las 4
+   * mejor»— y lo escribe él, no lo transcribe nadie.
+   */
+  responder(id, { acepta, nota = null, motivo = null }) {
     return prisma.caseAssignment.update({
       where: { id },
       data: {
         status: acepta ? 'ACEPTADA' : 'RECHAZADA',
         respondedAt: new Date(),
-        acceptedDays: acepta ? dias : [],
-        acceptedSlots: acepta ? franjas : [],
         availabilityNote: acepta ? nota : null,
         declineReason: acepta ? null : motivo,
         ...(acepta ? {} : { endedAt: new Date() }),

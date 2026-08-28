@@ -1,3 +1,4 @@
+import { puede } from '../auth/permissions.js'
 import { ETIQUETAS_ESTADO_PACIENTE, ETIQUETAS_PRIORIDAD } from '../catalogos.js'
 import { ETIQUETAS as ETIQUETAS_CITA } from '../services/appointmentState.service.js'
 import { formatearLocal } from '../services/timezone.service.js'
@@ -110,7 +111,7 @@ export function pacienteAdmin(p) {
 }
 
 export function pacienteSegunRol(p, usuario) {
-  return usuario?.role === 'ADMIN' ? pacienteAdmin(p) : pacienteParaAgendador(p)
+  return puede(usuario, 'dato-sensible:ver') ? pacienteAdmin(p) : pacienteParaAgendador(p)
 }
 
 export function pacienteLista(lista, usuario) {

@@ -1,0 +1,271 @@
+import { primerNombre } from '../nombre.js'
+import { leerEnlaceAgenda } from '../auth/enlaceAgenda.js'
+import { CaseAssignmentModel } from '../models/caseAssignment.model.js'
+import { PatientModel } from '../models/patient.model.js'
+import { AppointmentModel } from '../models/appointment.model.js'
+import { huecosDisponibles, DURACION_MINIMA } from '../services/scheduling.service.js'
+import { crearCita, confirmarHorario } from '../services/appointment.service.js'
+import { enPalabras } from '../services/timezone.service.js'
+import { citaAgendada } from '../notifications/eventos.js'
+import { registrar, ACCION } from '../services/audit.service.js'
+import { ok, created, failure } from '../views/response.view.js'
+
+/**
+ * CONTROLADOR: la persona agenda su propia sesión.
+ *
+ * Hasta ahora cuadrar una hora costaba tres toques humanos y dos esperas:
+ * coordinación le escribía a la persona con las opciones, la persona
+ * respondía por WhatsApp, y coordinación agendaba. Entre medias podían pasar
+ * días —de ahí sale buena parte de las asignaciones que se mueren esperando.
+ *
+ * Es una puerta pública y carga con lo mismo que las otras: token firmado con
+ * vencimiento adentro, límite de peticiones, y una vista que enseña lo mínimo.
+ *
+ * La diferencia con las demás es de qué habla el token: de la PERSONA, no de
+ * una pareja ni de una cita. Por eso aquí se busca en cada visita quién es su
+ * profesional AHORA. Si en la tercera sesión cambió, el mismo enlace muestra
+ * la agenda del nuevo sin que nadie tenga que mandar nada.
+ */
+
+/** Cuántos días hacia adelante se ofrecen. Más allá, la agenda es adivinanza. */
+const DIAS_A_MOSTRAR = 21
+
+/**
+ * Quién acompaña a esta persona ahora mismo, o null.
+ *
+ * Devuelve la asignación viva —propuesta, aceptada o activa—, que es lo que
+ * hace que el enlace siga sirviendo entre un profesional y el siguiente.
+ */
+async function acompanamientoDe(token) {
+  const datos = leerEnlaceAgenda(token)
+  if (!datos) return null
+
+  const paciente = await PatientModel.findById(datos.paciente)
+  if (!paciente || paciente.deletedAt) return null
+
+  const asignacion = await CaseAssignmentModel.findAbiertaDePaciente(paciente.id)
+  return { paciente, asignacion }
+}
+
+/**
+ * ¿Este rato choca con alguna cita que la persona ya tiene?
+ *
+ * Solo cuentan las citas vivas: una cancelada no ocupa nada.
+ */
+function seCruzaConAlgoSuyo(citas, inicio, fin) {
+  const a = new Date(inicio).getTime()
+  const b = new Date(fin).getTime()
+  return citas
+    .filter((c) => ['PROGRAMADA', 'CONFIRMADA'].includes(c.status))
+    .some((c) => {
+      const ci = new Date(c.startsAt).getTime()
+      const cf = new Date(c.endsAt).getTime()
+      return a < cf && b > ci
+    })
+}
+
+/** Respuesta idéntica para un token inventado y para una persona borrada. */
+function noSirve(res) {
+  return res
+    .status(404)
+    .json(failure('Este enlace ya no sirve. Escríbenos por WhatsApp y te mandamos uno nuevo.'))
+}
+
+export const AgendaPersonaController = {
+  /**
+   * GET /api/mi-agenda/:token
+   *
+   * Con quién es, cuándo es la próxima si ya hay, y qué horas quedan libres.
+   */
+  async mostrar(req, res, next) {
+    try {
+      const ctx = await acompanamientoDe(req.params.token)
+      if (!ctx) return noSirve(res)
+
+      const { paciente, asignacion } = ctx
+
+      // Sin profesional asignado todavía no hay agenda que mostrar. No es un
+      // error: es que aún no le toca, y decirlo así evita que la persona crea
+      // que el enlace se rompió.
+      if (!asignacion?.professional) {
+        return res.json(
+          ok({
+            persona: primerNombre(paciente.fullName),
+            profesional: null,
+            estado: 'SIN_PROFESIONAL',
+            proxima: null,
+            huecos: [],
+          }),
+        )
+      }
+
+      const proximas = await AppointmentModel.findDePaciente(paciente.id)
+      const proxima = proximas
+        .filter((c) => ['PROGRAMADA', 'CONFIRMADA'].includes(c.status))
+        .filter((c) => new Date(c.startsAt) > new Date())
+        .sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt))[0]
+
+      const desde = new Date()
+      const hasta = new Date(Date.now() + DIAS_A_MOSTRAR * 24 * 3600 * 1000)
+
+      const huecos = await huecosDisponibles({
+        professionalId: asignacion.professionalId,
+        desde,
+        hasta,
+        duracionMinutos: DURACION_MINIMA,
+        modalidad: paciente.preferredModality || undefined,
+      })
+
+      /**
+       * Quitar las horas en las que la persona ya tiene algo.
+       *
+       * `huecosDisponibles` solo sabe de la agenda del PROFESIONAL: para él
+       * esa hora está libre. Pero la persona puede tener otra sesión ahí
+       * —pasa justo cuando cambia de profesional y arrastra una cita ya
+       * agendada con el anterior—, y ofrecérsela sería invitarla a chocar
+       * contra un error después de haber elegido.
+       */
+      const libresParaElla = huecos.filter(
+        (h) => !seCruzaConAlgoSuyo(proximas, h.inicio, h.fin),
+      )
+
+      return res.json(
+        ok({
+          persona: primerNombre(paciente.fullName),
+          // Del profesional sí va el nombre completo: la persona tiene derecho
+          // a saber con quién se va a sentar, y es dato profesional, no íntimo.
+          profesional: asignacion.professional.fullName,
+          modalidad: paciente.preferredModality ?? null,
+          estado: asignacion.status,
+          proxima: proxima
+            ? { inicio: proxima.startsAt, cuando: enPalabras(proxima.startsAt) }
+            : null,
+          huecos: libresParaElla.slice(0, 60).map((h) => ({
+            inicio: h.inicio,
+            fin: h.fin,
+            cuando: enPalabras(h.inicio),
+          })),
+        }),
+      )
+    } catch (error) {
+      return next(error)
+    }
+  },
+
+  /**
+   * POST /api/mi-agenda/:token
+   *
+   * La persona elige una hora. Dos caminos según dónde esté el acompañamiento:
+   * si el profesional aceptó y falta cuadrar, esto ACTIVA la asignación; si ya
+   * está en curso, es simplemente la sesión siguiente.
+   */
+  async agendar(req, res, next) {
+    try {
+      const ctx = await acompanamientoDe(req.params.token)
+      if (!ctx) return noSirve(res)
+
+      const { paciente, asignacion } = ctx
+      if (!asignacion?.professional) {
+        return res.status(409).json(failure('Todavía no tienes profesional asignado.'))
+      }
+
+      const inicio = new Date(req.body?.inicio)
+      if (Number.isNaN(inicio.getTime())) {
+        return res.status(422).json(failure('Esa hora no es válida.'))
+      }
+      if (inicio <= new Date()) {
+        return res.status(422).json(failure('Esa hora ya pasó. Elige otra.'))
+      }
+
+      const fin = new Date(inicio.getTime() + DURACION_MINIMA * 60000)
+
+      /**
+       * Se vuelve a comprobar que el hueco siga libre.
+       *
+       * Entre que la persona abrió la pantalla y pulsó, pueden pasar minutos, y
+       * en ese rato coordinación pudo agendarle a otra persona esa misma hora.
+       * Confiar en la lista que ya tiene el navegador es como confiar en el
+       * precio de una pestaña abierta ayer.
+       */
+      const libres = await huecosDisponibles({
+        professionalId: asignacion.professionalId,
+        desde: new Date(inicio.getTime() - 60000),
+        hasta: new Date(fin.getTime() + 60000),
+        duracionMinutos: DURACION_MINIMA,
+        modalidad: paciente.preferredModality || undefined,
+      })
+      const sigueLibre = libres.some((h) => new Date(h.inicio).getTime() === inicio.getTime())
+      if (!sigueLibre) {
+        return res
+          .status(409)
+          .json(failure('Justo acaban de tomar esa hora. Elige otra, por favor.'))
+      }
+
+      const modalidad = paciente.preferredModality || 'VIRTUAL'
+
+      const cita =
+        asignacion.status === 'ACEPTADA'
+          ? (await confirmarHorario({
+              asignacionId: asignacion.id,
+              inicio,
+              fin,
+              modalidad,
+              actorId: null,
+            })).cita
+          : await crearCita({
+              professionalId: asignacion.professionalId,
+              patientId: paciente.id,
+              inicio,
+              fin,
+              modalidad,
+              actorId: null,
+            })
+
+      /**
+       * Avisarle al profesional. Sin esto, la persona agenda y él no se entera.
+       *
+       * `citaAgendada` se dispara desde el controlador del portal, no desde
+       * `crearCita`, así que cada camino nuevo que cree una cita tiene que
+       * acordarse de llamarlo. Es la misma forma que ya causó problemas antes:
+       * una regla que se decide en cada sitio en vez de en uno. Lo correcto
+       * sería moverlo dentro del servicio; mientras tanto, aquí queda anotado
+       * por qué está repetido.
+       */
+      await citaAgendada({
+        cita,
+        profesional: asignacion.professional,
+        cuando: enPalabras(cita.startsAt),
+      })
+
+      // Quien agendó fue la persona, no la coordinación. El rastro tiene que
+      // decirlo: si alguien revisa por qué apareció esta cita, la respuesta no
+      // es «no se sabe».
+      await registrar({
+        req,
+        action: ACCION.CREAR,
+        entity: 'cita',
+        entityId: cita.id,
+        actorEmail: `persona:${primerNombre(paciente.fullName) ?? 'acompañada'}`,
+        after: { inicio, autogestion: true, profesional: asignacion.professional.fullName },
+      })
+
+      return res.status(201).json(
+        created(
+          {
+            inicio: cita.startsAt,
+            cuando: enPalabras(cita.startsAt),
+            profesional: asignacion.professional.fullName,
+          },
+          'Listo, tu sesión quedó agendada.',
+        ),
+      )
+    } catch (error) {
+      // Los choques de agenda del servicio de citas son errores de dominio con
+      // mensaje entendible; que lleguen tal cual y no como un 500.
+      if (error?.codigo || error?.code === 'AGENDA_OCUPADA') {
+        return res.status(409).json(failure(error.message))
+      }
+      return next(error)
+    }
+  },
+}

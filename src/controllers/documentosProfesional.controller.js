@@ -1,3 +1,4 @@
+import { primerNombre as pila } from '../nombre.js'
 import { prisma } from '../config/database.js'
 import { leerEnlaceDocumentos } from '../auth/enlaceDocumentos.js'
 import {
@@ -37,10 +38,6 @@ async function profesionalDelToken(token) {
       documentsSubmittedAt: true,
     },
   })
-}
-
-function pila(nombre) {
-  return String(nombre ?? '').trim().split(/\s+/)[0] || null
 }
 
 function vista(p) {

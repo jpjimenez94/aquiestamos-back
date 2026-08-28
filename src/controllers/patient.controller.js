@@ -1,3 +1,4 @@
+import { puede } from '../auth/permissions.js'
 import { PatientModel } from '../models/patient.model.js'
 import { PatientNoteModel } from '../models/patientNote.model.js'
 import { CaseAssignmentModel } from '../models/caseAssignment.model.js'
@@ -5,6 +6,7 @@ import { CaseReportModel } from '../models/caseReport.model.js'
 import { AppointmentModel } from '../models/appointment.model.js'
 import { cita } from '../views/appointment.view.js'
 import { crearEnlaceEncuesta } from '../auth/enlaceEncuesta.js'
+import { crearEnlaceAgenda } from '../auth/enlaceAgenda.js'
 import { crearEnlaceFeedback } from '../auth/enlaceFeedback.js'
 import { env } from '../config/env.js'
 import { prisma } from '../config/database.js'
@@ -81,6 +83,20 @@ export const PatientController = {
       const enlaceFeedback = `${env.sitioUrl.replace(/\/$/, '')}/experiencia/${crearEnlaceFeedback(paciente.id)}`
 
       /**
+       * El enlace con el que la persona agenda sus propias sesiones.
+       *
+       * Se genera aquí y no se guarda en la base porque es determinista: sale
+       * de su id y del secreto, así que se reconstruye igual cada vez. Eso
+       * importa — el enlace que se le mandó por WhatsApp el primer día es el
+       * mismo que ve la coordinación hoy, y no hay dos versiones que puedan
+       * discrepar.
+       *
+       * Va siempre, incluso antes de que tenga profesional: en ese caso la
+       * pantalla se lo dice y le pide guardarlo, en vez de fallar.
+       */
+      const enlaceAgenda = `${env.sitioUrl.replace(/\/$/, '')}/agenda/${crearEnlaceAgenda(paciente.id)}`
+
+      /**
        * Con el caso cerrado, la ficha trae la encuesta: el enlace para
        * mandársela a la persona por WhatsApp y, si ya respondió, lo que dijo.
        * El enlace sale de SITIO_URL, como todos.
@@ -130,8 +146,6 @@ export const PatientController = {
                 desde: asignacion.startedAt,
                 respondioEn: asignacion.respondedAt,
                 // Lo que el profesional puso él mismo desde su enlace.
-                diasQuePuede: asignacion.acceptedDays ?? [],
-                franjasQuePuede: asignacion.acceptedSlots ?? [],
                 nota: asignacion.availabilityNote,
                 motivoRechazo: asignacion.declineReason,
                 profesional: {
@@ -163,6 +177,7 @@ export const PatientController = {
             createdAt: f.createdAt,
           })),
           enlaceFeedback,
+          enlaceAgenda,
           citas: citas.map(cita),
           encuesta,
         }),
@@ -229,7 +244,7 @@ export const PatientController = {
 
       const asignacion = await CaseAssignmentModel.findAbiertaDePaciente(paciente.id)
       if (asignacion) {
-        if (req.usuario?.role === 'ADMIN') {
+        if (puede(req.usuario, 'paciente:borrar')) {
           await CaseAssignmentModel.cancelar(
             asignacion.id,
             'Registro eliminado por administración',

@@ -51,13 +51,30 @@ export function cita(c) {
     accessLogs: c.accessLogs ?? [],
     ...(() => {
       const ahora = Date.now()
-      const hace60Seg = ahora - 60 * 1000
+
+      /**
+       * Cuánto silencio se tolera antes de dar a alguien por desconectado.
+       *
+       * Eran 60 segundos, con el latido cada 20: parecía sobrado, pero la sala
+       * de Jitsi se abre en otra pestaña —embebida la corta a los cinco
+       * minutos— y con esta de fondo el navegador estrangula los temporizadores
+       * a uno por minuto. El latido llegaba justo en el filo y el semáforo se
+       * apagaba y encendía con las dos personas dentro.
+       *
+       * Tres minutos deja pasar dos latidos estrangulados seguidos antes de
+       * decir que alguien se fue. Es tolerante a propósito: decir «no está» de
+       * quien sí está manda a coordinación a perseguir a alguien que ya se
+       * conectó, y ese error cuesta más que tardar un minuto en notar una
+       * salida real.
+       */
+      const VENTANA_EN_VIVO_MS = 3 * 60 * 1000
+      const desdeCuandoCuenta = ahora - VENTANA_EN_VIVO_MS
       const logs = c.accessLogs ?? []
       const pacienteLog = logs.find((l) => l.role === 'PACIENTE')
       const profesionalLog = logs.find((l) => l.role === 'PROFESIONAL')
 
-      const pacienteEnVivo = pacienteLog ? new Date(pacienteLog.lastPingAt).getTime() > hace60Seg : false
-      const profesionalEnVivo = profesionalLog ? new Date(profesionalLog.lastPingAt).getTime() > hace60Seg : false
+      const pacienteEnVivo = pacienteLog ? new Date(pacienteLog.lastPingAt).getTime() > desdeCuandoCuenta : false
+      const profesionalEnVivo = profesionalLog ? new Date(profesionalLog.lastPingAt).getTime() > desdeCuandoCuenta : false
       const llamadaEnVivo = pacienteEnVivo || profesionalEnVivo
       const ambosEnVivo = pacienteEnVivo && profesionalEnVivo
 

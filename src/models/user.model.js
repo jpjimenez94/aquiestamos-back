@@ -22,9 +22,22 @@ export const UserModel = {
     return prisma.user.findFirst({ where: { email: email.toLowerCase(), ...vivos } })
   },
 
+  /**
+   * Filtrar por rol mira los DOS campos, no solo el viejo.
+   *
+   * Esto filtraba solo por la columna `role`. La usa, entre otras cosas, la
+   * guarda de «debe quedar al menos un administrador activo»: con el filtro
+   * viejo, una cuenta que es administradora por `roles: ['ADMIN']` no se
+   * contaba, así que se podía borrar al último administrador de verdad
+   * creyendo que quedaban otros. Quedarse fuera del portal no se arregla
+   * desde el portal.
+   */
   findAll({ role } = {}) {
     return prisma.user.findMany({
-      where: { ...vivos, ...(role ? { role } : {}) },
+      where: {
+        ...vivos,
+        ...(role ? { OR: [{ role }, { roles: { has: role } }] } : {}),
+      },
       orderBy: [{ role: 'asc' }, { name: 'asc' }],
     })
   },

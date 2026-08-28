@@ -1,3 +1,4 @@
+import { primerNombre as pila } from '../nombre.js'
 import { AppointmentModel } from '../models/appointment.model.js'
 import { leerEnlaceConsentimiento } from '../auth/enlaceConsentimiento.js'
 import { formatearLocal } from '../services/timezone.service.js'
@@ -24,11 +25,6 @@ async function citaDelToken(token) {
   const datos = leerEnlaceConsentimiento(token)
   if (!datos) return null
   return AppointmentModel.findById(datos.cita)
-}
-
-/** Solo el nombre de pila: la puerta pública no enseña más. */
-function pila(nombre) {
-  return String(nombre ?? '').trim().split(/\s+/)[0] || null
 }
 
 function vista(cita) {

@@ -1,3 +1,4 @@
+import { devolverALaCola } from '../services/appointment.service.js'
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import { CaseAssignmentModel } from '../models/caseAssignment.model.js'
 import { PatientModel } from '../models/patient.model.js'
@@ -180,6 +181,16 @@ export async function getSharedCase(req, res, next) {
       ok({
         estado: asignacion.status,
         decidir: false,
+        /**
+         * Puede decir que no, y hasta cuándo.
+         *
+         * El caso se le asigna sin preguntarle, así que la puerta de salida
+         * tiene que estar a la vista mientras no haya nadie esperándole al otro
+         * lado. En cuanto la persona elige hora —ACTIVA— ya hay una cita
+         * puesta: eso deja de ser declinar y pasa a ser cancelar, que se hace
+         * con coordinación y no de un clic.
+         */
+        puedeDeclinar: asignacion.status === 'ACEPTADA',
         ...casoCompartido(paciente, citas),
         reportes: reporteListaParaProfesional(reportes),
       }),
@@ -252,12 +263,15 @@ export async function reportarCaso(req, res, next) {
 /**
  * POST /api/shared-cases/:id/propuesta
  *
- * El profesional acepta o rechaza el caso que le propusieron, y si acepta,
- * deja él mismo los días y las franjas en las que puede.
+ * El profesional confirma que puede, o dice que no.
  *
- * Que lo ponga él y no quien coordina es el punto: antes esto llegaba por
- * WhatsApp y alguien lo transcribía, y lo que el portal decía dependía de que
- * esa persona se acordara. Aquí el dato es suyo y entra en firme.
+ * Ya no pide horarios: su agenda está en su perfil y es de ahí de donde la
+ * persona elige. Pedírselos otra vez, caso por caso, era pedirle dos veces lo
+ * mismo en el paso donde se moría una de cada dos asignaciones.
+ *
+ * Lo que queda es la salida. El caso se le asigna sin preguntarle, así que
+ * decir «ahora no puedo» tiene que costarle un toque y llegar aquí; si no,
+ * asignar sin preguntar deja de ser eficiencia y pasa a ser imposición.
  */
 export async function responderPropuesta(req, res, next) {
   try {
@@ -273,20 +287,33 @@ export async function responderPropuesta(req, res, next) {
       return res.status(403).json(failure('Este caso ya no está a tu cargo.'))
     }
 
-    const { acepta, dias, franjas, nota, motivo } = req.validated
+    const { acepta, nota, motivo } = req.validated
 
-    // La máquina de estados decide si esto es legal. Responder dos veces no lo
-    // es: si ya aceptó y quiere cambiar sus horarios, eso es otra conversación
-    // con quien coordina, no reescribir la respuesta.
-    exigirTransicion(asignacion.status, acepta ? 'ACEPTADA' : 'RECHAZADA')
+    /**
+     * La máquina de estados decide si esto es legal.
+     *
+     * Ahora la asignación nace ACEPTADA, así que aceptar desde ahí no es una
+     * transición: es repetir lo que ya está. Solo se mueve algo cuando declina.
+     * Confirmar sigue aceptándose sin error porque el mensaje le invita a
+     * responder, y contestar «sí puedo» no puede devolverle un fallo.
+     */
+    if (!acepta) {
+      exigirTransicion(asignacion.status, 'RECHAZADA')
+    } else if (asignacion.status === 'PROPUESTA') {
+      // Las de antes del cambio sí tienen que pasar de PROPUESTA a ACEPTADA.
+      exigirTransicion(asignacion.status, 'ACEPTADA')
+    }
 
-    const actualizada = await CaseAssignmentModel.responder(asignacion.id, {
-      acepta,
-      dias,
-      franjas,
-      nota,
-      motivo,
-    })
+    const actualizada = acepta && asignacion.status === 'ACEPTADA'
+      ? asignacion
+      : await CaseAssignmentModel.responder(asignacion.id, { acepta, nota, motivo })
+
+    // Al declinar, el caso tiene que volver a verse en «Por asignar». Sin esto
+    // la persona se queda sin profesional Y fuera de la lista: invisible para
+    // quien coordina, que es como se pierde a alguien sin que salte nada.
+    if (!acepta) {
+      await devolverALaCola(asignacion.patientId)
+    }
 
     await propuestaRespondida({ asignacion: actualizada, profesional: asignacion.professional })
 
@@ -301,8 +328,6 @@ export async function responderPropuesta(req, res, next) {
         estado: actualizada.status,
         respondioProfesional: asignacion.professional.email,
         acepta,
-        dias,
-        franjas,
         nota: nota || null,
         motivo: motivo || null,
       },

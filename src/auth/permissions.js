@@ -10,8 +10,16 @@
  * Permisos por rol. `*` significa «todo».
  *
  * Permisos exclusivos de ADMIN (cubiertos por `*`):
- *   - solicitud:eliminar    → borrado lógico de una solicitud de acompañamiento
- *   - postulacion:eliminar  → borrado lógico de una postulación de voluntariado
+ *   - solicitud:eliminar     → borrado lógico de una solicitud de acompañamiento
+ *   - postulacion:eliminar   → borrado lógico de una postulación de voluntariado
+ *   - dato-sensible:ver      → el tamizaje pregunta por pregunta, y la ficha
+ *                              completa de persona, profesional y solicitud.
+ *                              Es lo más delicado que guarda el sistema: ahí
+ *                              está si alguien dijo tener pensamientos de
+ *                              hacerse daño.
+ *   - disponibilidad:editar  → tocar la agenda de CUALQUIER profesional. El
+ *                              profesional edita la suya con
+ *                              `disponibilidad:editar:propia`.
  */
 export const PERMISOS = {
   ADMIN: ['*'],
@@ -116,14 +124,46 @@ export const PERMISOS = {
 /** Todo el que haya iniciado sesión puede ver y cambiar lo suyo. */
 const PERMISOS_COMUNES = ['perfil:leer:propio', 'perfil:cambiar-clave']
 
+/**
+ * Los roles de una cuenta, resueltos en un solo sitio.
+ *
+ * Un usuario tiene DOS campos de rol: `roles[]`, que es el bueno, y `role`,
+ * que es el que había antes de que una cuenta pudiera tener varios. Los dos
+ * siguen en la base y hoy dicen lo mismo, pero nada obliga a que lo sigan
+ * diciendo: se pueden guardar `role: 'ADMIN'` y `roles: ['LECTURA']` a la vez.
+ *
+ * Diez sitios del backend leían `usuario.role` a mano mientras `puede()` leía
+ * `roles[]`. Con eso, una cuenta creada así resultaba de solo lectura para los
+ * permisos y de administrador para las vistas: no podía hacer nada, pero veía
+ * el tamizaje completo de todo el mundo, con la pregunta de si la persona ha
+ * tenido pensamientos de hacerse daño incluida.
+ *
+ * Por eso esta función existe y por eso es la única que debe mirar esos
+ * campos. Si vuelve a aparecer un `usuario.role ===` en un controlador o en
+ * una vista, la divergencia vuelve con él.
+ */
+export function rolesDe(usuario) {
+  if (!usuario) return []
+  if (Array.isArray(usuario.roles) && usuario.roles.length > 0) return usuario.roles
+  return usuario.role ? [usuario.role] : []
+}
+
+/**
+ * ¿Esta cuenta tiene este rol?
+ *
+ * Para preguntas sobre la cuenta en sí —«¿es administrador?», «¿es una cuenta
+ * de profesional?»—. Para preguntas sobre lo que alguien PUEDE hacer, la
+ * respuesta es `puede()`, que es la que respeta la matriz.
+ */
+export function tieneRol(usuario, rol) {
+  return rolesDe(usuario).includes(rol)
+}
+
 export function puede(usuario, permiso) {
   if (!usuario) return false
   if (PERMISOS_COMUNES.includes(permiso)) return true
 
-  const listaRoles = Array.isArray(usuario.roles) && usuario.roles.length > 0
-    ? usuario.roles
-    : (usuario.role ? [usuario.role] : [])
-
+  const listaRoles = rolesDe(usuario)
   if (listaRoles.length === 0) return false
 
   return listaRoles.some((rol) => {

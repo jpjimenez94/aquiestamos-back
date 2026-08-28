@@ -1,3 +1,4 @@
+import { tieneRol } from '../auth/permissions.js'
 import { UserModel } from '../models/user.model.js'
 import { SessionModel } from '../models/session.model.js'
 import { hashearClave } from '../auth/password.js'
@@ -147,7 +148,7 @@ export const UserController = {
         return res.status(400).json(failure('No puedes eliminar tu propia cuenta'))
       }
 
-      if (usuario.role === 'ADMIN') {
+      if (tieneRol(usuario, 'ADMIN')) {
         const activos = (await UserModel.findAll({ role: 'ADMIN' })).filter((u) => u.active)
         if (activos.length <= 1) {
           return res.status(400).json(failure('Debe quedar al menos un administrador activo'))

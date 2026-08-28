@@ -6,16 +6,37 @@ import { ok, created, failure } from '../views/response.view.js'
 import { reglaLista, bloqueoLista, bloqueo } from '../views/availability.view.js'
 
 /**
- * Un profesional puede editar SUS franjas y nadie mas las suyas.
- * Esta funcion es la que impone esa frontera.
+ * Un profesional puede editar SUS franjas y nadie más las suyas. Estas tres
+ * funciones son las que imponen esa frontera.
+ *
+ * Antes había DOS ayudantes autorizando lo mismo —`puedeTocarA` para leer,
+ * `esPropio` para escribir— cada uno con su propia idea de quién es
+ * administrador. Dos derivaciones en paralelo de la misma regla es exactamente
+ * la forma que tenían los fallos de las salas de videollamada.
  */
-async function puedeTocarA(usuario, professionalId) {
-  if (puede(usuario, 'disponibilidad:leer') || usuario.role === 'ADMIN') return true
+async function esSuAgenda(usuario, professionalId) {
+  const suyo = await ProfessionalModel.findByUserId(usuario.id)
+  return Boolean(suyo && suyo.id === professionalId)
+}
 
-  if (puede(usuario, 'disponibilidad:editar:propia')) {
-    const suyo = await ProfessionalModel.findByUserId(usuario.id)
-    return Boolean(suyo && suyo.id === professionalId)
-  }
+/** Leer: la coordinación ve todas las agendas; el profesional, la suya. */
+async function puedeVer(usuario, professionalId) {
+  if (puede(usuario, 'disponibilidad:leer')) return true
+  if (puede(usuario, 'disponibilidad:leer:propia')) return esSuAgenda(usuario, professionalId)
+  return false
+}
+
+/**
+ * Escribir: quien tenga `disponibilidad:editar` —hoy solo ADMIN, por su `*`—
+ * o el propio profesional sobre la suya.
+ *
+ * Los tres métodos de escritura decían `req.usuario.role !== 'ADMIN'`, que lee
+ * el campo viejo de rol en vez de la matriz. Una cuenta con `roles: ['ADMIN']`
+ * y `role` de otra cosa es administradora para `puede()` y no lo era aquí.
+ */
+async function puedeEditar(usuario, professionalId) {
+  if (puede(usuario, 'disponibilidad:editar')) return true
+  if (puede(usuario, 'disponibilidad:editar:propia')) return esSuAgenda(usuario, professionalId)
   return false
 }
 
@@ -23,7 +44,7 @@ export const AvailabilityController = {
   /** GET /api/professionals/:id/disponibilidad */
   async index(req, res, next) {
     try {
-      if (!(await puedeTocarA(req.usuario, req.params.id))) {
+      if (!(await puedeVer(req.usuario, req.params.id))) {
         return res.status(403).json(failure('Solo puedes ver tu propia disponibilidad'))
       }
 
@@ -41,8 +62,7 @@ export const AvailabilityController = {
   /** PUT /api/professionals/:id/disponibilidad — reemplaza todas las franjas */
   async reemplazar(req, res, next) {
     try {
-      const esSuyo = await esPropio(req.usuario, req.params.id)
-      if (req.usuario.role !== 'ADMIN' && !esSuyo) {
+      if (!(await puedeEditar(req.usuario, req.params.id))) {
         return res.status(403).json(failure('Solo puedes editar tu propia disponibilidad'))
       }
 
@@ -52,6 +72,17 @@ export const AvailabilityController = {
       const anteriores = await AvailabilityModel.reglasDe(req.params.id)
       await AvailabilityModel.reemplazarReglas(req.params.id, req.validated.franjas)
       const nuevas = await AvailabilityModel.reglasDe(req.params.id)
+
+      /**
+       * Tocar la agenda ES confirmarla.
+       *
+       * El barrido mensual pregunta a quien lleve demasiado sin confirmar; si
+       * guardar sus horarios no contara como respuesta, se le seguiría
+       * preguntando cada mes a alguien que acaba de actualizarlos. Un
+       * recordatorio que llega después de haber hecho lo que pedía es la forma
+       * más rápida de que alguien deje de leer los correos de la red.
+       */
+      await ProfessionalModel.update(req.params.id, { availabilityConfirmedAt: new Date() })
 
       await registrar({
         req,
@@ -71,8 +102,7 @@ export const AvailabilityController = {
   /** POST /api/professionals/:id/bloqueos */
   async crearBloqueo(req, res, next) {
     try {
-      const esSuyo = await esPropio(req.usuario, req.params.id)
-      if (req.usuario.role !== 'ADMIN' && !esSuyo) {
+      if (!(await puedeEditar(req.usuario, req.params.id))) {
         return res.status(403).json(failure('Solo puedes bloquear tu propia agenda'))
       }
 
@@ -100,8 +130,7 @@ export const AvailabilityController = {
   /** DELETE /api/professionals/:id/bloqueos/:bloqueoId */
   async borrarBloqueo(req, res, next) {
     try {
-      const esSuyo = await esPropio(req.usuario, req.params.id)
-      if (req.usuario.role !== 'ADMIN' && !esSuyo) {
+      if (!(await puedeEditar(req.usuario, req.params.id))) {
         return res.status(403).json(failure('Solo puedes editar tu propia agenda'))
       }
 
@@ -123,9 +152,4 @@ export const AvailabilityController = {
       next(error)
     }
   },
-}
-
-async function esPropio(usuario, professionalId) {
-  const suyo = await ProfessionalModel.findByUserId(usuario.id)
-  return Boolean(suyo && suyo.id === professionalId)
 }

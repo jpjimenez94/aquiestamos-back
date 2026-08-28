@@ -569,6 +569,17 @@ model Professional {
   professionalCardVerifiedAt  DateTime?               @map("professional_card_verified_at") @db.Timestamptz(3)
   professionalCardVerifiedBy  String?                 @map("professional_card_verified_by") @db.VarChar(160)
 
+  /// Cuándo confirmó por última vez que su agenda sigue al día.
+  ///
+  /// Desde que asignar dejó de ser pedir permiso, a nadie se le consulta caso
+  /// por caso: se le asigna y la persona elige hora de su agenda. Eso solo es
+  /// justo si esa agenda es de verdad — y una agenda cargada hace ocho meses,
+  /// cuando cambió de trabajo, manda a alguien a una hora en la que no está.
+  ///
+  /// Null significa «nunca ha confirmado»; entonces cuenta la fecha en que se
+  /// registró, que es cuando la cargó.
+  availabilityConfirmedAt DateTime? @map("availability_confirmed_at") @db.Timestamptz(3)
+
   /// Documento de identidad, subido por el propio profesional desde su
   /// enlace. Mismo bucket privado que la tarjeta; solo lo ve el equipo.
   identityDocumentUrl String? @map("identity_document_url") @db.VarChar(500)
@@ -685,11 +696,17 @@ model CaseAssignment {
 
   /// Cuándo respondió el profesional, sea que aceptara o no.
   respondedAt        DateTime? @map("responded_at") @db.Timestamptz(3)
-  /// Los días y franjas en los que dijo que puede, puestos por él mismo desde
-  /// el enlace de su caso. No los transcribe nadie: el dato es suyo.
-  acceptedDays       Weekday[] @map("accepted_days")
-  acceptedSlots      DaySlot[] @map("accepted_slots")
-  /// El matiz que no cabe en días y franjas: "después de las 4 mejor".
+  /// Aquí vivían `acceptedDays` y `acceptedSlots`: los días y franjas que el
+  /// profesional escribía al aceptar un caso. Se fueron porque le pedían por
+  /// segunda vez algo que ya nos había dado —su disponibilidad está cargada
+  /// desde que se registró—, y encima en el paso donde más se moría el
+  /// proceso: de cada ocho asignaciones, siete se perdían esperando esa
+  /// respuesta.
+  ///
+  /// Ahora la agenda del profesional es la ÚNICA fuente de cuándo puede, y la
+  /// persona elige de ella directamente.
+  ///
+  /// El matiz que no cabe en una agenda: "después de las 4 mejor".
   availabilityNote   String?   @map("availability_note") @db.VarChar(600)
   /// Por qué no pudo. Es lo que permite saber si el problema es de la red
   /// —siempre los mismos días, siempre la misma ciudad— o del caso.

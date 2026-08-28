@@ -1,3 +1,4 @@
+import { primerNombre as pila } from '../nombre.js'
 import { conCerrojo, CERROJOS } from '../config/cerrojo.js'
 import { prisma } from '../config/database.js'
 import { NotificationModel } from '../models/notification.model.js'
@@ -67,10 +68,6 @@ export function detenerBarridoCitas() {
   if (!temporizador) return
   clearInterval(temporizador)
   temporizador = null
-}
-
-function pila(nombre) {
-  return String(nombre ?? '').trim().split(/\s+/)[0] || null
 }
 
 /** Encola con plantilla resuelta; la dedupeKey garantiza que salga una vez. */

@@ -1,3 +1,4 @@
+import { puede } from '../auth/permissions.js'
 import { tamizajeResumen, tamizajeCompleto } from './triage.view.js'
 
 /**
@@ -75,6 +76,6 @@ export function supportRequestAdminList(requests) {
 
 /** Elige la vista segun el rol de quien consulta. */
 export function supportRequestListaSegunRol(requests, usuario) {
-  const paraAdmin = usuario?.role === 'ADMIN'
+  const paraAdmin = puede(usuario, 'dato-sensible:ver')
   return requests.map(paraAdmin ? supportRequestAdmin : supportRequestAgendador)
 }

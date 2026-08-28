@@ -107,6 +107,9 @@ describe('caso compartido', () => {
         'city',
         'contactName',
         'decidir',
+        // Si todavía puede decir que no. Va aquí y no se calcula en la pantalla:
+        // depende del estado de la asignación, que el profesional no ve.
+        'puedeDeclinar',
         'email',
         'estado',
         'fullName',

@@ -113,6 +113,55 @@ export const DashboardController = {
         prisma.appointment.groupBy({ by: ['status'], _count: { _all: true } }),
       ])
 
+      /**
+       * Lo que puede pararse hoy sin que nadie lo note.
+       *
+       * El tablero contaba lo que entra —solicitudes, personas sin asignar— y
+       * lo que hay —profesionales, citas—, pero no lo que se está atascando. Y
+       * desde que asignar dejó de ser pedir permiso, el atasco se movió de
+       * sitio: ya no muere en el «sí» del profesional, muere en el silencio de
+       * después.
+       *
+       * Los tres se resuelven hoy con un mensaje. Si nadie mira, se resuelven
+       * solos de la peor manera: el caso se libera, la sesión ocurre sin
+       * consentimiento, o nadie se entera de que la persona no apareció.
+       */
+      const [asignadasSinHora, citasHoySinConsentimiento, sesionesSinReporte] = await Promise.all([
+        // Asignadas, con el profesional avisado, y ella todavía sin elegir
+        // hora. A los 3 días el barrido las libera: esta es la ventana para
+        // escribirle antes de que eso pase.
+        prisma.caseAssignment.findMany({
+          where: { status: 'ACEPTADA', deletedAt: null },
+          select: { respondedAt: true, startedAt: true },
+          orderBy: { startedAt: 'asc' },
+        }),
+
+        // Sesiones de hoy que empiezan sin el consentimiento firmado. Es
+        // requisito para empezar y solo se puede resolver antes de la hora.
+        prisma.appointment.count({
+          where: {
+            startsAt: { gte: ahora, lt: finDeHoy },
+            status: { in: ['PROGRAMADA', 'CONFIRMADA'] },
+            consentSigned: false,
+          },
+        }),
+
+        // Sesiones que ya pasaron y nadie contó qué pasó. Es el único canal por
+        // el que se sabe si la persona apareció.
+        prisma.appointment.count({
+          where: {
+            startsAt: { lt: ahora },
+            status: { in: ['PROGRAMADA', 'CONFIRMADA'] },
+          },
+        }),
+      ])
+
+      const TRES_DIAS = 3 * 86400000
+      const esperaDe = (a) => Date.now() - new Date(a.respondedAt ?? a.startedAt).getTime()
+      const masEsperaSinHora = asignadasSinHora.length
+        ? Math.max(...asignadasSinHora.map(esperaDe))
+        : 0
+
       // Cuanto lleva esperando la persona que mas ha esperado sin asignar.
       const masAntigua = await prisma.patient.findFirst({
         where: {
@@ -144,6 +193,16 @@ export const DashboardController = {
             citasProximas24h: citasHoy,
             citasProximos7dias: citasSemana,
             porEstado: Object.fromEntries(porEstado.map((f) => [f.status, f._count._all])),
+          },
+          atascos: {
+            sinElegirHora: asignadasSinHora.length,
+            sinElegirHoraDiasMax: Math.floor(masEsperaSinHora / 86400000),
+            // Cuántas están a menos de un día de que el barrido las libere.
+            sinElegirHoraPorVencer: asignadasSinHora.filter(
+              (a) => esperaDe(a) > TRES_DIAS - 86400000,
+            ).length,
+            citasHoySinConsentimiento,
+            sesionesSinReporte,
           },
         }),
       )
@@ -289,8 +348,6 @@ export const DashboardController = {
                 estado: asignacion.status,
                 // Lo que el profesional ofreció al aceptar, para que quien
                 // coordina lo vea sin abrir la ficha.
-                diasOfrecidos: asignacion.acceptedDays ?? [],
-                franjasOfrecidas: asignacion.acceptedSlots ?? [],
                 notaDisponibilidad: asignacion.availabilityNote ?? null,
                 // Cuántos días faltan para que el barrido libere el caso. El
                 // reloj de la PROPUESTA corre desde que se propuso; el de la
@@ -480,6 +537,8 @@ export const DashboardController = {
           closeReason: true,
           professional: { select: { fullName: true } },
           patient: { select: { createdAt: true } },
+          // Para saber cuánto tarda la persona en elegir hora tras la asignación.
+          appointments: { select: { createdAt: true } },
         },
       })
 
@@ -490,7 +549,19 @@ export const DashboardController = {
       const motivosDeCierre = {}
       const porProfesional = {}
       const diasHastaPrimeraPropuesta = []
-      const diasPropuestaARespuesta = []
+      /**
+       * El cuello de botella se movió, y la métrica con él.
+       *
+       * Se medía cuánto tardaba el profesional en responder a la propuesta.
+       * Desde que se asigna y se avisa, ya no responde nada: la asignación nace
+       * respondida y ese número vale cero siempre. Una métrica clavada en cero
+       * no dice que el proceso sea instantáneo, dice que dejó de mirar.
+       *
+       * Lo que ahora puede quedarse parado es lo siguiente: que la persona
+       * entre a su enlace y elija hora. De ahí a que se le suelte el
+       * acompañamiento hay 3 días, y esto es lo que avisa antes de que pase.
+       */
+      const diasHastaElegirHora = []
 
       const primeraPropuestaDe = {}
       for (const a of asignaciones) {
@@ -518,9 +589,12 @@ export const DashboardController = {
           porProfesional[nombre] = (porProfesional[nombre] ?? 0) + 1
         }
 
-        if (a.respondedAt) {
-          diasPropuestaARespuesta.push((a.respondedAt - a.startedAt) / DIA)
-        }
+        // Desde que se le asigna hasta que hay cita. La primera cita de esa
+        // asignación es la que cuenta: las siguientes ya son seguimiento.
+        const primeraCita = (a.appointments ?? [])
+          .map((c) => new Date(c.createdAt).getTime())
+          .sort((x, y) => x - y)[0]
+        if (primeraCita) diasHastaElegirHora.push((primeraCita - a.startedAt) / DIA)
       }
 
       const personaPorId = new Map(personas.map((p) => [p.id, p]))
@@ -541,6 +615,86 @@ export const DashboardController = {
       const tasaAsistencia =
         realizadas + noAsistio > 0 ? Math.round((realizadas / (realizadas + noAsistio)) * 100) : null
 
+      /* ---------- telemetría de las sesiones virtuales ----------
+       *
+       * Esto no lo calculaba nadie. La pantalla pedía `telemetriaVirtual`, el
+       * backend nunca lo mandaba, y el panel entero —«Métricas técnicas en
+       * tiempo real»— pintaba ceros y guiones desde el primer día sin que
+       * saltara ningún error: la pantalla estaba escrita para tolerar que
+       * faltara, y toleró que no llegara nunca.
+       *
+       * Es de lo que no se descubre mirando: unos ceros en una pantalla de
+       * métricas se leen como «todavía no hay datos», no como «esto no está
+       * conectado».
+       *
+       * Solo cuentan las sesiones virtuales que YA PASARON. Una cita de la
+       * semana que viene sin nadie conectado no es una ausencia, es una cita
+       * que aún no ocurrió, y meterla hundiría todas las tasas.
+       */
+      const virtuales = await prisma.appointment.findMany({
+        where: {
+          // Las citas no tienen borrado lógico; cancelar es su forma de irse.
+          modality: 'VIRTUAL',
+          status: { notIn: ['CANCELADA'] },
+          /**
+           * Ya pasó su hora, O alguien entró de verdad a la sala.
+           *
+           * Con solo lo primero, una sesión que ocurre antes de su hora
+           * agendada —se adelantaron, se reagendó de palabra, se está probando
+           * el enlace— no contaba: podían haber hablado cuarenta minutos y el
+           * informe seguía diciendo cero sesiones virtuales.
+           *
+           * La telemetría es la prueba de que ocurrió. Si alguien abrió la
+           * sala, hubo sesión, diga lo que diga el calendario.
+           *
+           * Y al revés sigue valiendo: una cita futura donde nadie entró no es
+           * una ausencia, es una cita que aún no llega, y contarla hundiría
+           * todas las tasas del informe.
+           */
+          OR: [
+            { startsAt: { lte: new Date() } },
+            { patientFirstJoinedAt: { not: null } },
+            { professionalFirstJoinedAt: { not: null } },
+          ],
+        },
+        select: {
+          patientFirstJoinedAt: true,
+          professionalFirstJoinedAt: true,
+          totalCallDurationSeconds: true,
+        },
+      })
+
+      const conPaciente = virtuales.filter((c) => c.patientFirstJoinedAt != null)
+      const conProfesional = virtuales.filter((c) => c.professionalFirstJoinedAt != null)
+      const conAmbos = virtuales.filter(
+        (c) => c.patientFirstJoinedAt != null && c.professionalFirstJoinedAt != null,
+      )
+      const conAlguien = virtuales.filter(
+        (c) => c.patientFirstJoinedAt != null || c.professionalFirstJoinedAt != null,
+      )
+
+      // El promedio se saca solo sobre las que midieron algo: incluir ceros de
+      // sesiones donde la telemetría no llegó haría parecer cortas las que sí.
+      const conDuracion = virtuales
+        .map((c) => c.totalCallDurationSeconds ?? 0)
+        .filter((seg) => seg > 0)
+
+      const tasa = (cuantas) =>
+        virtuales.length > 0 ? Math.round((cuantas / virtuales.length) * 100) : null
+
+      const telemetriaVirtual = {
+        totalSesionesVirtuales: virtuales.length,
+        sesionesConIngreso: conAlguien.length,
+        sesionesCompletasConAmbos: conAmbos.length,
+        tasaConexionAmbos: tasa(conAmbos.length),
+        tasaIngresoPaciente: tasa(conPaciente.length),
+        tasaIngresoProfesional: tasa(conProfesional.length),
+        duracionPromedioMinutos:
+          conDuracion.length > 0
+            ? Math.round(conDuracion.reduce((a, b) => a + b, 0) / conDuracion.length / 60)
+            : null,
+      }
+
       // ---------- encuesta del cierre ----------
       const encuestas = await prisma.closureSurvey.findMany({
         select: { helped: true, wouldRecommend: true },
@@ -553,12 +707,147 @@ export const DashboardController = {
         recomendaria: encuestas.filter((e) => e.wouldRecommend).length,
       }
 
+      // ---------- el camino completo, desde que alguien pide ayuda ----------
+      //
+      // Lo de arriba mide tramos sueltos. Esto mide el camino entero y, sobre
+      // todo, DÓNDE se cae la gente: entre pedir ayuda y sentarse con un
+      // profesional hay seis puertas, y hasta ahora nadie sabía cuál era la
+      // que se traga a más personas.
+      //
+      // El tamizaje no aparecía en ninguna métrica y es la primera puerta: se
+      // manda por WhatsApp y hay que abrir un enlace. Si mucha gente no lo
+      // responde, el problema no está en la agenda ni en los profesionales,
+      // está en el primer mensaje.
+      // `Patient.supportRequestId` es una columna suelta, sin relación de
+      // Prisma, así que las dos consultas se cruzan aquí. Con 34 solicitudes y
+      // 28 personas eso no es un problema; si algún día lo fuera, la respuesta
+      // es declarar la relación en el esquema, no complicar esto.
+      const solicitudes = await prisma.supportRequest.findMany({
+        where: { deletedAt: null },
+        select: {
+          id: true,
+          createdAt: true,
+          triageResponses: { select: { id: true }, take: 1 },
+        },
+      })
+
+      const admitidos = await prisma.patient.findMany({
+        where: { deletedAt: null, supportRequestId: { not: null } },
+        select: {
+          supportRequestId: true,
+          assignments: {
+            where: { deletedAt: null },
+            select: { status: true, respondedAt: true },
+          },
+          appointments: { select: { status: true, startsAt: true } },
+        },
+      })
+      const personaDeLaSolicitud = new Map(admitidos.map((p) => [p.supportRequestId, p]))
+
+      const conTamizaje = solicitudes.filter((s) => s.triageResponses.length > 0)
+      const admitidas = solicitudes.filter((s) => personaDeLaSolicitud.has(s.id))
+      const personaDe = (s) => personaDeLaSolicitud.get(s.id)
+
+      const conPropuesta = admitidas.filter((s) => personaDe(s).assignments.length > 0)
+      const conCita = admitidas.filter((s) => personaDe(s).appointments.length > 0)
+      const conSesion = admitidas.filter((s) =>
+        personaDe(s).appointments.some((c) => c.status === 'REALIZADA'),
+      )
+
+      /** Días entre pedir ayuda y sentarse por primera vez con alguien. */
+      const diasHastaLaPrimeraSesion = conSesion
+        .map((s) => {
+          const realizadas = personaDe(s)
+            .appointments.filter((c) => c.status === 'REALIZADA')
+            .map((c) => new Date(c.startsAt).getTime())
+          if (realizadas.length === 0) return null
+          return (Math.min(...realizadas) - new Date(s.createdAt).getTime()) / DIA
+        })
+        .filter((d) => d !== null && d >= 0)
+
+      /**
+       * Mediana además del promedio: con pocos casos, uno que tardó dos meses
+       * mueve el promedio y hace parecer lento un servicio que atiende a casi
+       * todo el mundo en una semana.
+       */
+      const mediana = (valores) => {
+        if (valores.length === 0) return null
+        const orden = [...valores].sort((a, b) => a - b)
+        const medio = Math.floor(orden.length / 2)
+        const v = orden.length % 2 ? orden[medio] : (orden[medio - 1] + orden[medio]) / 2
+        return Math.round(v * 10) / 10
+      }
+
+      /**
+       * Los pasos tienen que estar encajados de verdad: cada uno es un
+       * subconjunto del anterior. Si no, la resta entre dos pasos no significa
+       * nada.
+       *
+       * «Respondieron el tamizaje» NO va aquí, aunque ocurra antes en el
+       * tiempo: se puede admitir a alguien que nunca lo respondió —el barrido
+       * de admisión lo hace a propósito— así que había más admitidas que
+       * respuestas y la caída salía en negativo. El tamizaje se mide aparte,
+       * que es donde su número quiere decir algo.
+       */
+      /**
+       * «Un profesional aceptó» ya no es una etapa.
+       *
+       * Lo era cuando asignar significaba pedir permiso y esperar. Desde que se
+       * asigna y se avisa, esa etapa vale siempre lo mismo que la anterior: un
+       * escalón que nunca baja, que ocupa sitio y que le dice a quien mira el
+       * informe que ahí no hay nada que arreglar.
+       *
+       * Un embudo con un peldaño que siempre marca 100 % no informa: tranquiliza.
+       * Los que declinan se cuentan aparte, en «Propuestas a profesionales»,
+       * donde un rechazo se lee como lo que es —el profesional no podía— y no
+       * como una fuga del sistema.
+       */
+      const pasos = [
+        ['Pidieron ayuda', solicitudes.length],
+        ['Fueron admitidas', admitidas.length],
+        ['Se les asignó profesional', conPropuesta.length],
+        ['Eligieron hora', conCita.length],
+        ['Tuvieron su sesión', conSesion.length],
+      ]
+
+      const camino = pasos.map(([etapa, cuantas], i) => ({
+        etapa,
+        cuantas,
+        // Respecto al total: la caída acumulada de un vistazo.
+        porcentaje: solicitudes.length > 0 ? Math.round((cuantas / solicitudes.length) * 100) : null,
+        // Respecto al paso anterior: dónde está la puerta que atasca.
+        seQuedaronAqui: i === 0 ? null : pasos[i - 1][1] - cuantas,
+      }))
+
       return res.json(
         ok({
           personas: { total: personas.length, porEstado, porPrioridad },
+          camino,
+          // Cuántas solicitudes sostienen todo lo de arriba. Va explícito
+          // porque con pocos casos un porcentaje engaña: «83 %» sobre seis
+          // solicitudes es una persona, no una tendencia, y la pantalla tiene
+          // que poder decirlo.
+          caminoSobreCuantas: solicitudes.length,
+          tamizaje: {
+            enviados: solicitudes.length,
+            respondidos: conTamizaje.length,
+            tasaRespuesta:
+              solicitudes.length > 0
+                ? Math.round((conTamizaje.length / solicitudes.length) * 100)
+                : null,
+            // Las que entraron igual sin responder: las recoge el barrido de
+            // admisión, y su prioridad es una suposición del sistema, no algo
+            // que la persona haya dicho. A esas hay que llamarlas.
+            admitidasSinResponder: admitidas.filter((s) => s.triageResponses.length === 0).length,
+          },
+          esperaHastaLaPrimeraSesion: {
+            diasMediana: mediana(diasHastaLaPrimeraSesion),
+            diasPromedio: prom(diasHastaLaPrimeraSesion),
+            sobreCuantasPersonas: diasHastaLaPrimeraSesion.length,
+          },
           embudo: {
             diasPromedioHastaPrimeraPropuesta: prom(diasHastaPrimeraPropuesta),
-            diasPromedioRespuestaDelProfesional: prom(diasPropuestaARespuesta),
+            diasPromedioHastaElegirHora: prom(diasHastaElegirHora),
           },
           asignaciones: {
             total: asignaciones.length,
@@ -566,8 +855,21 @@ export const DashboardController = {
             rechazadas,
             vencidasSinRespuesta,
             canceladasOtras,
-            tasaAceptacion:
-              asignaciones.length > 0 ? Math.round((aceptadas / asignaciones.length) * 100) : null,
+            /**
+             * Cuántas declinó el profesional, no cuántas aceptó.
+             *
+             * La tasa de aceptación tenía sentido cuando aceptar era un acto:
+             * ahora toda asignación nace aceptada y ese porcentaje sería 100 %
+             * para siempre, en la pantalla que existe justamente para enseñar
+             * lo que va mal.
+             *
+             * Se le da la vuelta. Que suba esta cifra es la señal de que a los
+             * profesionales se les está asignando lo que no pueden tomar —por
+             * ciudad, por carga o por perfil— y que hay que mirar el criterio,
+             * no insistirles.
+             */
+            tasaDeclinada:
+              asignaciones.length > 0 ? Math.round((rechazadas / asignaciones.length) * 100) : null,
           },
           motivosDeCierre,
           casosPorProfesional: Object.entries(porProfesional)
@@ -575,6 +877,7 @@ export const DashboardController = {
             .slice(0, 10)
             .map(([nombre, casos]) => ({ nombre, casos })),
           citas: { porEstado: citas, tasaAsistencia },
+          telemetriaVirtual,
           encuesta,
         }),
       )
