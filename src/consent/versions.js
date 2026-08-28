@@ -11,10 +11,10 @@
  *   · Al crear una nueva, súbela a VERSION_ACTUAL y deja la anterior en la lista.
  */
 
-export const VERSION_ACTUAL = '2026-08'
+export const VERSION_ACTUAL = '2026-09'
 
 /** Versiones que el backend acepta. Las viejas siguen siendo válidas para los registros que ya existen. */
-export const VERSIONES_VALIDAS = ['2026-08', '2026-08-google']
+export const VERSIONES_VALIDAS = ['2026-09', '2026-08', '2026-08-google']
 
 /**
  * Las 71 postulaciones que llegaron por el Google Form antes de que existiera
