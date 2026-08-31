@@ -134,7 +134,9 @@ Si te surge alguna duda o necesitas mover el horario, escríbenos por aquí con 
     description: 'Entrega formal del caso al psicólogo con responsabilidades de contacto previo (15 min), puntualidad, enlace al caso y sala virtual.',
     dataType: 'TEXTO',
     variables: ['profesional', 'persona', 'cuando', 'modalidad', 'enlaceReunion', 'canalContacto', 'enlaceCaso'],
-    defaultValue: `Hola {profesional}, la cita ya está confirmada y lista para iniciar.
+    defaultValue: `Hola {profesional}, {persona} ya eligió su hora.
+
+De acuerdo con la disponibilidad que tienes cargada en tu perfil, quedó agendado el acompañamiento:
 
 · *Persona acompañada:* {persona}
 · *Cuándo:* {cuando}

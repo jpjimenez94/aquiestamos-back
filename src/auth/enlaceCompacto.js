@@ -30,6 +30,21 @@ export const CODIGO = {
   // La agenda de la persona. Es el único de los seis que apunta a la PERSONA y
   // no a un trámite concreto, y por eso sobrevive a un cambio de profesional.
   agenda: 6,
+
+  /**
+   * La sala de la videollamada, una por rol.
+   *
+   * El rol viaja en el propio código y no dentro del cuerpo: así el enlace
+   * compacto sirve para la sala sin crecer ni un byte, y el que abre sabe
+   * quién entra sin tener que confiar en nada que venga en la URL.
+   *
+   * Es lo que permitió acortarlos de 132 caracteres a 50. Un enlace de sala
+   * viaja por WhatsApp a alguien que a veces lo abre desde un teléfono con
+   * mala señal y a veces lo copia a mano; cuanto menos ocupe y menos se parta
+   * en dos líneas, mejor.
+   */
+  salaPaciente: 7,
+  salaProfesional: 8,
 }
 
 const LARGO_CUERPO = 21

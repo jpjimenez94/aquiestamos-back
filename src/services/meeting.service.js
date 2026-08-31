@@ -1,3 +1,4 @@
+import { crearCompacto, leerCompacto, CODIGO } from '../auth/enlaceCompacto.js'
 import crypto from 'crypto'
 import { env } from '../config/env.js'
 import { SettingsService } from './settings.service.js'
@@ -74,15 +75,47 @@ export async function generarEnlaceVideollamada(appointmentId) {
  * dejaba de coincidir con el que veía la coordinación. El enlace caduca cuando
  * caduca la cita, no por el reloj.
  */
+/**
+ * Caducidad fija para las llaves de sala.
+ *
+ * El formato compacto guarda un vencimiento, pero una llave de sala NO puede
+ * llevar reloj: si cambiara con el tiempo, el enlace que se le mandó a alguien
+ * por WhatsApp dejaría de coincidir con el que ve la coordinación. Ya pasó una
+ * vez y por eso el formato anterior no llevaba marca de tiempo.
+ *
+ * Con una fecha fija el enlace es siempre el mismo, y la caducidad real sigue
+ * siendo la de la cita —que se comprueba aparte—, igual que hasta ahora.
+ */
+const SALA_NO_CADUCA = Date.UTC(2099, 0, 1)
+
 export function generarTokenSala(appointmentId, role = 'PACIENTE') {
   if (!appointmentId) return null
 
-  const payloadStr = Buffer.from(
-    JSON.stringify({ aid: appointmentId, rol: String(role).toUpperCase() }),
-  ).toString('base64url')
+  /**
+   * En formato compacto: 50 caracteres en vez de 132.
+   *
+   * Antes era base64 de un JSON con el id y el rol, más la firma. El rol viaja
+   * ahora en el código del enlace —hay uno por rol— así que cabe entero sin
+   * llevar nada dentro.
+   *
+   * Un enlace de sala viaja por WhatsApp a alguien que a veces lo abre desde un
+   * teléfono con mala señal y a veces lo copia a mano. Ochenta y dos caracteres
+   * menos es que quepa en una línea y no se parta.
+   */
+  const esProfesional = String(role).toUpperCase() === 'PROFESIONAL'
+  const codigo = esProfesional ? CODIGO.salaProfesional : CODIGO.salaPaciente
 
-  const firma = crypto.createHmac('sha256', secreto()).update(payloadStr).digest('base64url')
-  return `${payloadStr}.${firma}`
+  try {
+    return crearCompacto(codigo, appointmentId, SALA_NO_CADUCA)
+  } catch {
+    // Si el id no fuera un uuid, se cae al formato anterior en vez de dejar a
+    // alguien sin enlace.
+    const payloadStr = Buffer.from(
+      JSON.stringify({ aid: appointmentId, rol: String(role).toUpperCase() }),
+    ).toString('base64url')
+    const firma = crypto.createHmac('sha256', secreto()).update(payloadStr).digest('base64url')
+    return `${payloadStr}.${firma}`
+  }
 }
 
 /**
@@ -103,6 +136,27 @@ export function verificarTokenSala(tokenOrId) {
   if (uuidRegex.test(tokenOrId)) {
     if (!env.salaAceptaUuid) return null
     return { aid: tokenOrId, rol: null, esUuidCrudo: true }
+  }
+
+  /**
+   * Primero el formato compacto, que es el que se genera hoy.
+   *
+   * Los tres formatos conviven a propósito y en este orden: el compacto es el
+   * nuevo, el de dos partes son los enlaces que ya circulan por WhatsApp desde
+   * antes del cambio, y el uuid crudo es la deuda más vieja. Cortar cualquiera
+   * de los dos últimos deja fuera a alguien que tiene su cita confirmada y su
+   * enlace guardado en una conversación.
+   */
+  if (!tokenOrId.includes('.')) {
+    for (const [rol, codigo] of [
+      ['PACIENTE', CODIGO.salaPaciente],
+      ['PROFESIONAL', CODIGO.salaProfesional],
+    ]) {
+      // `leerCompacto` devuelve { uuid, vence }, no el uuid suelto.
+      const leido = leerCompacto(tokenOrId, codigo)
+      if (leido) return { aid: leido.uuid, rol, esUuidCrudo: false }
+    }
+    return null
   }
 
   const partes = tokenOrId.split('.')
