@@ -1,3 +1,4 @@
+import { SettingsService } from '../services/settings.service.js'
 import { contenidoDelPortal } from './plantillaEditable.js'
 import { conCerrojo, CERROJOS } from '../config/cerrojo.js'
 import { NotificationModel } from '../models/notification.model.js'
@@ -104,6 +105,10 @@ export async function despachar() {
   let fallidos = 0
 
   try {
+    // Los textos editables, de una vez. Si no, cada correo consulta el suyo y
+    // la primera consulta con la conexión fría cuesta segundos.
+    await SettingsService.precargar()
+
     const avisos = await NotificationModel.pendientes(POR_TANDA)
 
     for (const aviso of avisos) {

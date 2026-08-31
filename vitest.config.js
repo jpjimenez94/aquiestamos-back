@@ -31,6 +31,23 @@ export default defineConfig({
      */
     fileParallelism: false,
 
+    /**
+     * Quince segundos por prueba, no cinco.
+     *
+     * Buena parte de la suite habla con una base de datos de verdad, y la
+     * PRIMERA consulta contra una recién levantada cuesta unos dos segundos:
+     * es Prisma abriendo la conexión, no la consulta. En caliente son cero.
+     *
+     * Con el plazo por defecto de cinco segundos, una prueba que espera a que
+     * salga un correo se quedaba sin margen justo en la primera corrida del
+     * día — y una prueba que falla según lo fría que esté la base enseña a
+     * relanzarla, no a mirarla.
+     *
+     * Esperar más no hace nada más lento: cada prueba vuelve en cuanto tiene lo
+     * que espera. El plazo solo dice cuándo rendirse.
+     */
+    testTimeout: 15000,
+
     // Las pruebas encolan avisos de verdad, con destinatarios de verdad: las
     // cuentas de administración de la base de desarrollo. Si quedaran ahí, un
     // arranque del servidor con SMTP configurado se los mandaría a gente real.

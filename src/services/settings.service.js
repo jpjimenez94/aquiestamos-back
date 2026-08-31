@@ -694,6 +694,34 @@ export const SettingsService = {
   },
 
   /**
+   * Trae todos los ajustes de una vez y deja el caché listo.
+   *
+   * `ensureDefaults` ya lo hace al arrancar el servidor, pero hay dos caminos
+   * que no pasan por ahí: las pruebas, que montan la app sin arrancarlo, y una
+   * tanda de correos que llegue con el caché ya caducado.
+   *
+   * Sin esto, cada correo consulta su plantilla por separado y la PRIMERA
+   * consulta contra una conexión fría cuesta unos dos segundos. Con veinte
+   * avisos en la bandeja eso es una tanda que se arrastra, y lo notaba quien
+   * espera el correo que le dice que ya tiene profesional.
+   *
+   * Es idempotente y barata: si el caché está fresco, no consulta nada.
+   */
+  async precargar() {
+    if (Date.now() - lastCacheSync < CACHE_TTL_MS && settingsCache.size > 0) return
+
+    try {
+      const todos = await prisma.systemSetting.findMany({ select: { key: true, value: true } })
+      for (const s of todos) settingsCache.set(s.key, s.value)
+      lastCacheSync = Date.now()
+    } catch (error) {
+      // Sin caché se sigue funcionando: cada lectura irá a la base, más lento
+      // pero correcto. Quedarse sin correos por esto sería mucho peor.
+      console.warn('[SettingsService] no pude precargar el caché:', error.message)
+    }
+  },
+
+  /**
    * Obtiene el valor directo de una configuración (con caché en memoria).
    */
   async getValue(key, fallbackValue = '') {

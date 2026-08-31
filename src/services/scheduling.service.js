@@ -271,3 +271,37 @@ export async function cargaActual(professionalIds) {
   const mapa = new Map(filas.map((f) => [f.professionalId, f._count._all]))
   return (id) => mapa.get(id) ?? 0
 }
+
+/**
+ * Deja solo los huecos que de verdad son opciones distintas.
+ *
+ * Una sesión dura 45 minutos y bloquea 75 con su descanso, pero los inicios se
+ * generan cada 15. El resultado es que por cada hueco REAL se ofrecen cinco
+ * botones que se excluyen entre sí: si alguien elige las 6:00, el siguiente
+ * inicio posible es 7:15, así que 6:15, 6:30, 6:45 y 7:00 no eran opciones —
+ * eran la misma franja movida un cuarto de hora.
+ *
+ * A la persona que está eligiendo su primera sesión eso no le da más libertad,
+ * le da una pantalla de ochenta botones donde había doce decisiones. Y a la
+ * profesional le fragmenta el día: quien reserva a las 6:15 deja muerto el
+ * cuarto de hora anterior.
+ *
+ * La granularidad fina se conserva en la generación a propósito. Es la que
+ * permite ofrecer un hueco que empieza justo después de una cita ya puesta, en
+ * vez de saltar al siguiente múltiplo de 75 y perder la tarde entera. Aquí solo
+ * se recorre lo ya encontrado y se va quedando el primero de cada bloque.
+ */
+export function sinSolaparse(huecos, descansoMinutos = DESCANSO) {
+  const elegidos = []
+  let libreDesde = -Infinity
+
+  // Vienen ordenados por inicio; si no, se ordena para no depender de eso.
+  for (const hueco of [...huecos].sort((a, b) => a.inicio - b.inicio)) {
+    if (hueco.inicio.getTime() < libreDesde) continue
+
+    elegidos.push(hueco)
+    libreDesde = hueco.fin.getTime() + descansoMinutos * 60000
+  }
+
+  return elegidos
+}

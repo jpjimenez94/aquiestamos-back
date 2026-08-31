@@ -45,6 +45,21 @@ let rechazarTodo = false
 let servidor
 
 beforeAll(async () => {
+  /**
+   * La bandeja, vacía antes de empezar.
+   *
+   * El `globalSetup` la vacía UNA vez, al principio de toda la tanda; los
+   * archivos que corren antes que este dejan sus avisos dentro. Entonces la
+   * primera llamada a `despachar()` se encuentra con correos ajenos, y esta
+   * prueba pasaba a depender de qué se hubiera ejecutado antes — que es la
+   * definición de intermitente.
+   *
+   * Se limpia aquí, donde importa, en vez de confiar en que nadie más deje
+   * nada.
+   */
+  const { prisma: base } = await import('../../src/config/database.js')
+  await base.notification.deleteMany({})
+
   servidor = new SMTPServer({
     disabledCommands: ['STARTTLS'],
     // Sin esto el servidor responde "535 Authentication not implemented" y no
@@ -103,7 +118,23 @@ afterAll(async () => {
  * Esto no esconde fallos: si el correo no llega nunca, la prueba falla igual,
  * solo que medio segundo después.
  */
-async function esperarCorreo(cumple, ms = 1500) {
+/**
+ * Espera a que un correo llegue a la bandeja de pruebas.
+ *
+ * El plazo era de 1500 ms y la prueba se volvió intermitente al conectar las
+ * plantillas de Parametrización: el despachador consulta ahora el texto antes
+ * de enviar, y la PRIMERA consulta contra una base recién levantada cuesta unos
+ * dos segundos —es Prisma abriendo la conexión, no la consulta en sí—. En
+ * caliente son cero.
+ *
+ * Se amplía en vez de recortar lo que hace el despachador, porque en producción
+ * ese coste se paga una vez por arranque y ya se compensó calentando el caché
+ * en `ensureDefaults`. Aquí esperar más no cuesta nada: el bucle mira cada 25
+ * ms y vuelve en cuanto el correo aparece; el plazo solo marca cuándo rendirse.
+ *
+ * Un test intermitente es peor que ninguno — enseña a relanzarlo hasta que pase.
+ */
+async function esperarCorreo(cumple, ms = 8000) {
   const limite = Date.now() + ms
   while (Date.now() < limite) {
     const encontrado = recibidos.find(cumple)

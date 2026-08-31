@@ -3,7 +3,7 @@ import { leerEnlaceAgenda } from '../auth/enlaceAgenda.js'
 import { CaseAssignmentModel } from '../models/caseAssignment.model.js'
 import { PatientModel } from '../models/patient.model.js'
 import { AppointmentModel } from '../models/appointment.model.js'
-import { huecosDisponibles, DURACION_MINIMA } from '../services/scheduling.service.js'
+import { huecosDisponibles, DURACION_MINIMA, DESCANSO, sinSolaparse } from '../services/scheduling.service.js'
 import { crearCita, confirmarHorario } from '../services/appointment.service.js'
 import { enPalabras } from '../services/timezone.service.js'
 import { citaAgendada } from '../notifications/eventos.js'
@@ -129,6 +129,25 @@ export const AgendaPersonaController = {
         (h) => !seCruzaConAlgoSuyo(proximas, h.inicio, h.fin),
       )
 
+      /**
+       * Y solo los que son opciones DISTINTAS.
+       *
+       * Los inicios se generan cada 15 minutos, pero una sesión bloquea 75 con
+       * su descanso: por cada hueco real se ofrecían cinco botones que se
+       * excluyen entre sí. Una profesional con agenda amplia le pintaba a la
+       * persona ochenta botones donde había doce decisiones.
+       *
+       * Se adelgaza DESPUÉS de quitar sus propios choques, no antes: si se
+       * hiciera al revés, un hueco descartado por chocar con otra cita suya
+       * habría tapado al vecino que sí servía, y esa hora se perdería sin que
+       * nadie lo notara.
+       *
+       * La coordinación no pasa por aquí: cuando agenda a mano desde el portal
+       * sigue viendo la granularidad fina, porque a veces hay que encajar algo
+       * concreto y ahí el ruido es precisión.
+       */
+      const opciones = sinSolaparse(libresParaElla, DESCANSO)
+
       return res.json(
         ok({
           persona: primerNombre(paciente.fullName),
@@ -140,7 +159,9 @@ export const AgendaPersonaController = {
           proxima: proxima
             ? { inicio: proxima.startsAt, cuando: enPalabras(proxima.startsAt) }
             : null,
-          huecos: libresParaElla.slice(0, 60).map((h) => ({
+          // El tope se queda como red de seguridad, pero ya no recorta nada
+          // en la práctica: eran 60 de ochenta y pico, ahora son doce.
+          huecos: opciones.slice(0, 60).map((h) => ({
             inicio: h.inicio,
             fin: h.fin,
             cuando: enPalabras(h.inicio),
