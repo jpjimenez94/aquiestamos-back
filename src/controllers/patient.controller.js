@@ -287,6 +287,26 @@ export const PatientController = {
             where: { id: solicitud.id },
             data: { status: 'NUEVO' },
           })
+
+          /**
+           * Y se le suelta el enlace a la persona borrada.
+           *
+           * `supportRequestId` es ÚNICO: una solicitud, una persona. El
+           * registro borrado seguía ocupando ese sitio, así que al admitir de
+           * nuevo la creación chocaba contra la restricción y la pantalla
+           * respondía «Ese registro ya existe» — un mensaje de base de datos
+           * para un problema que quien coordina no puede ni entender ni
+           * resolver.
+           *
+           * Devolver la solicitud a la cola sin soltar el enlace era dejarla
+           * visible pero inservible, que es casi peor que no verla: se ve, se
+           * pulsa, y no pasa nada.
+           *
+           * El registro borrado conserva todo lo demás —es el rastro de que
+           * esa admisión existió— y solo pierde el vínculo, que ya no le sirve
+           * a nadie.
+           */
+          await PatientModel.update(paciente.id, { supportRequestId: null })
           solicitudDevuelta = true
         }
       }

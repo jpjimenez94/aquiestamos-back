@@ -80,7 +80,47 @@ async function borrar(idPaciente) {
     .set('Authorization', `Bearer ${login.body.data.token}`)
 }
 
+async function admitir(idSolicitud) {
+  const login = await request(app).post('/api/auth/login').send({ email: CORREO, password: CLAVE })
+  return request(app)
+    .post(`/api/patients/admitir/${idSolicitud}`)
+    .set('Authorization', `Bearer ${login.body.data.token}`)
+    .send({ priority: 'MEDIA' })
+}
+
 describe('al borrar a una persona', () => {
+  /**
+   * El caso completo, y el que de verdad se reportó: se borró, la solicitud
+   * volvió a la cola, y al darle a «Admitir» la pantalla respondió «Ese
+   * registro ya existe».
+   *
+   * `supportRequestId` es ÚNICO —una solicitud, una persona— y el registro
+   * borrado seguía ocupando ese sitio. La solicitud se veía, se pulsaba, y no
+   * pasaba nada: visible pero inservible, que es casi peor que no verla.
+   */
+  it('se puede volver a admitir, que es el punto de devolverla', async () => {
+    await borrar(ids.paciente)
+
+    const res = await admitir(ids.solicitud)
+    expect(res.status, JSON.stringify(res.body)).toBe(201)
+
+    const viva = await prisma.patient.findFirst({
+      where: { supportRequestId: ids.solicitud, deletedAt: null },
+    })
+    expect(viva).not.toBeNull()
+    expect(viva.id).not.toBe(ids.paciente)
+  })
+
+  /** Y el registro borrado sigue borrado: es el rastro de que aquello existió. */
+  it('la persona borrada no resucita', async () => {
+    await borrar(ids.paciente)
+    await admitir(ids.solicitud)
+
+    const vieja = await prisma.patient.findUnique({ where: { id: ids.paciente } })
+    expect(vieja.deletedAt).not.toBeNull()
+    expect(vieja.supportRequestId).toBeNull()
+  })
+
   it('su solicitud vuelve a estar sobre la mesa', async () => {
     const res = await borrar(ids.paciente)
     expect(res.status).toBe(200)
