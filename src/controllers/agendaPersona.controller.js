@@ -3,7 +3,13 @@ import { leerEnlaceAgenda } from '../auth/enlaceAgenda.js'
 import { CaseAssignmentModel } from '../models/caseAssignment.model.js'
 import { PatientModel } from '../models/patient.model.js'
 import { AppointmentModel } from '../models/appointment.model.js'
-import { huecosDisponibles, DURACION_MINIMA, DESCANSO, sinSolaparse } from '../services/scheduling.service.js'
+import {
+  huecosDisponibles,
+  DURACION_MINIMA,
+  DESCANSO,
+  sinSolaparse,
+  ANTELACION_MINIMA_HORAS,
+} from '../services/scheduling.service.js'
 import { crearCita, confirmarHorario } from '../services/appointment.service.js'
 import { enPalabras } from '../services/timezone.service.js'
 import { citaAgendada } from '../notifications/eventos.js'
@@ -114,6 +120,17 @@ export const AgendaPersonaController = {
         hasta,
         duracionMinutos: DURACION_MINIMA,
         modalidad: paciente.preferredModality || undefined,
+        /**
+         * Nada para dentro de un rato.
+         *
+         * Entre que ella elige y la hora llega hay que avisar al profesional
+         * con el enlace de la videollamada, pedirle a ella el consentimiento y
+         * que coordinación pueda mirar que todo esté en orden. Sin margen, se
+         * podía reservar algo que empezaba en diez minutos: la cita quedaba
+         * puesta, nadie llegaba a nada, y quien pidió ayuda se quedaba sola en
+         * una sala.
+         */
+        antelacionHoras: ANTELACION_MINIMA_HORAS,
       })
 
       /**
@@ -214,12 +231,35 @@ export const AgendaPersonaController = {
         hasta: new Date(fin.getTime() + 60000),
         duracionMinutos: DURACION_MINIMA,
         modalidad: paciente.preferredModality || undefined,
+        /**
+         * El margen también se exige AQUÍ, no solo al pintar la lista.
+         *
+         * La lista es una sugerencia del servidor; esto es la puerta. Sin
+         * repetirlo, bastaba con mandar la petición a mano —o con una pestaña
+         * abierta desde antes— para reservar algo que empieza en diez minutos,
+         * que es justo lo que el margen viene a impedir.
+         *
+         * Una regla que solo vive en la pantalla no es una regla.
+         */
+        antelacionHoras: ANTELACION_MINIMA_HORAS,
       })
       const sigueLibre = libres.some((h) => new Date(h.inicio).getTime() === inicio.getTime())
       if (!sigueLibre) {
+        // Se distingue de «ya la tomaron»: decirle que alguien se le adelantó
+        // cuando lo que pasa es que eligió demasiado pronto la manda a buscar
+        // un culpable que no existe.
+        const demasiadoPronto =
+          inicio.getTime() <= Date.now() + ANTELACION_MINIMA_HORAS * 3600000
+
         return res
           .status(409)
-          .json(failure('Justo acaban de tomar esa hora. Elige otra, por favor.'))
+          .json(
+            failure(
+              demasiadoPronto
+                ? `Esa hora ya está muy cerca. Necesitamos al menos ${ANTELACION_MINIMA_HORAS} horas para avisarle al profesional y dejar todo listo. Elige una un poco más adelante.`
+                : 'Justo acaban de tomar esa hora. Elige otra, por favor.',
+            ),
+          )
       }
 
       const modalidad = paciente.preferredModality || 'VIRTUAL'

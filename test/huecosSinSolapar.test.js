@@ -97,3 +97,21 @@ describe('los huecos que se ofrecen', () => {
     expect(ofrecidos[0].inicio.getTime()).toBe(base.getTime())
   })
 })
+
+describe('el margen para gestionar', async () => {
+  const { ANTELACION_MINIMA_HORAS } = await import('../src/services/scheduling.service.js')
+
+  /**
+   * Entre que la persona elige su hora y esa hora llega, hay trabajo que hacer:
+   * avisar al profesional con el enlace de la videollamada, pedirle a ella el
+   * consentimiento, y que coordinación pueda mirar que todo esté en orden.
+   *
+   * Sin margen se podía reservar una sesión que empezaba en diez minutos. La
+   * cita quedaba puesta y nadie llegaba a nada: el profesional se enteraba —si
+   * se enteraba— con la sesión ya empezada, y quien pidió ayuda se quedaba sola
+   * en una sala.
+   */
+  it('son tres horas, y se pueden mover sin desplegar', () => {
+    expect(ANTELACION_MINIMA_HORAS).toBe(3)
+  })
+})

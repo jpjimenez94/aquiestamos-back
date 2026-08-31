@@ -142,6 +142,42 @@ describe('mi agenda', () => {
     expect(res.status).toBe(422)
   })
 
+  /**
+   * El margen para gestionar, exigido en la PUERTA y no solo en la lista.
+   *
+   * Entre que ella elige y la hora llega hay que avisar al profesional con el
+   * enlace de la videollamada, pedirle el consentimiento y que coordinación
+   * mire que todo esté en orden. Sin margen se podía reservar algo que empezaba
+   * en diez minutos: la cita quedaba puesta, nadie llegaba a nada, y quien
+   * pidió ayuda se quedaba sola en una sala.
+   *
+   * Se prueba mandando la petición directa —no pulsando un botón— porque eso es
+   * lo que hace un enlace viejo o una pestaña abierta desde antes. Una regla que
+   * solo vive en la pantalla no es una regla.
+   */
+  it('no deja agendar algo que empieza dentro de una hora', async () => {
+    const enUnaHora = new Date(Date.now() + 3600000)
+
+    const res = await request(app)
+      .post(`/api/mi-agenda/${token}`)
+      .send({ inicio: enUnaHora.toISOString() })
+
+    expect(res.status).toBe(409)
+    // Y le dice por qué: culpar a otro de haber tomado la hora cuando lo que
+    // pasa es que eligió demasiado pronto la manda a buscar un culpable que no
+    // existe.
+    expect(res.body.message).toMatch(/muy cerca|horas para avisar/i)
+  })
+
+  it('las horas de las próximas tres horas no se ofrecen', async () => {
+    const res = await request(app).get(`/api/mi-agenda/${token}`)
+    const limite = Date.now() + 3 * 3600000
+
+    for (const h of res.body.data.huecos) {
+      expect(new Date(h.inicio).getTime()).toBeGreaterThan(limite)
+    }
+  })
+
   it('no deja agendar una hora que no está libre', async () => {
     // Una hora de madrugada, fuera de la disponibilidad declarada.
     const madrugada = new Date()

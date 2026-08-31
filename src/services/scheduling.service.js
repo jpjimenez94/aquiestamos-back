@@ -21,6 +21,24 @@ export const DESCANSO = 30
 /** Cada cuántos minutos se ofrece un inicio posible. */
 export const GRANULARIDAD = 15
 
+/**
+ * Con cuánta antelación mínima puede reservarse una sesión.
+ *
+ * Entre que alguien elige su hora y esa hora llega, hay trabajo que hacer y
+ * gente que avisar: al profesional le tiene que llegar la confirmación con el
+ * día y el enlace de la videollamada, la persona tiene que firmar el
+ * consentimiento, y coordinación tiene que poder mirar que todo esté en orden.
+ *
+ * Sin este plazo se podía reservar una sesión que empezaba en diez minutos. La
+ * cita quedaba puesta y nadie llegaba a nada: el profesional se enteraba —si se
+ * enteraba— con la sesión ya empezada, y quien había pedido ayuda se quedaba
+ * sola en una sala.
+ *
+ * Tres horas es el equilibrio: suficiente para avisar y preparar, poco para no
+ * empujar a mañana a quien está mal hoy. Se puede mover sin desplegar.
+ */
+export const ANTELACION_MINIMA_HORAS = Number(process.env.ANTELACION_MINIMA_HORAS ?? 3)
+
 /** No se calculan huecos más allá de este horizonte. */
 export const MAX_DIAS = 56
 
@@ -44,6 +62,15 @@ export async function huecosDisponibles({
   duracionMinutos = DURACION_MINIMA,
   descansoMinutos = DESCANSO,
   modalidad,
+  /**
+   * Horas de margen antes del primer hueco que se ofrece.
+   *
+   * Cero por defecto a propósito: quien agenda a mano desde el portal a veces
+   * está al teléfono con las dos partes y necesita poder cuadrar algo para
+   * dentro de un rato. El margen lo pide la pantalla de la persona, que es
+   * donde nadie está mirando para avisar a nadie.
+   */
+  antelacionHoras = 0,
 }) {
   if (duracionMinutos < DURACION_MINIMA) {
     throw new DomainError(
@@ -115,7 +142,8 @@ export async function huecosDisponibles({
         const bloqueoHasta = new Date(fin.getTime() + descansoMinutos * 60000)
 
         const enRango = inicio >= desde && fin <= hasta
-        const enFuturo = inicio > ahora
+        // No basta con que sea futuro: tiene que haber margen para avisar.
+        const conMargen = inicio.getTime() > ahora.getTime() + antelacionHoras * 3600000
 
         const chocaConBloqueo = excepciones.some((e) =>
           seSolapan(inicio, fin, e.startsAt, e.endsAt),
@@ -125,7 +153,7 @@ export async function huecosDisponibles({
           seSolapan(inicio, bloqueoHasta, c.startsAt, c.blocksUntil ?? c.endsAt),
         )
 
-        if (enRango && enFuturo && !chocaConBloqueo && !chocaConCita) {
+        if (enRango && conMargen && !chocaConBloqueo && !chocaConCita) {
           huecos.push({
             inicio,
             fin,
