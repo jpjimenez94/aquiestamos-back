@@ -257,15 +257,59 @@ export const PatientController = {
       }
 
       await PatientModel.softDelete(paciente.id)
+
+      /**
+       * Su solicitud vuelve a la cola.
+       *
+       * Sin esto, quien pidió ayuda desaparecía. La solicitud se quedaba en
+       * EN_REVISION —así que no volvía a Solicitudes, porque el sistema la daba
+       * por atendida— y la persona quedaba borrada —así que tampoco salía en
+       * «Por asignar»—. Ni un error, ni un aviso: simplemente dejaba de estar
+       * en las dos pantallas donde alguien la habría visto.
+       *
+       * Borrar una persona es decir «esta admisión no debía existir»: un
+       * duplicado, un registro de prueba, un dato mal metido. Lo que NO
+       * significa es que quien escribió pidiendo ayuda deje de existir, así que
+       * la solicitud retrocede un paso y vuelve a estar sobre la mesa.
+       *
+       * Se comprueba que siga viva: si alguien borró también la solicitud, es
+       * que quiso borrar las dos cosas y ahí no hay nada que rescatar.
+       */
+      let solicitudDevuelta = false
+      if (paciente.supportRequestId) {
+        const solicitud = await prisma.supportRequest.findUnique({
+          where: { id: paciente.supportRequestId },
+          select: { id: true, status: true, deletedAt: true },
+        })
+
+        if (solicitud && !solicitud.deletedAt && solicitud.status !== 'DESCARTADO') {
+          await prisma.supportRequest.update({
+            where: { id: solicitud.id },
+            data: { status: 'NUEVO' },
+          })
+          solicitudDevuelta = true
+        }
+      }
+
       await registrar({
         req,
         action: ACCION.BORRAR,
         entity: 'paciente',
         entityId: paciente.id,
         before: pacienteSegunRol(paciente, req.usuario),
+        // Queda dicho en el rastro: no es lo mismo borrar a alguien y dejar su
+        // solicitud sobre la mesa que borrarlo del todo.
+        after: { solicitudDevueltaALaCola: solicitudDevuelta },
       })
 
-      return res.json(ok({ eliminado: true, id: paciente.id }))
+      return res.json(
+        ok(
+          { eliminado: true, id: paciente.id, solicitudDevuelta },
+          solicitudDevuelta
+            ? 'Registro eliminado. Su solicitud vuelve a Solicitudes para admitirla de nuevo.'
+            : 'Registro eliminado.',
+        ),
+      )
     } catch (error) {
       next(error)
     }
