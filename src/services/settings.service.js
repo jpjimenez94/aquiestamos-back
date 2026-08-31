@@ -66,16 +66,16 @@ Gracias por tu tiempo.`,
     variables: ['nombre', 'profesional', 'enlaceAgenda', 'nota'],
     defaultValue: `Hola {nombre}, te escribimos de la Red Aquí Estamos.
 
-Ya tenemos quién te acompañe: {profesional}, profesional de la red.
+Ya tenemos quién te acompañe: {profesional}, profesional de la red. Solo falta que elijas a qué hora.
 
-*Aquí puedes elegir tú misma la hora que te sirva*, entre las que tiene libres:
+*Entra aquí y escoge la que mejor te sirva*, entre las que {profesional} tiene libres:
 {enlaceAgenda}
 
-Guarda ese enlace: te sirve para esta sesión y para las siguientes.
+La sesión dura 45 minutos. En cuanto elijas, te confirmamos por aquí con todos los datos.
 
 {nota}
 
-Si prefieres, dinos por aquí cuándo puedes y lo cuadramos nosotros. Como te quede más cómodo.`,
+Si prefieres, dinos por aquí qué días y horas puedes y lo cuadramos nosotros. Como te quede más cómodo.`,
   },
   {
     key: 'WHATSAPP_CONFIRMAR_CITA_PERSONA',
@@ -93,7 +93,9 @@ Si prefieres, dinos por aquí cuándo puedes y lo cuadramos nosotros. Como te qu
 
 A la hora acordada, solo debes hacer clic en el enlace de videollamada desde tu celular o computador para unirte a la sesión con {profesional}. No tienes que descargar nada ni registrarte.
 
-Si te surge algo y no puedes, escríbenos por aquí con tiempo y lo movemos. No pasa nada.`,
+Si te surge algo y no puedes, escríbenos por aquí con tiempo y lo movemos. No pasa nada.
+
+Y guarda el enlace donde elegiste la hora: desde ahí puedes agendar tus próximas sesiones cuando las necesites.`,
   },
   {
     key: 'WHATSAPP_CONSENTIMIENTO',
