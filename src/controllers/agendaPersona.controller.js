@@ -8,7 +8,7 @@ import {
   DURACION_MINIMA,
   DESCANSO,
   sinSolaparse,
-  ANTELACION_MINIMA_HORAS,
+  parametrosDeAgenda,
 } from '../services/scheduling.service.js'
 import { crearCita, confirmarHorario } from '../services/appointment.service.js'
 import { enPalabras } from '../services/timezone.service.js'
@@ -130,7 +130,7 @@ export const AgendaPersonaController = {
          * puesta, nadie llegaba a nada, y quien pidió ayuda se quedaba sola en
          * una sala.
          */
-        antelacionHoras: ANTELACION_MINIMA_HORAS,
+        antelacionHoras: (await parametrosDeAgenda()).antelacionHoras,
       })
 
       /**
@@ -207,6 +207,12 @@ export const AgendaPersonaController = {
         return res.status(409).json(failure('Todavía no tienes profesional asignado.'))
       }
 
+      // Se lee una vez y se usa en los tres sitios de este handler: filtrar
+      // los huecos, decidir si llegó tarde y decírselo. Leerlo tres veces
+      // abriría la puerta a que alguien cambie el número entre lectura y
+      // lectura y el mensaje contradiga a la comprobación.
+      const { antelacionHoras } = await parametrosDeAgenda()
+
       const inicio = new Date(req.body?.inicio)
       if (Number.isNaN(inicio.getTime())) {
         return res.status(422).json(failure('Esa hora no es válida.'))
@@ -241,7 +247,7 @@ export const AgendaPersonaController = {
          *
          * Una regla que solo vive en la pantalla no es una regla.
          */
-        antelacionHoras: ANTELACION_MINIMA_HORAS,
+        antelacionHoras,
       })
       const sigueLibre = libres.some((h) => new Date(h.inicio).getTime() === inicio.getTime())
       if (!sigueLibre) {
@@ -249,14 +255,14 @@ export const AgendaPersonaController = {
         // cuando lo que pasa es que eligió demasiado pronto la manda a buscar
         // un culpable que no existe.
         const demasiadoPronto =
-          inicio.getTime() <= Date.now() + ANTELACION_MINIMA_HORAS * 3600000
+          inicio.getTime() <= Date.now() + antelacionHoras * 3600000
 
         return res
           .status(409)
           .json(
             failure(
               demasiadoPronto
-                ? `Esa hora ya está muy cerca. Necesitamos al menos ${ANTELACION_MINIMA_HORAS} horas para avisarle al profesional y dejar todo listo. Elige una un poco más adelante.`
+                ? `Esa hora ya está muy cerca. Necesitamos al menos ${antelacionHoras} horas para avisarle al profesional y dejar todo listo. Elige una un poco más adelante.`
                 : 'Justo acaban de tomar esa hora. Elige otra, por favor.',
             ),
           )

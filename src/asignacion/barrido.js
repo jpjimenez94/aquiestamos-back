@@ -3,6 +3,7 @@ import { prisma } from '../config/database.js'
 import { cancelarAsignacion } from '../services/appointment.service.js'
 import { asignacionVencida } from '../notifications/eventos.js'
 import { registrar, ACCION } from '../services/audit.service.js'
+import { SettingsService } from '../services/settings.service.js'
 
 /**
  * El que libera lo que se quedó esperando una respuesta que no llega.
@@ -46,6 +47,32 @@ export const PROPUESTA_VENCE_DIAS = Number(process.env.PROPUESTA_VENCE_DIAS ?? 2
  * rápido castiga justo a quien peor está.
  */
 export const ACEPTADA_VENCE_DIAS = Number(process.env.ACEPTADA_VENCE_DIAS ?? 3)
+
+/**
+ * Los plazos vigentes, preguntados a Parametrización.
+ *
+ * Los dos números vivían solo en variables de entorno: el tablero enseñaba
+ * «se libera en 3 días» y no había ninguna forma de cambiarlo sin tocar el
+ * despliegue. Peor, Parametrización ya enseñaba una perilla para uno de ellos
+ * —«Días de Vencimiento de Propuesta»— que no leía nadie: girarla no hacía
+ * nada, y eso es peor que no tenerla, porque quien la gira se queda creyendo
+ * que cambió algo.
+ *
+ * Los valores de entorno se quedan de red: si la base no contesta o alguien
+ * escribe cualquier cosa en el campo, el barrido sigue con un plazo sensato
+ * en vez de pararse o vencerlo todo de golpe.
+ *
+ * Lo lee tanto el barrido como el tablero. Que cada uno mirara su propia
+ * fuente es justo cómo se llega a una tarjeta que promete tres días mientras
+ * el reloj de verdad corre a dos.
+ */
+export async function plazosDeLiberacion() {
+  const [propuesta, aceptada] = await Promise.all([
+    SettingsService.getNumero('DIAS_VENCIMIENTO_PROPUESTA', PROPUESTA_VENCE_DIAS),
+    SettingsService.getNumero('DIAS_VENCIMIENTO_ACEPTADA', ACEPTADA_VENCE_DIAS),
+  ])
+  return { propuesta, aceptada }
+}
 
 /** Cada cuánto se mira. Los umbrales se miden en días; con una hora sobra. */
 const CADA_MS = 60 * 60 * 1000
@@ -91,10 +118,15 @@ export function detenerBarridoAsignaciones() {
  * Cancela lo vencido y avisa. Se exporta para poder llamarlo a mano desde un
  * script o desde las pruebas, sin esperar al reloj.
  */
-export async function barrerAsignaciones({
-  diasPropuesta = PROPUESTA_VENCE_DIAS,
-  diasAceptada = ACEPTADA_VENCE_DIAS,
-} = {}) {
+export async function barrerAsignaciones({ diasPropuesta, diasAceptada } = {}) {
+  // Sin argumentos manda lo que diga Parametrización. Con ellos manda quien
+  // llama: las pruebas y los scripts a mano fijan el plazo que quieren probar.
+  if (diasPropuesta == null || diasAceptada == null) {
+    const plazos = await plazosDeLiberacion()
+    diasPropuesta = diasPropuesta ?? plazos.propuesta
+    diasAceptada = diasAceptada ?? plazos.aceptada
+  }
+
   if (corriendo) return { liberadas: 0, fallidas: 0, revisadas: 0 }
   corriendo = true
 

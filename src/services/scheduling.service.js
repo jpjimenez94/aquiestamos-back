@@ -2,6 +2,7 @@ import { prisma } from '../config/database.js'
 import { deLocalAUtc, diaDeLaSemana, diasEntre, minutosDelDia, partesLocales, FRANJAS } from './timezone.service.js'
 import { DomainError } from '../errors/DomainError.js'
 import { VIVOS } from './assignmentState.service.js'
+import { SettingsService } from './settings.service.js'
 
 /**
  * SERVICIO: agenda.
@@ -38,6 +39,25 @@ export const GRANULARIDAD = 15
  * empujar a mañana a quien está mal hoy. Se puede mover sin desplegar.
  */
 export const ANTELACION_MINIMA_HORAS = Number(process.env.ANTELACION_MINIMA_HORAS ?? 3)
+
+/**
+ * Los tres números de la agenda, tal y como están hoy en Parametrización.
+ *
+ * Estaban en constantes del código y en variables de entorno: cambiar cuánto
+ * dura una sesión o cuánta antelación se exige obligaba a un despliegue.
+ * Parametrización ya enseñaba dos de ellos —duración y descanso— sin que
+ * nadie los leyera: perillas pintadas, que es peor que no tenerlas.
+ *
+ * Los valores del código se quedan de red por si la base no contesta.
+ */
+export async function parametrosDeAgenda() {
+  const [duracionMinima, descanso, antelacionHoras] = await Promise.all([
+    SettingsService.getNumero('DURACION_CITA_MINUTOS', DURACION_MINIMA),
+    SettingsService.getNumero('DESCANSO_CITA_MINUTOS', DESCANSO),
+    SettingsService.getNumero('ANTELACION_MINIMA_HORAS', ANTELACION_MINIMA_HORAS),
+  ])
+  return { duracionMinima, descanso, antelacionHoras }
+}
 
 /** No se calculan huecos más allá de este horizonte. */
 export const MAX_DIAS = 56

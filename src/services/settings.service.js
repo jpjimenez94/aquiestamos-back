@@ -515,8 +515,9 @@ Nos comunicamos contigo reconociendo tu valioso liderazgo en *{territorio}* y qu
   {
     key: 'DIAS_VENCIMIENTO_PROPUESTA',
     category: 'PARAMETRO_GENERAL',
-    name: 'Días de Vencimiento de Propuesta a Profesional',
-    description: 'Días hábiles antes de que una propuesta de caso expire y vuelva a quedar disponible.',
+    name: 'Días para que el profesional responda antes de liberar (días)',
+    description:
+      'Solo aplica a las propuestas antiguas, de cuando asignar significaba pedir permiso y esperar. Hoy se asigna y se avisa, así que no se crean nuevas.',
     dataType: 'NUMERO',
     variables: [],
     defaultValue: '2',
@@ -524,11 +525,44 @@ Nos comunicamos contigo reconociendo tu valioso liderazgo en *{territorio}* y qu
   {
     key: 'SLA_MAXIMO_ALTA_DIAS',
     category: 'PARAMETRO_GENERAL',
-    name: 'SLA Máximo para Casos de Prioridad ALTA (Días)',
-    description: 'Plazo máximo objetivo para asignar y contactar a personas en prioridad ALTA.',
+    name: 'Plazo máximo para casos de prioridad ALTA (días)',
+    description:
+      'A partir de cuántos días sin sesión un caso de prioridad ALTA se marca como atrasado en el tablero.',
     dataType: 'NUMERO',
     variables: [],
-    defaultValue: '1',
+    // Decía 1 mientras el código usaba 3. Nadie leía este número, así que la
+    // contradicción no se notaba: manda lo que de verdad estaba pasando.
+    defaultValue: '3',
+  },
+  {
+    key: 'DIAS_VENCIMIENTO_ACEPTADA',
+    category: 'PARAMETRO_GENERAL',
+    name: 'Días para cuadrar el horario antes de liberar el caso (días)',
+    description:
+      'Es el «se libera en N días si no hay respuesta» del tablero. Cuenta desde que el profesional acepta; si al cabo de ese plazo no se ha cuadrado la hora, el caso vuelve a la cola para que no se quede quieto.',
+    dataType: 'NUMERO',
+    variables: [],
+    defaultValue: '3',
+  },
+  {
+    key: 'ANTELACION_MINIMA_HORAS',
+    category: 'PARAMETRO_GENERAL',
+    name: 'Antelación mínima para agendar (horas)',
+    description:
+      'Las horas dentro de este margen no se le ofrecen a la persona cuando elige. Es el tiempo que necesita coordinación para avisar al profesional y dejar todo listo.',
+    dataType: 'NUMERO',
+    variables: [],
+    defaultValue: '3',
+  },
+  {
+    key: 'CONFIRMAR_DISPONIBILIDAD_DIAS',
+    category: 'PARAMETRO_GENERAL',
+    name: 'Cada cuánto preguntar al profesional si sigue disponible (días)',
+    description:
+      'Cada cuántos días se le escribe a un profesional activo para confirmar que sigue pudiendo recibir casos.',
+    dataType: 'NUMERO',
+    variables: [],
+    defaultValue: '30',
   },
   {
     key: 'DOMINIO_JITSI',
@@ -757,6 +791,40 @@ export const SettingsService = {
     const val = def ? def.defaultValue : fallbackValue
     settingsCache.set(key, val)
     return val
+  },
+
+  /**
+   * Lee un parámetro numérico de Parametrización.
+   *
+   * Existía `getValue`, que devuelve texto. Cada sitio que quisiera un número
+   * tenía que acordarse de convertirlo y de qué hacer si alguien escribe
+   * «tres» o deja el campo vacío — y basta con que uno se despiste para que un
+   * NaN se cuele en una resta de fechas y el plazo se vuelva una fecha
+   * inválida, sin ruido.
+   *
+   * Si lo guardado no es un número utilizable, manda el valor por defecto: un
+   * parámetro mal escrito no puede apagar un barrido.
+   */
+  async getNumero(key, porDefecto) {
+    const crudo = await this.getValue(key, String(porDefecto))
+
+    /**
+     * El campo en blanco no es un cero.
+     *
+     * `Number('')` da 0, y 0 es un número perfectamente válido: pasaba el
+     * filtro y se convertía en el parámetro. Borrar el contenido del campo
+     * —o guardarlo sin escribir nada— apagaba la regla en silencio. Con la
+     * antelación mínima eso significa volver a ofrecer horas para dentro de
+     * diez minutos, que es justo lo que ese margen existe para impedir, y sin
+     * que nada avise.
+     *
+     * Un 0 escrito a propósito sí vale: quien coordina puede querer quitar el
+     * margen. Lo que no puede pasar es que quitarlo sea un descuido.
+     */
+    if (typeof crudo !== 'string' || crudo.trim() === '') return porDefecto
+
+    const n = Number(crudo)
+    return Number.isFinite(n) && n >= 0 ? n : porDefecto
   },
 
   /**

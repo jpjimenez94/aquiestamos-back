@@ -1,6 +1,6 @@
 import { prisma } from '../config/database.js'
 import { VIVOS } from '../services/assignmentState.service.js'
-import { PROPUESTA_VENCE_DIAS, ACEPTADA_VENCE_DIAS } from '../asignacion/barrido.js'
+import { plazosDeLiberacion } from '../asignacion/barrido.js'
 import { SLA_ALTA_DIAS } from '../citas/barrido.js'
 import { ok } from '../views/response.view.js'
 import { formatearLocal } from '../services/timezone.service.js'
@@ -283,6 +283,16 @@ export const DashboardController = {
       const ahora = new Date()
       const hace24h = new Date(ahora.getTime() - 24 * 3600 * 1000)
 
+      /**
+       * Los mismos plazos que usa el barrido para liberar.
+       *
+       * La tarjeta dice «se libera en 3 días si no hay respuesta»: es una
+       * promesa, y quien coordina decide con ella si insiste hoy o mañana.
+       * Sacada de una fuente distinta a la del reloj que de verdad libera,
+       * esa promesa se puede incumplir sin que nadie se entere.
+       */
+      const plazos = await plazosDeLiberacion()
+
       // 1. Pacientes activos con su asignación activa (incluye profesional, última cita y último reporte)
       const pacientes = await prisma.patient.findMany({
         where: {
@@ -404,7 +414,7 @@ export const DashboardController = {
                     ? Math.max(
                         0,
                         Math.ceil(
-                          PROPUESTA_VENCE_DIAS -
+                          plazos.propuesta -
                             (Date.now() - new Date(asignacion.startedAt).getTime()) / 86400000,
                         ),
                       )
@@ -412,7 +422,7 @@ export const DashboardController = {
                       ? Math.max(
                           0,
                           Math.ceil(
-                            ACEPTADA_VENCE_DIAS -
+                            plazos.aceptada -
                               (Date.now() - new Date(asignacion.respondedAt).getTime()) / 86400000,
                           ),
                         )

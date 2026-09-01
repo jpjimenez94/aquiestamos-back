@@ -4,6 +4,7 @@ import { env } from '../config/env.js'
 import { describirFranjas } from '../services/scheduling.service.js'
 import { pedirConfirmacionDeDisponibilidad } from '../notifications/eventos.js'
 import { enPalabras } from '../services/timezone.service.js'
+import { SettingsService } from '../services/settings.service.js'
 
 /**
  * El que pregunta cada tanto si la agenda sigue siendo verdad.
@@ -36,6 +37,11 @@ import { enPalabras } from '../services/timezone.service.js'
  * de la red, y entonces se pierde también el que importa.
  */
 export const CONFIRMAR_CADA_DIAS = Number(process.env.CONFIRMAR_DISPONIBILIDAD_DIAS ?? 30)
+
+/** Cada cuánto se pregunta, según Parametrización. El valor de aquí es la red. */
+export async function cadaCuantosDias() {
+  return SettingsService.getNumero('CONFIRMAR_DISPONIBILIDAD_DIAS', CONFIRMAR_CADA_DIAS)
+}
 
 /** Cada cuánto se mira. Los umbrales son de días; con seis horas sobra. */
 const CADA_MS = 6 * 60 * 60 * 1000
