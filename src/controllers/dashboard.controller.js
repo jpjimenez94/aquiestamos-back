@@ -2,6 +2,7 @@ import { prisma } from '../config/database.js'
 import { VIVOS } from '../services/assignmentState.service.js'
 import { plazosDeLiberacion } from '../asignacion/barrido.js'
 import { SLA_ALTA_DIAS } from '../citas/barrido.js'
+import { SettingsService } from '../services/settings.service.js'
 import { ok } from '../views/response.view.js'
 import { formatearLocal } from '../services/timezone.service.js'
 import {
@@ -560,6 +561,17 @@ export const DashboardController = {
   async metricas(req, res, next) {
     try {
       const DIA = 24 * 3600 * 1000
+
+      /**
+       * Los plazos con los que se juzga si algo está atascado salen de
+       * Parametrización, igual que los que usan los barridos para liberar.
+       * Un informe que dijera «atrasado» con un umbral propio contradiría al
+       * tablero de al lado, que promete otro.
+       */
+      const [plazosInforme, slaAltaDias] = await Promise.all([
+        plazosDeLiberacion(),
+        SettingsService.getNumero('SLA_MAXIMO_ALTA_DIAS', SLA_ALTA_DIAS),
+      ])
       const prom = (valores) =>
         valores.length ? Math.round((valores.reduce((a, b) => a + b, 0) / valores.length) * 10) / 10 : null
 
@@ -844,6 +856,7 @@ export const DashboardController = {
             select: {
               id: true,
               status: true,
+              startedAt: true,
               respondedAt: true,
               /**
                * Lo que dijo el profesional al cerrar. Es la fuente que mejor
@@ -991,6 +1004,98 @@ export const DashboardController = {
         ['Tuvieron su sesión', conSesion.length],
       ]
 
+      /**
+       * Dónde está parado el trabajo AHORA, y desde cuándo.
+       *
+       * El camino de arriba es historia acumulada: dice que la mitad eligió
+       * hora, no si la otra mitad está atascada o entró ayer. Con eso no se
+       * decide nada esta mañana.
+       *
+       * Aquí solo entra lo que está quieto y ya pasó de su plazo. Los plazos
+       * no son nuevos: son los mismos con los que los barridos liberan casos
+       * y con los que el tablero promete «se libera en N días». Inventar aquí
+       * un umbral propio sería volver a tener dos relojes para lo mismo, que
+       * es de donde salían las tarjetas que prometían tres días mientras el
+       * reloj corría a dos.
+       */
+      const diasDesde = (fecha) => (Date.now() - new Date(fecha).getTime()) / DIA
+
+      const esperas = (lista) => {
+        const dias = lista.map((d) => Math.floor(d)).sort((a, b) => b - a)
+        return { cuantas: dias.length, diasMaximo: dias[0] ?? null }
+      }
+
+      const sinAsignar = admitidas
+        .filter((s) => {
+          const p = personaDe(s)
+          return !p.assignments.some((a) => VIVOS.includes(a.status))
+        })
+        .map((s) => diasDesde(s.createdAt))
+
+      const sinElegirHora = admitidas
+        .filter((s) => {
+          const p = personaDe(s)
+          if (p.appointments.length > 0) return false
+          return p.assignments.some((a) => a.status === 'ACEPTADA')
+        })
+        .map((s) => {
+          const a = personaDe(s).assignments.find((x) => x.status === 'ACEPTADA')
+          return diasDesde(a.respondedAt ?? s.createdAt)
+        })
+
+      const sinCerrarSesion = admitidas.flatMap((s) => {
+        const reportes = reportesDe(s)
+        return personaDe(s)
+          .appointments.filter((c) => esperandoCierre(c, reportes))
+          .map((c) => diasDesde(c.startsAt))
+      })
+
+      const atascos = [
+        {
+          etapa: 'Sin profesional asignado',
+          umbralDias: slaAltaDias,
+          quePasaSiSeIgnora: 'Nadie la ha tomado todavía.',
+          ...esperas(sinAsignar.filter((d) => d >= slaAltaDias)),
+        },
+        {
+          etapa: 'Sin elegir su hora',
+          umbralDias: plazosInforme.aceptada,
+          quePasaSiSeIgnora: `Al pasar ${plazosInforme.aceptada} días el caso se libera solo y vuelve a la cola.`,
+          ...esperas(sinElegirHora.filter((d) => d >= plazosInforme.aceptada)),
+        },
+        {
+          etapa: 'Sesión pasada sin cerrar',
+          umbralDias: 1,
+          quePasaSiSeIgnora: 'Mientras no se cierre, el informe la cuenta de menos.',
+          ...esperas(sinCerrarSesion.filter((d) => d >= 1)),
+        },
+      ]
+
+      /**
+       * Lo que dice el profesional al cerrar: si hizo falta más de una sesión.
+       *
+       * Se recogía en cada reporte y no salía en ninguna pantalla. Es lo más
+       * parecido a «¿sirvió?» que hay hoy —la encuesta a las personas sigue
+       * sin respuestas— y además dice cuánta segunda sesión viene encima, que
+       * es lo que decide si la red aguanta.
+       */
+      const reportesTodos = await prisma.caseReport.findMany({
+        select: { followUp: true, outcome: true },
+      })
+      const conSeguimiento = reportesTodos.filter((r) => r.followUp)
+      const cuenta = (valor) => conSeguimiento.filter((r) => r.followUp === valor).length
+
+      const loQueDicenAlCerrar = {
+        totalReportes: reportesTodos.length,
+        conRespuesta: conSeguimiento.length,
+        necesitaMas: cuenta('NECESITA_MAS'),
+        suficiente: cuenta('SUFICIENTE'),
+        noSabe: cuenta('NO_SABE'),
+        // Las sesiones que el profesional reportó como no presentadas: la otra
+        // cara, y la que no aparece en ningún otro sitio del informe.
+        noSePresento: reportesTodos.filter((r) => r.outcome === 'NO_ASISTIO').length,
+      }
+
       const camino = pasos.map(([etapa, cuantas], i) => ({
         etapa,
         cuantas,
@@ -1025,6 +1130,8 @@ export const DashboardController = {
             conSesionPorDelante: conSesionPorDelante.length,
             esperandoCierre: esperandoCierreTotal,
           },
+          atascos,
+          loQueDicenAlCerrar,
           tamizaje: {
             enviados: solicitudes.length,
             respondidos: conTamizaje.length,

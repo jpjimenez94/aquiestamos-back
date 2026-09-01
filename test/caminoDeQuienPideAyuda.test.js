@@ -108,7 +108,9 @@ beforeAll(async () => {
   // 2 · Pasó la hora y no hay ni casilla ni rastro: no se sabe.
   const sinCerrar = await crearCaso({
     nombre: `Sin cerrar ${marca}`,
-    cita: { startsAt: hace(5), endsAt: hace(4), status: 'CONFIRMADA' },
+    // Hace dos días: pasada de sobra y sin cerrar. A las cinco horas
+    // todavía no es un atasco —cerrar lleva su rato—; a los dos días sí.
+    cita: { startsAt: hace(48), endsAt: hace(47), status: 'CONFIRMADA' },
   })
 
   // 3 · Persona borrada. No debe aparecer por ningún lado.
@@ -150,11 +152,52 @@ beforeAll(async () => {
     },
   })
 
-  Object.assign(ids, { conPrueba, sinCerrar, borrada, reportada, porDelante })
+  /**
+    * 6 · Asignada hace mucho y sin elegir hora. Es el atasco que el camino
+    * acumulado no sabía enseñar: cuenta en «se les asignó profesional» y no
+    * en «eligieron hora», pero de ahí no se deduce si lleva un día o veinte.
+    */
+  const solicitudAtascada = await prisma.supportRequest.create({
+    data: { name: `Atascada ${marca}`, phone: '3000000000', dataConsent: true, createdAt: hace(24 * 20) },
+  })
+  const personaAtascada = await prisma.patient.create({
+    data: {
+      fullName: `Atascada ${marca}`,
+      phone: '3000000002',
+      city: 'Pereira',
+      status: 'EN_ACOMPANAMIENTO',
+      preferredModality: 'VIRTUAL',
+      supportRequestId: solicitudAtascada.id,
+    },
+  })
+  const asignacionAtascada = await prisma.caseAssignment.create({
+    data: {
+      patientId: personaAtascada.id,
+      professionalId: ids.profesional,
+      status: 'ACEPTADA',
+      respondedAt: hace(24 * 15),
+    },
+  })
+
+  Object.assign(ids, {
+    conPrueba,
+    sinCerrar,
+    borrada,
+    reportada,
+    porDelante,
+    atascada: { solicitud: solicitudAtascada, persona: personaAtascada, asignacion: asignacionAtascada },
+  })
 })
 
 afterAll(async () => {
-  const casos = [ids.conPrueba, ids.sinCerrar, ids.borrada, ids.reportada, ids.porDelante]
+  const casos = [
+    ids.conPrueba,
+    ids.sinCerrar,
+    ids.borrada,
+    ids.reportada,
+    ids.porDelante,
+    ids.atascada,
+  ]
   const personas = casos.map((c) => c.persona.id)
   const solicitudes = casos.map((c) => c.solicitud.id)
   const asignaciones = casos.map((c) => c.asignacion.id)
@@ -218,6 +261,51 @@ describe('lo que reporta el profesional', () => {
     const res = await conSesionIniciada('/api/dashboard/metricas')
     // Solo queda pendiente la que pasó sin reporte, sin casilla y sin rastro.
     expect(res.body.data.esperandoCierre).toBeGreaterThan(0)
+  })
+})
+
+const atasco = (lista, etapa) => lista.find((a) => a.etapa === etapa)
+
+describe('dónde está parado el trabajo ahora', () => {
+  /**
+   * El camino acumulado dice cuánta gente eligió hora; no dice si el resto
+   * lleva un día o veinte. Con un porcentaje no se decide nada esta mañana.
+   */
+  it('cuenta a quien lleva demasiado sin elegir hora, y desde cuándo', async () => {
+    const res = await conSesionIniciada('/api/dashboard/metricas')
+    expect(res.status).toBe(200)
+    const a = atasco(res.body.data.atascos, 'Sin elegir su hora')
+    expect(a.cuantas).toBeGreaterThan(0)
+    expect(a.diasMaximo).toBeGreaterThanOrEqual(14)
+  })
+
+  it('las sesiones sin cerrar salen como atasco propio', async () => {
+    const res = await conSesionIniciada('/api/dashboard/metricas')
+    expect(atasco(res.body.data.atascos, 'Sesión pasada sin cerrar').cuantas).toBeGreaterThan(0)
+  })
+
+  /**
+   * El umbral no es un número inventado aquí: es el mismo con el que el
+   * barrido libera el caso y con el que el tablero promete «se libera en N
+   * días». Dos relojes para lo mismo es como se llega a que una pantalla
+   * contradiga a la otra.
+   */
+  it('el umbral es el mismo plazo con el que el barrido libera', async () => {
+    const { SettingsService } = await import('../src/services/settings.service.js')
+    await SettingsService.update('DIAS_VENCIMIENTO_ACEPTADA', '11', 'pruebas@local')
+    const res = await conSesionIniciada('/api/dashboard/metricas')
+    expect(atasco(res.body.data.atascos, 'Sin elegir su hora').umbralDias).toBe(11)
+    await SettingsService.update('DIAS_VENCIMIENTO_ACEPTADA', '3', null)
+  })
+})
+
+describe('lo que dicen los profesionales al cerrar', () => {
+  it('llega al informe en vez de quedarse en la base', async () => {
+    const res = await conSesionIniciada('/api/dashboard/metricas')
+    const d = res.body.data.loQueDicenAlCerrar
+    expect(d).toBeDefined()
+    expect(d.totalReportes).toBeGreaterThan(0)
+    expect(d.necesitaMas + d.suficiente + d.noSabe).toBe(d.conRespuesta)
   })
 })
 
