@@ -307,6 +307,33 @@ describe('lo que dicen los profesionales al cerrar', () => {
     expect(d.totalReportes).toBeGreaterThan(0)
     expect(d.necesitaMas + d.suficiente + d.noSabe).toBe(d.conRespuesta)
   })
+
+  /**
+   * Y no cuenta a quien ya no está.
+   *
+   * Salió sin este filtro y el panel contaba pruebas: de tres reportes con
+   * respuesta, uno era de una persona borrada. Un panel de tres filas donde
+   * una es inventada no está un tercio equivocado — está afirmando que un
+   * tercio de los acompañamientos necesita continuar cuando no es cierto, y
+   * ese número es de los que acaban en un informe a quien financia.
+   */
+  it('no cuenta los reportes de personas borradas', async () => {
+    const antes = await conSesionIniciada('/api/dashboard/metricas')
+    const base = antes.body.data.loQueDicenAlCerrar.totalReportes
+
+    // Un reporte de la persona borrada del montaje: no puede mover el panel.
+    await prisma.caseReport.create({
+      data: {
+        assignmentId: ids.borrada.asignacion.id,
+        outcome: 'YA_ATENDIDA',
+        followUp: 'SUFICIENTE',
+        reportedByEmail: `prof.${marca}@pruebas.local`,
+      },
+    })
+
+    const despues = await conSesionIniciada('/api/dashboard/metricas')
+    expect(despues.body.data.loQueDicenAlCerrar.totalReportes).toBe(base)
+  })
 })
 
 describe('la caída del último escalón', () => {

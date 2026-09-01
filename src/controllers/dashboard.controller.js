@@ -1080,6 +1080,23 @@ export const DashboardController = {
        * es lo que decide si la red aguanta.
        */
       const reportesTodos = await prisma.caseReport.findMany({
+        /**
+         * Solo de personas que siguen en la red.
+         *
+         * Lo puse sin filtro y el panel salió contando pruebas: de los tres
+         * reportes con respuesta, uno era de «camilo» —con el teléfono y el
+         * correo de quien monta las pruebas—, y salía como un tercio del
+         * total. Un panel de tres filas donde una es inventada no está un
+         * tercio equivocado: está diciendo que la red necesita segunda sesión
+         * en el 33% de los casos cuando el dato real es otro.
+         *
+         * Es la TERCERA vez que aparece la misma pregunta —¿cuenta esta
+         * persona?— y la tercera consulta que la responde por su cuenta. Las
+         * citas ya la tenían resuelta en el modelo; los reportes no pasan por
+         * ahí. Mientras no haya un sitio único, cada consulta nueva vuelve a
+         * poder olvidarse.
+         */
+        where: { assignment: { patient: { deletedAt: null } } },
         select: { followUp: true, outcome: true },
       })
       const conSeguimiento = reportesTodos.filter((r) => r.followUp)
