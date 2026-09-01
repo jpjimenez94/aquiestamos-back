@@ -901,6 +901,32 @@ export const DashboardController = {
        * si ocurrieron— pero tampoco se callan: son cierres pendientes, y
        * mientras se acumulan el informe entero mide de menos.
        */
+      /**
+       * De las que eligieron hora y todavía no han tenido su sesión: cuántas
+       * la tienen POR DELANTE.
+       *
+       * El último escalón caía de 8 a 4 y la pantalla lo pintaba como «−4
+       * personas», en el mismo ámbar que las demás caídas. Pero un embudo
+       * resta gente que se quedó en el camino, y estas no se quedaron: su
+       * sesión es el jueves. Llamarle fuga a una cola hace que el informe
+       * pida arreglar algo que no está roto — y justo en el escalón donde de
+       * verdad importaría notar una fuga.
+       *
+       * No es un peldaño más: no encaja dentro del anterior como subconjunto
+       * de «tuvieron su sesión», que es lo que hace que restar dos peldaños
+       * signifique algo. Va al lado, explicando la caída.
+       */
+      const conSesionPorDelante = admitidas.filter((s) => {
+        const reportes = reportesDe(s)
+        const citas = personaDe(s).appointments
+        if (citas.some((c) => huboSesion(c, reportes))) return false
+        return citas.some(
+          (c) =>
+            new Date(c.startsAt).getTime() > Date.now() &&
+            (c.status === 'PROGRAMADA' || c.status === 'CONFIRMADA'),
+        )
+      })
+
       const esperandoCierreTotal = admitidas.reduce((suma, s) => {
         const reportes = reportesDe(s)
         return suma + personaDe(s).appointments.filter((c) => esperandoCierre(c, reportes)).length
@@ -990,6 +1016,15 @@ export const DashboardController = {
            * merece saberlo antes de sacar conclusiones.
            */
           esperandoCierre: esperandoCierreTotal,
+          /**
+           * Por qué cae el último escalón. Sin esto, las tres razones —la
+           * sesión aún no llega, nadie la cerró, o se perdió de verdad— se
+           * leían como una sola, y como la peor de las tres.
+           */
+          desgloseUltimoPaso: {
+            conSesionPorDelante: conSesionPorDelante.length,
+            esperandoCierre: esperandoCierreTotal,
+          },
           tamizaje: {
             enviados: solicitudes.length,
             respondidos: conTamizaje.length,

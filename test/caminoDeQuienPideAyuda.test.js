@@ -135,11 +135,26 @@ beforeAll(async () => {
     reporta: 'YA_ATENDIDA',
   })
 
-  Object.assign(ids, { conPrueba, sinCerrar, borrada, reportada })
+  /**
+    * 5 · Eligió su hora y la sesión es mañana. No ha tenido sesión, pero no
+    * se perdió: está en cola. El embudo la restaba como si se hubiera caído.
+    */
+  const porDelante = await crearCaso({
+    nombre: `Por delante ${marca}`,
+    // Mañana. El fin se calcula desde el inicio: escribirlo como hace(-23)
+    // lo dejaba ANTES del inicio, y la base lo rechaza — con razón.
+    cita: {
+      startsAt: hace(-24),
+      endsAt: new Date(hace(-24).getTime() + 45 * 60000),
+      status: 'CONFIRMADA',
+    },
+  })
+
+  Object.assign(ids, { conPrueba, sinCerrar, borrada, reportada, porDelante })
 })
 
 afterAll(async () => {
-  const casos = [ids.conPrueba, ids.sinCerrar, ids.borrada, ids.reportada]
+  const casos = [ids.conPrueba, ids.sinCerrar, ids.borrada, ids.reportada, ids.porDelante]
   const personas = casos.map((c) => c.persona.id)
   const solicitudes = casos.map((c) => c.solicitud.id)
   const asignaciones = casos.map((c) => c.asignacion.id)
@@ -203,6 +218,29 @@ describe('lo que reporta el profesional', () => {
     const res = await conSesionIniciada('/api/dashboard/metricas')
     // Solo queda pendiente la que pasó sin reporte, sin casilla y sin rastro.
     expect(res.body.data.esperandoCierre).toBeGreaterThan(0)
+  })
+})
+
+describe('la caída del último escalón', () => {
+  /**
+   * Un embudo resta gente que se quedó en el camino. Quien tiene la sesión el
+   * jueves no se quedó en ningún sitio: está esperando su turno. Contarlo
+   * como pérdida hace que el informe pida arreglar algo que no está roto, y
+   * de paso tapa la parte que sí lo está.
+   */
+  it('separa a quien tiene su sesión por delante de quien se perdió', async () => {
+    const res = await conSesionIniciada('/api/dashboard/metricas')
+    expect(res.status).toBe(200)
+    expect(res.body.data.desgloseUltimoPaso.conSesionPorDelante).toBeGreaterThan(0)
+  })
+
+  it('y no la cuenta como sesión ya ocurrida', async () => {
+    const res = await conSesionIniciada('/api/dashboard/metricas')
+    const tuvieron = peldano(res.body.data.camino, 'Tuvieron su sesión').cuantas
+    const eligieron = peldano(res.body.data.camino, 'Eligieron hora').cuantas
+    // Encajados: nunca puede haber más sesiones que personas que eligieron hora.
+    expect(tuvieron).toBeLessThanOrEqual(eligieron)
+    expect(tuvieron).toBeGreaterThanOrEqual(2)
   })
 })
 
