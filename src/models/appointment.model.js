@@ -21,6 +21,22 @@ const CON_PERSONAS = {
   },
 }
 
+/**
+ * Las citas de alguien que ya no está no son agenda.
+ *
+ * Borrar a una persona la sacaba de «Acompañadas», pero sus citas seguían
+ * pintadas en el calendario semanal y en el historial: quien coordinaba veía
+ * «prueba / Prueba» y «JUAN PABLO» ocupando la semana entre las personas
+ * reales, sin forma de quitarlos desde ninguna pantalla.
+ *
+ * La misma pregunta —¿cuenta esta persona?— ya se decidía en el informe, y
+ * allí se respondía que no. Dos sitios decidiendo lo mismo por su cuenta, y
+ * cada uno eligió lo contrario: el informe se quedó corto y el calendario, de
+ * más. Aquí queda escrita una vez, del lado de la consulta, que es donde
+ * ninguna pantalla puede olvidarse de aplicarla.
+ */
+const PERSONA_VIVA = { patient: { deletedAt: null } }
+
 const esUuid = (val) => typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)
 
 /**
@@ -40,6 +56,7 @@ export const AppointmentModel = {
   findEnRango({ desde, hasta, professionalId, patientId, status }) {
     return prisma.appointment.findMany({
       where: {
+        ...PERSONA_VIVA,
         startsAt: { gte: desde, lt: hasta },
         ...(professionalId ? { professionalId } : {}),
         ...(patientId ? { patientId } : {}),
@@ -54,6 +71,7 @@ export const AppointmentModel = {
   findHistorial({ desde, hasta, professionalId, patientId, status, search, skip = 0, take = 200 } = {}) {
     return prisma.appointment.findMany({
       where: {
+        ...PERSONA_VIVA,
         ...(desde || hasta
           ? {
               startsAt: {

@@ -279,6 +279,9 @@ export const AgendaPersonaController = {
               inicio,
               fin,
               modalidad,
+              // Sesion posterior, mismo enlace, misma verdad: la hora la
+              // escogio ella. Nace confirmada, igual que la primera.
+              estado: 'CONFIRMADA',
               actorId: null,
             })
 

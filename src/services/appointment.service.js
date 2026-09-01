@@ -361,6 +361,7 @@ export async function confirmarHorario({
   meetingUrl,
   meetingProvider,
   actorId,
+  estado = ESTADOS.CONFIRMADA,
 }) {
   const asignacion = await CaseAssignmentModel.findById(asignacionId)
   if (!asignacion) throw new DomainError('NO_ENCONTRADO', 'La asignación no existe')
@@ -374,6 +375,21 @@ export async function confirmarHorario({
       inicio,
       fin,
       modalidad,
+      /**
+       * Nace CONFIRMADA, no PROGRAMADA.
+       *
+       * Por aqui solo se pasa cuando la hora la eligio la persona: desde su
+       * enlace, o cuando quien coordina registra la que ella dijo por
+       * WhatsApp. No queda nadie a quien preguntarle si le sirve — ella es
+       * quien lo dijo.
+       *
+       * Naciendo PROGRAMADA, el camino con la prueba mas fuerte producia el
+       * estado mas debil: la pantalla ofrecia «Confirmar Cita» sobre una hora
+       * que la persona ya habia escogido, el tablero la contaba como
+       * propuesta, y el paso 5 decia «sin confirmar todavia». Trabajo que no
+       * existe, tres veces.
+       */
+      estado,
       // El profesional acepto ESTE horario desde su enlace. Su palabra de hoy
       // vale mas que las franjas que declaro hace un mes; quien coordina tiene
       // que marcarlo a mano y queda en la auditoria.

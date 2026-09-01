@@ -4,6 +4,11 @@ import { PROPUESTA_VENCE_DIAS, ACEPTADA_VENCE_DIAS } from '../asignacion/barrido
 import { SLA_ALTA_DIAS } from '../citas/barrido.js'
 import { ok } from '../views/response.view.js'
 import { formatearLocal } from '../services/timezone.service.js'
+import {
+  huboSesion,
+  esperandoCierre,
+  REPORTE_NIEGA,
+} from '../services/appointmentState.service.js'
 
 /**
  * Indicadores de operacion. Lo que el equipo mira al empezar el dia.
@@ -654,8 +659,55 @@ export const DashboardController = {
       for (const c of citasPorEstado) citas[c.status] = c._count._all
       const realizadas = citas.REALIZADA ?? 0
       const noAsistio = citas.NO_ASISTIO ?? 0
+
+      /**
+       * La asistencia, sobre lo que ocurrió — no sobre lo que se marcó.
+       *
+       * Salía «100%» con tres citas marcadas y cero ausencias, mientras nueve
+       * sesiones pasadas seguían sin cerrar y cuatro tenían a las dos personas
+       * dentro de la sala. Un 100% sacado de tres filas no informa: tranquiliza,
+       * que es lo contrario de lo que tiene que hacer un informe.
+       */
+      const citasParaAsistencia = await prisma.appointment.findMany({
+        where: { patient: { deletedAt: null }, startsAt: { lte: new Date() } },
+        select: {
+          status: true,
+          startsAt: true,
+          caseAssignmentId: true,
+          patientFirstJoinedAt: true,
+          professionalFirstJoinedAt: true,
+        },
+      })
+      const reportesDeCasos = await prisma.caseReport.findMany({
+        select: { outcome: true, createdAt: true, assignmentId: true },
+      })
+
+      // La misma regla del embudo, para que las dos cifras del informe no
+      // puedan volver a decir cosas distintas sobre lo mismo.
+      const conPruebaDeSesion = citasParaAsistencia.filter((c) =>
+        huboSesion(c, reportesDeCasos),
+      ).length
+
+      /**
+       * Las ausencias también salen de quien estuvo ahí, no solo de la casilla.
+       * Un profesional que reporta «teníamos sesión y no se presentó» ya lo
+       * dijo: no hace falta que además alguien marque la cita.
+       */
+      const ausenciasReportadas = citasParaAsistencia.filter((c) => {
+        if (c.status === 'NO_ASISTIO') return true
+        if (huboSesion(c, reportesDeCasos)) return false
+        return reportesDeCasos.some(
+          (r) =>
+            r.assignmentId === c.caseAssignmentId &&
+            r.outcome === REPORTE_NIEGA &&
+            new Date(r.createdAt).getTime() >= new Date(c.startsAt).getTime(),
+        )
+      }).length
+
       const tasaAsistencia =
-        realizadas + noAsistio > 0 ? Math.round((realizadas / (realizadas + noAsistio)) * 100) : null
+        conPruebaDeSesion + ausenciasReportadas > 0
+          ? Math.round((conPruebaDeSesion / (conPruebaDeSesion + ausenciasReportadas)) * 100)
+          : null
 
       /* ---------- telemetría de las sesiones virtuales ----------
        *
@@ -779,9 +831,31 @@ export const DashboardController = {
           supportRequestId: true,
           assignments: {
             where: { deletedAt: null },
-            select: { status: true, respondedAt: true },
+            select: {
+              id: true,
+              status: true,
+              respondedAt: true,
+              /**
+               * Lo que dijo el profesional al cerrar. Es la fuente que mejor
+               * sabe si hubo sesión —estuvo ahí—, y es la que faltaba: el
+               * informe solo miraba la casilla del portal y el rastro de la
+               * sala.
+               */
+              reports: { select: { outcome: true, createdAt: true, assignmentId: true } },
+            },
           },
-          appointments: { select: { status: true, startsAt: true } },
+          appointments: {
+            select: {
+              status: true,
+              startsAt: true,
+              // Para emparejar cada cita con el reporte que la cerró.
+              caseAssignmentId: true,
+              // El rastro de la sala. Va el último en la jerarquía: depende
+              // de que la pestaña siguiera abierta.
+              patientFirstJoinedAt: true,
+              professionalFirstJoinedAt: true,
+            },
+          },
         },
       })
       const personaDeLaSolicitud = new Map(admitidos.map((p) => [p.supportRequestId, p]))
@@ -792,15 +866,44 @@ export const DashboardController = {
 
       const conPropuesta = admitidas.filter((s) => personaDe(s).assignments.length > 0)
       const conCita = admitidas.filter((s) => personaDe(s).appointments.length > 0)
-      const conSesion = admitidas.filter((s) =>
-        personaDe(s).appointments.some((c) => c.status === 'REALIZADA'),
-      )
+      /**
+       * «Tuvieron su sesión» medía si alguien se acordó de marcar la casilla.
+       *
+       * REALIZADA no lo pone el sistema: lo pone una persona pulsando «Marcar
+       * como Realizada» en el portal. El informe decía «0 · 0%» mientras la
+       * pestaña de al lado enseñaba doce sesiones virtuales con telemetría, y
+       * la tarjeta de asistencia decía 100%. Tres números del mismo tablero
+       * contando tres cosas distintas.
+       *
+       * Cero es el peor número que puede dar mal: se lee como «esto no está
+       * funcionando». Aquí lo que no funcionaba era la medida.
+       */
+      /** Todos los reportes de la persona, para emparejarlos con sus citas. */
+      const reportesDe = (s) => personaDe(s).assignments.flatMap((a) => a.reports ?? [])
+
+      const conSesion = admitidas.filter((s) => {
+        const reportes = reportesDe(s)
+        return personaDe(s).appointments.some((c) => huboSesion(c, reportes))
+      })
+
+      /**
+       * Las que ya pasaron y nadie cerró. No entran en el embudo —no sabemos
+       * si ocurrieron— pero tampoco se callan: son cierres pendientes, y
+       * mientras se acumulan el informe entero mide de menos.
+       */
+      const esperandoCierreTotal = admitidas.reduce((suma, s) => {
+        const reportes = reportesDe(s)
+        return suma + personaDe(s).appointments.filter((c) => esperandoCierre(c, reportes)).length
+      }, 0)
 
       /** Días entre pedir ayuda y sentarse por primera vez con alguien. */
       const diasHastaLaPrimeraSesion = conSesion
         .map((s) => {
+          // La misma regla que el embudo: si allí cuenta como sesión, aquí
+          // también. Filtrando por REALIZADA se medía sobre otro conjunto.
+          const reportes = reportesDe(s)
           const realizadas = personaDe(s)
-            .appointments.filter((c) => c.status === 'REALIZADA')
+            .appointments.filter((c) => huboSesion(c, reportes))
             .map((c) => new Date(c.startsAt).getTime())
           if (realizadas.length === 0) return null
           return (Math.min(...realizadas) - new Date(s.createdAt).getTime()) / DIA
@@ -870,6 +973,13 @@ export const DashboardController = {
           // solicitudes es una persona, no una tendencia, y la pantalla tiene
           // que poder decirlo.
           caminoSobreCuantas: solicitudes.length,
+          /**
+           * Sesiones pasadas que nadie cerró. No van dentro del embudo —no
+           * sabemos si ocurrieron— pero se publican al lado: mientras se
+           * acumulan, todo lo de arriba mide de menos, y quien lee el informe
+           * merece saberlo antes de sacar conclusiones.
+           */
+          esperandoCierre: esperandoCierreTotal,
           tamizaje: {
             enviados: solicitudes.length,
             respondidos: conTamizaje.length,

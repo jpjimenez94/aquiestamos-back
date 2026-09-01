@@ -128,6 +128,22 @@ describe('mi agenda', () => {
     expect(cita.professionalId).toBe(profesionalA.id)
   })
 
+  /**
+   * Nace CONFIRMADA. La eligio ella; no queda nadie a quien preguntarle.
+   *
+   * Nacia PROGRAMADA, igual que una hora que propone la coordinacion a
+   * ciegas, y el portal ofrecia entonces un boton «Confirmar Cita» sobre la
+   * hora que la persona misma acababa de escoger. El camino con la prueba mas
+   * fuerte producia el estado mas debil.
+   */
+  it('la hora que elige ella nace confirmada, no a la espera de confirmacion', async () => {
+    const cita = await prisma.appointment.findFirst({
+      where: { patientId: pacienteId },
+      orderBy: { createdAt: 'desc' },
+    })
+    expect(cita.status).toBe('CONFIRMADA')
+  })
+
   it('esa hora deja de ofrecerse', async () => {
     const despues = await request(app).get(`/api/mi-agenda/${token}`)
     const citas = await prisma.appointment.findMany({ where: { patientId: pacienteId } })

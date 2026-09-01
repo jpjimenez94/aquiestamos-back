@@ -218,18 +218,18 @@ Por favor *respóndenos a este mensaje confirmando que lo recibiste y lo tienes 
     name: 'Paso 5 · Recordatorio previo a la persona',
     description: 'Recordatorio enviado el día de la cita o en los minutos previos al inicio de la sesión a la persona acompañada.',
     dataType: 'TEXTO',
-    variables: ['nombre', 'profesional', 'cuando', 'modalidad', 'enlaceReunion'],
-    defaultValue: `¡Hola {nombre}! Te saludamos de la Red Aquí Estamos.
+    variables: ['nombre', 'profesional', 'profesionalNombre', 'cuando', 'modalidad', 'enlaceReunion'],
+    defaultValue: `¡Hola {nombre}! Te escribimos de la Red Aquí Estamos.
 
-Te recordamos que tienes tu sesión de acompañamiento con {profesional} programada para dentro de poco: *{cuando}* en modalidad *{modalidad}*.
+Te recordamos tu sesión de acompañamiento con *{profesional}*, {cuando}, en modalidad *{modalidad}*.
 
 · *Enlace de videollamada:* {enlaceReunion}
 
-A la hora acordada, solo debes hacer clic en el enlace de videollamada desde tu celular o computador para unirte a la sesión con {profesional}. No tienes que descargar nada ni registrarte.
+A la hora acordada solo tienes que abrir ese enlace desde tu celular o computador. No hay que descargar ni registrar nada.
 
-{profesional} se pondrá en contacto contigo por WhatsApp unos *15 minutos antes* de la hora para coordinar el inicio.
+Unos *15 minutos antes*, {profesionalNombre} te escribe por WhatsApp para coordinar el inicio.
 
-Si te surge un imprevisto y no puedes asistir, por favor escríbenos por aquí con tiempo para avisarle a {profesional} y reprogramar tu espacio.
+Si te surge un imprevisto y no puedes, avísanos por aquí con tiempo y reprogramamos tu espacio: no pasa nada.
 
 ¡Un abrazo y que tengas una muy buena sesión!`,
   },
