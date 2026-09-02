@@ -206,6 +206,19 @@ describe('mi agenda', () => {
         .send({ inicio: hueco.inicio })
       expect(res.status).toBe(201)
 
+      /**
+       * El consentimiento viene en la misma respuesta, para firmarlo en la
+       * misma pantalla. Era otro enlace y otro mensaje por WhatsApp: dos
+       * toques humanos para una firma que puede darse ahí mismo.
+       */
+      expect(res.body.data.consentimiento).toEqual({ firmado: false, token: expect.any(String) })
+      const firma = await request(app)
+        .post(`/api/consentimiento/${res.body.data.consentimiento.token}`)
+        .send({ acepta: true, nombreFirma: 'Indiferente Prueba', version: 'sesion-2026-08-2' })
+      expect(firma.status).toBe(200)
+      const firmada = await prisma.appointment.findFirst({ where: { patientId: indiferente.id } })
+      expect(firmada.consentSigned).toBe(true)
+
       const cita = await prisma.appointment.findFirst({ where: { patientId: indiferente.id } })
       // Nunca AMBAS ni INDIFERENTE: una sesión ocurre de una sola forma.
       expect(['PRESENCIAL', 'VIRTUAL']).toContain(cita.modality)

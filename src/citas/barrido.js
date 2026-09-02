@@ -1,6 +1,7 @@
 import { primerNombre as pila } from '../nombre.js'
 import { conCerrojo, CERROJOS } from '../config/cerrojo.js'
 import { prisma } from '../config/database.js'
+import { cerrarSesionesConPrueba } from './cierre.js'
 import { NotificationModel } from '../models/notification.model.js'
 import { construir } from '../notifications/plantillas.js'
 import { avisoSlaAlta } from '../notifications/eventos.js'
@@ -98,13 +99,18 @@ export async function barrerCitas({
   horasDespues = PIDE_REPORTE_HORAS,
   slaDias = SLA_ALTA_DIAS,
 } = {}) {
-  if (corriendo) return { recordatorios: 0, reportesPedidos: 0, slaAvisadas: 0 }
+  if (corriendo) return { recordatorios: 0, reportesPedidos: 0, slaAvisadas: 0, cerradas: 0 }
   corriendo = true
 
-  const resumen = { recordatorios: 0, reportesPedidos: 0, slaAvisadas: 0 }
+  const resumen = { recordatorios: 0, reportesPedidos: 0, slaAvisadas: 0, cerradas: 0 }
   const ahora = Date.now()
 
   try {
+    // ---------- 0. Cerrar lo que ya tiene prueba de que ocurrió ----------
+    // Va primero: una sesión que se cierra aquí ya no pide reporte abajo.
+    const cierre = await cerrarSesionesConPrueba({ ahora })
+    resumen.cerradas = cierre.realizadas + cierre.ausencias
+
     // ---------- 1. Recordatorios: sesiones que empiezan pronto ----------
     const proximas = await prisma.appointment.findMany({
       where: {

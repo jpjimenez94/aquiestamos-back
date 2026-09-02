@@ -13,6 +13,7 @@ import {
   modalidadDeSesion,
 } from '../services/scheduling.service.js'
 import { crearCita, confirmarHorario } from '../services/appointment.service.js'
+import { crearEnlaceConsentimiento } from '../auth/enlaceConsentimiento.js'
 import { enPalabras } from '../services/timezone.service.js'
 import { citaAgendada } from '../notifications/eventos.js'
 import { registrar, ACCION } from '../services/audit.service.js'
@@ -330,6 +331,20 @@ export const AgendaPersonaController = {
             inicio: cita.startsAt,
             cuando: enPalabras(cita.startsAt),
             profesional: asignacion.professional.fullName,
+            /**
+             * El consentimiento, en la misma pantalla.
+             *
+             * Era otro enlace y otro mensaje: la persona elegía su hora, y
+             * después alguien tenía que mandarle por WhatsApp el enlace para
+             * firmar. Dos toques humanos para una firma que puede darse ahí
+             * mismo, con la sesión recién acordada y la persona delante de la
+             * pantalla. Si ya lo firmó en una sesión anterior, no se le vuelve
+             * a pedir: la cita hereda la firma y aquí llega firmada.
+             */
+            consentimiento: cita.consentSigned
+              ? { firmado: true, token: null }
+              : { firmado: false, token: crearEnlaceConsentimiento(cita.id) },
+            esMenor: paciente.isMinor ?? false,
           },
           'Listo, tu sesión quedó agendada.',
         ),

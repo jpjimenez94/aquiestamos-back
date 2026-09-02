@@ -102,7 +102,9 @@ export const PLANTILLAS = {
       datos: [
         `<strong>Cuándo:</strong> ${p.cuando}`,
         `<strong>Modalidad:</strong> ${String(p.modalidad ?? '').toLowerCase()}`,
-      ],
+        // La sala, para no depender de que alguien la mande por WhatsApp.
+        p.sala ? `<strong>Sala virtual:</strong> <a href="${p.sala}">${p.sala}</a>` : null,
+      ].filter(Boolean),
       boton: { texto: 'Ver el caso', url: urlDelSitio(p.ruta) },
     }),
 

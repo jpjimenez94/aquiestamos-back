@@ -394,7 +394,7 @@ Nos comunicamos contigo reconociendo tu valioso liderazgo en *{territorio}* y qu
     name: 'Correo · Notificación de Cita Agendada al Profesional',
     description: 'Aviso por correo al psicólogo con los detalles de fecha y modalidad de una nueva cita.',
     dataType: 'JSON',
-    variables: ['nombre', 'cuando', 'modalidad', 'ruta'],
+    variables: ['nombre', 'cuando', 'modalidad', 'sala', 'ruta'],
     defaultValue: JSON.stringify({
           "asunto": "Te agendamos una cita",
           "titulo": "Tienes una cita agendada",
@@ -404,7 +404,8 @@ Nos comunicamos contigo reconociendo tu valioso liderazgo en *{territorio}* y qu
           ],
           "datos": [
                 "<strong>Cuándo:</strong> {cuando}",
-                "<strong>Modalidad:</strong> {modalidad}"
+                "<strong>Modalidad:</strong> {modalidad}",
+                "<strong>Sala virtual:</strong> {sala}"
           ],
           "botonTexto": "Ver el caso"
     }),

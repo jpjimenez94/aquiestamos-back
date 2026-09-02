@@ -1,3 +1,4 @@
+import { cerrarSesionesConPrueba } from '../citas/cierre.js'
 import { devolverALaCola } from '../services/appointment.service.js'
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import { CaseAssignmentModel } from '../models/caseAssignment.model.js'
@@ -242,6 +243,12 @@ export async function reportarCaso(req, res, next) {
     })
 
     await reporteRecibido({ reporte: creado, asignacion })
+
+    // Si el reporte dice qué pasó con una sesión ya pasada, la cita se cierra
+    // ahora mismo. Con el barrido de cada hora bastaría, pero quien coordina
+    // abre la ficha al recibir el correo del reporte: mejor que la encuentre
+    // ya cerrada.
+    await cerrarSesionesConPrueba({ patientId: id })
 
     await registrar({
       req,

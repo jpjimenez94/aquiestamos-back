@@ -58,6 +58,25 @@ function comoLoManda(claveDelPortal) {
 
 const PAREJAS = Object.entries(PLANTILLA_DEL_PORTAL)
 
+/**
+ * El correo automático al profesional lleva el enlace de la sala.
+ *
+ * Salía solo, pero sin la sala: para que el profesional tuviera el enlace,
+ * alguien tenía que acordarse de mandarle el «despacho» por WhatsApp. Un
+ * mensaje manual entero para transportar un dato que el sistema ya tenía.
+ */
+describe('la cita agendada lleva la sala', () => {
+  it('con sala, el correo la enlaza', () => {
+    const r = construir('CITA_AGENDADA', { ...PAYLOAD, sala: 'https://x.test/sala/abc' })
+    expect(r.contenido.datos.join('\n')).toContain('href="https://x.test/sala/abc"')
+  })
+
+  it('sin sala (presencial), no inventa una línea vacía', () => {
+    const r = construir('CITA_AGENDADA', PAYLOAD)
+    expect(r.contenido.datos.join('\n')).not.toMatch(/Sala virtual/)
+  })
+})
+
 describe('los correos del portal salen igual que los del código', () => {
   it('las ocho plantillas tienen su equivalente en Parametrización', () => {
     expect(PAREJAS).toHaveLength(8)

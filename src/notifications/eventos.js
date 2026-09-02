@@ -3,6 +3,7 @@ import { NotificationModel } from '../models/notification.model.js'
 import { UserModel } from '../models/user.model.js'
 import { construir } from './plantillas.js'
 import { env } from '../config/env.js'
+import { generarTokenSala } from '../services/meeting.service.js'
 
 /**
  * Los avisos que dispara cada cosa que pasa en la red.
@@ -224,7 +225,19 @@ export async function pacienteAdmitido(paciente, { sinRespuesta = false } = {}) 
 }
 
 /** Se agendó una cita. Avisa al profesional, con enlace y sin datos. */
+/**
+ * Con el enlace de la sala dentro.
+ *
+ * Este correo salía solo, pero sin la sala: para que el profesional tuviera
+ * el enlace, alguien tenía que acordarse de mandarle el «despacho» por
+ * WhatsApp. Un mensaje manual entero para transportar un dato que el sistema
+ * ya tenía en la mano. Con la sala aquí, ese mensaje pasa a ser opcional.
+ */
 export async function citaAgendada({ cita, profesional, cuando }) {
+  const esVirtual = cita.modality === 'VIRTUAL' || Boolean(cita.meetingUrl)
+  const sala = esVirtual
+    ? `${env.sitioUrl.replace(/\/$/, '')}/sala/${generarTokenSala(cita.id, 'PROFESIONAL')}`
+    : null
   await encolar({
     plantilla: 'CITA_AGENDADA',
     para: profesional.email,
@@ -233,6 +246,7 @@ export async function citaAgendada({ cita, profesional, cuando }) {
       nombre: primerNombre(profesional.fullName),
       cuando,
       modalidad: cita.modality,
+      sala,
       ruta: `/portal/caso/${cita.patientId}`,
     },
     entidad: 'cita',
