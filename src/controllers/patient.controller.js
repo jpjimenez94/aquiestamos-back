@@ -12,6 +12,7 @@ import { env } from '../config/env.js'
 import { prisma } from '../config/database.js'
 import { admitirSolicitud } from '../services/promotion.service.js'
 import { reporte } from '../views/caseReport.view.js'
+import { reporteDeLaCita } from '../services/appointmentState.service.js'
 import { pacienteAdmitido } from '../notifications/eventos.js'
 import { candidatosPara } from '../services/matching.service.js'
 import { registrar, ACCION } from '../services/audit.service.js'
@@ -156,10 +157,26 @@ export const PatientController = {
                 },
               }
             : null,
-          reportes: reportes.map((r) => ({
-            ...reporte(r),
-            profesional: r.assignment?.professional?.fullName ?? null,
-          })),
+          /**
+           * Cada nota dice de qué sesión es, y cada sesión sabe si tiene nota.
+           *
+           * Los reportes cuelgan de la asignación, no de la cita: la ficha
+           * enseñaba tres citas arriba y una nota abajo sin decir de cuál era,
+           * y quien coordina tenía que adivinarlo por la fecha. El
+           * emparejamiento —la primera nota escrita después de que empezara la
+           * sesión— ya existía para el informe; aquí se reutiliza, no se
+           * reinventa: dos reglas para lo mismo es como acaban diciendo cosas
+           * distintas.
+           */
+          reportes: reportes.map((r) => {
+            const suya = citas.find((c) => reporteDeLaCita(c, reportes)?.id === r.id)
+            return {
+              ...reporte(r),
+              profesional: r.assignment?.professional?.fullName ?? null,
+              citaId: suya?.id ?? null,
+              citaInicio: suya?.startsAt ?? null,
+            }
+          }),
           feedbacks: feedbacks.map((f) => ({
             id: f.id,
             howFelt: f.howFelt,
@@ -178,7 +195,7 @@ export const PatientController = {
           })),
           enlaceFeedback,
           enlaceAgenda,
-          citas: citas.map(cita),
+          citas: citas.map((c) => ({ ...cita(c), reporteId: reporteDeLaCita(c, reportes)?.id ?? null })),
           encuesta,
         }),
       )

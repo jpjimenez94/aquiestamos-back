@@ -103,7 +103,7 @@ export const REPORTE_NIEGA = 'NO_ASISTIO'
  * después de que empezara. Con dos sesiones en el mismo caso, a cada una le
  * toca el suyo.
  */
-function reporteDeLaCita(cita, reportes) {
+export function reporteDeLaCita(cita, reportes) {
   if (!cita.caseAssignmentId || !reportes?.length) return null
   const empezo = new Date(cita.startsAt).getTime()
   const suyos = reportes
@@ -112,7 +112,7 @@ function reporteDeLaCita(cita, reportes) {
         r.assignmentId === cita.caseAssignmentId && new Date(r.createdAt).getTime() >= empezo,
     )
     .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
-  return suyos[0]?.outcome ?? null
+  return suyos[0] ?? null
 }
 
 /**
@@ -137,7 +137,7 @@ function reporteDeLaCita(cita, reportes) {
 export function huboSesion(cita, reportes = []) {
   if (!cita) return false
 
-  const dijoElProfesional = reporteDeLaCita(cita, reportes)
+  const dijoElProfesional = reporteDeLaCita(cita, reportes)?.outcome ?? null
   if (dijoElProfesional === REPORTE_CONFIRMA) return true
   if (dijoElProfesional === REPORTE_NIEGA) return false
 

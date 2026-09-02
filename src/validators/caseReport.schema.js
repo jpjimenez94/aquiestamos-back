@@ -58,6 +58,23 @@ export const caseReportCreateSchema = z
     message: 'Dinos para cuándo quedaron',
     path: ['meetsAt'],
   })
+  /**
+   * Y esa fecha tiene que estar por delante.
+   *
+   * Una profesional escribió 9 de febrero queriendo decir 2 de septiembre —el
+   * campo se ve en el orden que decida su navegador, y se teclea al revés
+   * sin notarlo— y el reporte se guardó con una cita de hace medio año. La
+   * ficha lo enseñó tal cual durante días, al lado de la cita real, y el
+   * botón de «agendar la cita acordada» proponía esa fecha imposible.
+   *
+   * «Quedamos en una cita» para un día que ya pasó no puede ser verdad. Se
+   * frena aquí, en el servidor, y no solo en el formulario: el formulario es
+   * una cortesía; esto es la puerta.
+   */
+  .refine((d) => d.outcome !== 'CITA_ACORDADA' || !d.meetsAt || d.meetsAt.getTime() > Date.now(), {
+    message: 'Esa fecha ya pasó. Revisa el día y el mes.',
+    path: ['meetsAt'],
+  })
   // "Otra cosa" obliga a decir cuál: si no, el reporte no dice nada.
   .refine((d) => d.outcome !== 'OTRO' || Boolean(d.notes?.trim()), {
     message: 'Cuéntanos brevemente qué pasó',
