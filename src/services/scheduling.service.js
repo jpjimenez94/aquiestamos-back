@@ -69,6 +69,39 @@ function seSolapan(inicioA, finA, inicioB, finB) {
 }
 
 /**
+ * De lo que la persona PREFIERE a lo que la agenda ENTIENDE.
+ *
+ * Hay dos enums con la misma palabra. La persona elige entre PRESENCIAL,
+ * VIRTUAL e INDIFERENTE; la agenda del profesional —y la cita— solo conocen
+ * PRESENCIAL, VIRTUAL y AMBAS. Se parecen tanto que durante meses se pasó uno
+ * donde iba el otro, y funcionó… hasta que alguien marcó «indiferente». Prisma
+ * rechazó el valor y la persona vio «Error interno del servidor» en el enlace
+ * que le mandamos para elegir su hora. Dos personas reales, hoy.
+ *
+ * INDIFERENTE no es una modalidad: es la ausencia de restricción. Para buscar
+ * huecos significa «cualquiera»; para crear la sesión significa «la que
+ * ofrezca el profesional», y si ofrece las dos, virtual, que es como trabaja
+ * la red por defecto y no obliga a nadie a desplazarse sin haberlo pedido.
+ *
+ * La traducción vive aquí y solo aquí. El controlador la pasaba a mano en tres
+ * sitios, cada uno con su propio `|| 'VIRTUAL'` o `?? null`, y ninguno
+ * contemplaba el tercer valor.
+ */
+const MODALIDADES_DE_AGENDA = new Set(['PRESENCIAL', 'VIRTUAL'])
+
+/** Para filtrar huecos. `undefined` = sin filtro, valen todos. */
+export function modalidadDeAgenda(preferencia) {
+  return MODALIDADES_DE_AGENDA.has(preferencia) ? preferencia : undefined
+}
+
+/** Para la sesión que se crea: siempre una concreta, nunca AMBAS ni INDIFERENTE. */
+export function modalidadDeSesion(preferencia, modalidadProfesional) {
+  if (MODALIDADES_DE_AGENDA.has(preferencia)) return preferencia
+  if (MODALIDADES_DE_AGENDA.has(modalidadProfesional)) return modalidadProfesional
+  return 'VIRTUAL'
+}
+
+/**
  * Huecos en los que este profesional podría atender.
  *
  * Un hueco es válido si la SESIÓN cabe dentro de una franja declarada, y si ni

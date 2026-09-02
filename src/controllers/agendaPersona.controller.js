@@ -9,6 +9,8 @@ import {
   DESCANSO,
   sinSolaparse,
   parametrosDeAgenda,
+  modalidadDeAgenda,
+  modalidadDeSesion,
 } from '../services/scheduling.service.js'
 import { crearCita, confirmarHorario } from '../services/appointment.service.js'
 import { enPalabras } from '../services/timezone.service.js'
@@ -119,7 +121,7 @@ export const AgendaPersonaController = {
         desde,
         hasta,
         duracionMinutos: DURACION_MINIMA,
-        modalidad: paciente.preferredModality || undefined,
+        modalidad: modalidadDeAgenda(paciente.preferredModality),
         /**
          * Nada para dentro de un rato.
          *
@@ -236,7 +238,7 @@ export const AgendaPersonaController = {
         desde: new Date(inicio.getTime() - 60000),
         hasta: new Date(fin.getTime() + 60000),
         duracionMinutos: DURACION_MINIMA,
-        modalidad: paciente.preferredModality || undefined,
+        modalidad: modalidadDeAgenda(paciente.preferredModality),
         /**
          * El margen también se exige AQUÍ, no solo al pintar la lista.
          *
@@ -268,7 +270,10 @@ export const AgendaPersonaController = {
           )
       }
 
-      const modalidad = paciente.preferredModality || 'VIRTUAL'
+      const modalidad = modalidadDeSesion(
+        paciente.preferredModality,
+        asignacion.professional.modality,
+      )
 
       const cita =
         asignacion.status === 'ACEPTADA'

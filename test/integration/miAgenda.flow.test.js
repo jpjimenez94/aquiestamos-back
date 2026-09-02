@@ -151,6 +151,67 @@ describe('mi agenda', () => {
     expect(despues.body.data.huecos.some((h) => h.inicio === tomada)).toBe(false)
   })
 
+  /**
+   * La persona que marcó «indiferente».
+   *
+   * Su enlace daba «Error interno del servidor». INDIFERENTE es de la lista de
+   * preferencias de la persona; la agenda del profesional solo conoce
+   * PRESENCIAL, VIRTUAL y AMBAS, y el controlador pasaba el valor tal cual.
+   * Prisma lo rechazó. Dos personas reales con caso vivo lo vieron antes que
+   * nadie del equipo, porque las pruebas solo nacían con VIRTUAL.
+   */
+  describe('una persona a la que le da igual la modalidad', () => {
+    let indiferente
+    let tokenIndiferente
+
+    beforeAll(async () => {
+      indiferente = await prisma.patient.create({
+        data: {
+          fullName: `Indiferente ${MARCA}`,
+          phone: '3000000009',
+          city: 'Pereira',
+          status: 'EN_ACOMPANAMIENTO',
+          priority: 'MEDIA',
+          preferredModality: 'INDIFERENTE',
+        },
+      })
+      await prisma.caseAssignment.create({
+        data: {
+          patientId: indiferente.id,
+          professionalId: profesionalA.id,
+          status: 'ACEPTADA',
+          respondedAt: new Date(),
+        },
+      })
+      tokenIndiferente = crearEnlaceAgenda(indiferente.id)
+    })
+
+    afterAll(async () => {
+      await prisma.appointment.deleteMany({ where: { patientId: indiferente.id } })
+      await prisma.caseAssignment.deleteMany({ where: { patientId: indiferente.id } })
+      await prisma.patient.deleteMany({ where: { id: indiferente.id } })
+    })
+
+    it('ve sus horas libres en vez de un error interno', async () => {
+      const res = await request(app).get(`/api/mi-agenda/${tokenIndiferente}`)
+      expect(res.status).toBe(200)
+      expect(res.body.data.huecos.length).toBeGreaterThan(0)
+    })
+
+    it('y puede reservar: la sesión nace con una modalidad concreta', async () => {
+      const antes = await request(app).get(`/api/mi-agenda/${tokenIndiferente}`)
+      const hueco = antes.body.data.huecos[0]
+      const res = await request(app)
+        .post(`/api/mi-agenda/${tokenIndiferente}`)
+        .send({ inicio: hueco.inicio })
+      expect(res.status).toBe(201)
+
+      const cita = await prisma.appointment.findFirst({ where: { patientId: indiferente.id } })
+      // Nunca AMBAS ni INDIFERENTE: una sesión ocurre de una sola forma.
+      expect(['PRESENCIAL', 'VIRTUAL']).toContain(cita.modality)
+    })
+  })
+
   it('no deja agendar una hora que ya pasó', async () => {
     const res = await request(app)
       .post(`/api/mi-agenda/${token}`)
