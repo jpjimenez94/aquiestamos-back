@@ -41,6 +41,11 @@ export const SupportRequestModel = {
     return prisma.supportRequest.count({ where: { ...vivos, ...(status ? { status } : {}) } })
   },
 
+  /** Corregir los datos de una solicitud. Solo los campos que vengan. */
+  update(id, data) {
+    return prisma.supportRequest.update({ where: { id }, data })
+  },
+
   updateStatus(id, status) {
     return prisma.supportRequest.update({ where: { id }, data: { status } })
   },

@@ -255,6 +255,25 @@ export const PLANTILLAS = {
       ],
     }),
 
+  /**
+   * A la persona, un par de horas después de agendar, si no firmó.
+   *
+   * Está a un toque de firmar y probablemente se distrajo: de quienes firman,
+   * la mediana lo hace en unos veinte minutos. Sin la firma la sesión no
+   * puede hacerse, y el espacio del profesional sigue apartado para algo que
+   * no va a pasar.
+   */
+  FALTA_CONSENTIMIENTO: (p) =>
+    armar('Te falta un paso para tu sesión', {
+      titulo: `Hola ${p.nombre}, quedó pendiente tu consentimiento`,
+      parrafos: [
+        `Tu sesión con <strong>${p.profesional}</strong> quedó agendada para <strong>${enPalabras(p.cuando)}</strong>.`,
+        'Antes de la sesión necesitamos que leas y aceptes el consentimiento. Es corto y se hace desde el celular, en un minuto.',
+        'Si cambiaste de opinión o ya no puedes, escríbenos por WhatsApp: movemos la hora o la soltamos, sin problema.',
+      ],
+      boton: { texto: 'Leer y firmar', url: p.enlace },
+    }),
+
   /** Al profesional, un rato después de la hora de la sesión. */
   PIDE_REPORTE: (p) =>
     armar('¿Cómo te fue? Cuéntanos desde tu enlace', {

@@ -1018,11 +1018,18 @@ export const DashboardController = {
        * es de donde salían las tarjetas que prometían tres días mientras el
        * reloj corría a dos.
        */
-      const diasDesde = (fecha) => (Date.now() - new Date(fecha).getTime()) / DIA
+      const horasDesde = (fecha) => (Date.now() - new Date(fecha).getTime()) / 3600000
 
+      /**
+       * En horas, no en días.
+       *
+       * Con días, un atasco de dos horas salía como «plazo: 0.083 días» y el
+       * que más llevaba, como «0 días». La unidad la elige la pantalla al
+       * escribirlo; aquí solo se cuenta.
+       */
       const esperas = (lista) => {
-        const dias = lista.map((d) => Math.floor(d)).sort((a, b) => b - a)
-        return { cuantas: dias.length, diasMaximo: dias[0] ?? null }
+        const horas = lista.map((h) => Math.floor(h)).sort((a, b) => b - a)
+        return { cuantas: horas.length, horasMaximo: horas[0] ?? null }
       }
 
       const sinAsignar = admitidas
@@ -1030,7 +1037,7 @@ export const DashboardController = {
           const p = personaDe(s)
           return !p.assignments.some((a) => VIVOS.includes(a.status))
         })
-        .map((s) => diasDesde(s.createdAt))
+        .map((s) => horasDesde(s.createdAt))
 
       const sinElegirHora = admitidas
         .filter((s) => {
@@ -1040,34 +1047,63 @@ export const DashboardController = {
         })
         .map((s) => {
           const a = personaDe(s).assignments.find((x) => x.status === 'ACEPTADA')
-          return diasDesde(a.respondedAt ?? s.createdAt)
+          return horasDesde(a.respondedAt ?? s.createdAt)
         })
 
       const sinCerrarSesion = admitidas.flatMap((s) => {
         const reportes = reportesDe(s)
         return personaDe(s)
           .appointments.filter((c) => esperandoCierre(c, reportes))
-          .map((c) => diasDesde(c.startsAt))
+          .map((c) => horasDesde(c.startsAt))
       })
+
+      /**
+       * Citas con la firma pendiente.
+       *
+       * Una sesión sin consentimiento firmado no puede ocurrir: el profesional
+       * no debería atenderla. Así que ese espacio está apartado para algo que,
+       * tal como está, no va a pasar — y no se veía en ninguna pantalla.
+       *
+       * El umbral sale de los datos: de las que firman, la mediana lo hace en
+       * unos veinte minutos. Quien no firmó en dos horas no se arrepintió, se
+       * distrajo; a partir de ahí es trabajo de coordinación, no espera normal.
+       */
+      const sinFirmar = await prisma.appointment.findMany({
+        where: {
+          status: { in: ['PROGRAMADA', 'CONFIRMADA'] },
+          consentSigned: false,
+          startsAt: { gt: new Date() },
+          patient: { deletedAt: null },
+        },
+        select: { createdAt: true },
+      })
+      const HORAS_PARA_FIRMAR = 2
 
       const atascos = [
         {
+          etapa: 'Sin firmar el consentimiento',
+          umbralHoras: HORAS_PARA_FIRMAR,
+          quePasaSiSeIgnora:
+            'Sin la firma la sesión no puede hacerse, y el espacio del profesional sigue apartado.',
+          ...esperas(sinFirmar.map((c) => horasDesde(c.createdAt)).filter((h) => h >= HORAS_PARA_FIRMAR)),
+        },
+        {
           etapa: 'Sin profesional asignado',
-          umbralDias: slaAltaDias,
+          umbralHoras: slaAltaDias * 24,
           quePasaSiSeIgnora: 'Nadie la ha tomado todavía.',
-          ...esperas(sinAsignar.filter((d) => d >= slaAltaDias)),
+          ...esperas(sinAsignar.filter((h) => h >= slaAltaDias * 24)),
         },
         {
           etapa: 'Sin elegir su hora',
-          umbralDias: plazosInforme.aceptada,
+          umbralHoras: plazosInforme.aceptada * 24,
           quePasaSiSeIgnora: `Al pasar ${plazosInforme.aceptada} días el caso se libera solo y vuelve a la cola.`,
-          ...esperas(sinElegirHora.filter((d) => d >= plazosInforme.aceptada)),
+          ...esperas(sinElegirHora.filter((h) => h >= plazosInforme.aceptada * 24)),
         },
         {
           etapa: 'Sesión pasada sin cerrar',
-          umbralDias: 1,
+          umbralHoras: 24,
           quePasaSiSeIgnora: 'Mientras no se cierre, el informe la cuenta de menos.',
-          ...esperas(sinCerrarSesion.filter((d) => d >= 1)),
+          ...esperas(sinCerrarSesion.filter((h) => h >= 24)),
         },
       ]
 

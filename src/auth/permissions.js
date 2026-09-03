@@ -11,6 +11,10 @@
  *
  * Permisos exclusivos de ADMIN (cubiertos por `*`):
  *   - solicitud:eliminar     → borrado lógico de una solicitud de acompañamiento
+ *   - solicitud:editar       → corregir los datos de contacto de una solicitud
+ *                              (nombre, teléfono, correo, ciudad…). No incluye
+ *                              las autorizaciones: esas son el registro de lo
+ *                              que la persona aceptó, no un campo editable.
  *   - postulacion:eliminar   → borrado lógico de una postulación de voluntariado
  *   - dato-sensible:ver      → el tamizaje pregunta por pregunta, y la ficha
  *                              completa de persona, profesional y solicitud.

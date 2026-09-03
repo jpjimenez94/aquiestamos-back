@@ -276,7 +276,7 @@ describe('dónde está parado el trabajo ahora', () => {
     expect(res.status).toBe(200)
     const a = atasco(res.body.data.atascos, 'Sin elegir su hora')
     expect(a.cuantas).toBeGreaterThan(0)
-    expect(a.diasMaximo).toBeGreaterThanOrEqual(14)
+    expect(a.horasMaximo).toBeGreaterThanOrEqual(14 * 24)
   })
 
   it('las sesiones sin cerrar salen como atasco propio', async () => {
@@ -294,7 +294,7 @@ describe('dónde está parado el trabajo ahora', () => {
     const { SettingsService } = await import('../src/services/settings.service.js')
     await SettingsService.update('DIAS_VENCIMIENTO_ACEPTADA', '11', 'pruebas@local')
     const res = await conSesionIniciada('/api/dashboard/metricas')
-    expect(atasco(res.body.data.atascos, 'Sin elegir su hora').umbralDias).toBe(11)
+    expect(atasco(res.body.data.atascos, 'Sin elegir su hora').umbralHoras).toBe(11 * 24)
     await SettingsService.update('DIAS_VENCIMIENTO_ACEPTADA', '3', null)
   })
 })

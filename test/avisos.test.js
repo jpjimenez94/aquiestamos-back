@@ -58,6 +58,12 @@ const CASOS = {
     cuando: '2026-08-25T19:30:00-05:00',
     modalidad: 'VIRTUAL',
   },
+  FALTA_CONSENTIMIENTO: {
+    nombre: 'Camilo',
+    profesional: 'Ana',
+    cuando: '2026-08-25T19:30:00-05:00',
+    enlace: 'https://redaquiestamos.org/consentimiento/abc',
+  },
   PIDE_REPORTE: {
     nombre: 'Ana',
     cuando: '2026-08-25T19:30:00-05:00',

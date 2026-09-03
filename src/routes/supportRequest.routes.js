@@ -4,6 +4,7 @@ import { validateBody } from '../middlewares/validate.js'
 import { authenticate } from '../middlewares/authenticate.js'
 import { authorize } from '../middlewares/authorize.js'
 import { supportRequestCreateSchema } from '../validators/supportRequest.schema.js'
+import { supportRequestUpdateSchema } from '../validators/supportRequestUpdate.schema.js'
 
 export const supportRequestRoutes = Router()
 
@@ -20,6 +21,15 @@ supportRequestRoutes.get(
   authenticate,
   authorize('solicitud:leer'),
   SupportRequestController.index,
+)
+
+// Portal: corregir los datos de una solicitud — solo ADMIN
+supportRequestRoutes.patch(
+  '/:id',
+  authenticate,
+  authorize('solicitud:editar'),
+  validateBody(supportRequestUpdateSchema),
+  SupportRequestController.update,
 )
 
 // Portal: eliminar solicitud — solo ADMIN (borrado lógico, registro queda para auditoría)

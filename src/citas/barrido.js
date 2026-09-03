@@ -1,7 +1,17 @@
 import { primerNombre as pila } from '../nombre.js'
 import { conCerrojo, CERROJOS } from '../config/cerrojo.js'
 import { prisma } from '../config/database.js'
+import { env } from '../config/env.js'
 import { cerrarSesionesConPrueba } from './cierre.js'
+import { crearEnlaceConsentimiento } from '../auth/enlaceConsentimiento.js'
+
+/**
+ * Cuántas horas se espera antes de recordarle la firma.
+ *
+ * Sale de los datos: de quienes firman, la mediana lo hace en unos veinte
+ * minutos. A las dos horas, quien no firmó se distrajo — no se arrepintió.
+ */
+export const FIRMA_RECORDAR_HORAS = Number(process.env.FIRMA_RECORDAR_HORAS ?? 2)
 import { NotificationModel } from '../models/notification.model.js'
 import { construir } from '../notifications/plantillas.js'
 import { avisoSlaAlta } from '../notifications/eventos.js'
@@ -98,11 +108,14 @@ export async function barrerCitas({
   horasAntes = RECORDATORIO_HORAS_ANTES,
   horasDespues = PIDE_REPORTE_HORAS,
   slaDias = SLA_ALTA_DIAS,
+  horasParaFirmar = FIRMA_RECORDAR_HORAS,
 } = {}) {
-  if (corriendo) return { recordatorios: 0, reportesPedidos: 0, slaAvisadas: 0, cerradas: 0 }
+  if (corriendo) {
+    return { recordatorios: 0, reportesPedidos: 0, slaAvisadas: 0, cerradas: 0, firmasRecordadas: 0 }
+  }
   corriendo = true
 
-  const resumen = { recordatorios: 0, reportesPedidos: 0, slaAvisadas: 0, cerradas: 0 }
+  const resumen = { recordatorios: 0, reportesPedidos: 0, slaAvisadas: 0, cerradas: 0, firmasRecordadas: 0 }
   const ahora = Date.now()
 
   try {
@@ -170,6 +183,54 @@ export async function barrerCitas({
         })
       ) {
         resumen.recordatorios += 1
+      }
+    }
+
+    /**
+     * ---------- 1.b Recordarle la firma a quien no firmó ----------
+     *
+     * Sin consentimiento la sesión no puede hacerse. Se le avisa una sola vez
+     * —la clave lo garantiza— un par de horas después de agendar: quien iba a
+     * firmar ya firmó (mediana: unos veinte minutos), así que a esta altura es
+     * un despiste, no una decisión.
+     *
+     * No se le suelta el espacio: eso lo decide coordinación caso por caso,
+     * viéndolo en «Lo que está esperando». Cancelarle la cita en silencio a
+     * alguien que pidió ayuda hace más daño que el espacio desperdiciado.
+     */
+    const sinFirmar = await prisma.appointment.findMany({
+      where: {
+        status: { in: ['PROGRAMADA', 'CONFIRMADA'] },
+        consentSigned: false,
+        startsAt: { gt: new Date(ahora) },
+        createdAt: { lt: new Date(ahora - horasParaFirmar * HORA_MS) },
+        patient: { deletedAt: null, email: { not: null } },
+      },
+      include: {
+        professional: { select: { fullName: true } },
+        patient: { select: { fullName: true, email: true } },
+      },
+      take: 100,
+    })
+
+    for (const cita of sinFirmar) {
+      if (
+        await encolar({
+          plantilla: 'FALTA_CONSENTIMIENTO',
+          para: cita.patient?.email,
+          nombre: cita.patient?.fullName,
+          payload: {
+            nombre: pila(cita.patient?.fullName),
+            profesional: pila(cita.professional?.fullName),
+            cuando: cita.startsAt.toISOString(),
+            enlace: `${env.sitioUrl.replace(/\/$/, '')}/consentimiento/${crearEnlaceConsentimiento(cita.id)}`,
+          },
+          entidad: 'cita',
+          entidadId: cita.id,
+          clave: `falta-consentimiento:${cita.id}`,
+        })
+      ) {
+        resumen.firmasRecordadas += 1
       }
     }
 

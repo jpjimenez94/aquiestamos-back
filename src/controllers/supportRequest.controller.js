@@ -10,7 +10,10 @@ import { registrar, ACCION } from '../services/audit.service.js'
 import {
   supportRequestReceipt,
   supportRequestListaSegunRol,
+  supportRequestAdmin,
 } from '../views/supportRequest.view.js'
+import { prisma } from '../config/database.js'
+import { CAMPOS_QUE_VIAJAN_A_LA_PERSONA } from '../validators/supportRequestUpdate.schema.js'
 
 export const SupportRequestController = {
   async store(req, res, next) {
@@ -191,6 +194,89 @@ export const SupportRequestController = {
    * El registro permanece en base de datos para auditoría; únicamente se
    * establece `deletedAt` para que desaparezca de todas las consultas normales.
    */
+  /**
+   * PATCH /api/support-requests/:id — corregir los datos de una solicitud.
+   *
+   * Llegan con el teléfono mal digitado o el nombre a medias, y hasta ahora la
+   * única salida era borrarla y pedirle a la persona que volviera a llenar el
+   * formulario.
+   *
+   * Lo que importa de aquí no es el update: es que la corrección viaje también
+   * a la persona si ya fue admitida. La admisión COPIA estos datos al crear la
+   * persona, y a partir de ahí es la persona —no la solicitud— la que alimenta
+   * los enlaces de WhatsApp, los correos y la agenda. Corregir solo la
+   * solicitud dejaría el número bueno en una pantalla que ya nadie mira y el
+   * malo en todas las que sí. Es el mismo dato en dos sitios: o se cambian los
+   * dos, o mienten.
+   */
+  async update(req, res, next) {
+    try {
+      const { id } = req.params
+      const existente = await SupportRequestModel.findById(id)
+
+      if (!existente || existente.deletedAt) {
+        return res.status(404).json(failure('La solicitud no existe o ya fue eliminada'))
+      }
+
+      const cambios = req.validated
+
+      // El correo vacío se guarda como null, no como cadena vacía: «no tiene
+      // correo» y «tiene el correo ''» son cosas distintas para todo lo demás.
+      const datos = { ...cambios }
+      for (const campo of ['email', 'relationship', 'contactName', 'message']) {
+        if (datos[campo] === '') datos[campo] = null
+      }
+
+      const antes = {}
+      for (const campo of Object.keys(datos)) antes[campo] = existente[campo]
+
+      const actualizada = await SupportRequestModel.update(id, datos)
+
+      /**
+       * Si ya fue admitida, la persona lleva una copia de estos datos desde el
+       * día de la admisión. Se corrige también, en el mismo movimiento.
+       */
+      const persona = await prisma.patient.findFirst({
+        where: { supportRequestId: id, deletedAt: null },
+        select: { id: true },
+      })
+
+      let personaCorregida = null
+      if (persona) {
+        const paraLaPersona = {}
+        for (const [enLaSolicitud, enLaPersona] of Object.entries(CAMPOS_QUE_VIAJAN_A_LA_PERSONA)) {
+          if (enLaSolicitud in datos) paraLaPersona[enLaPersona] = datos[enLaSolicitud]
+        }
+        // `isMinor` no admite null en la persona; en la solicitud sí.
+        if (paraLaPersona.isMinor == null) delete paraLaPersona.isMinor
+        if (Object.keys(paraLaPersona).length > 0) {
+          await prisma.patient.update({ where: { id: persona.id }, data: paraLaPersona })
+          personaCorregida = persona.id
+        }
+      }
+
+      await registrar({
+        req,
+        action: ACCION.EDITAR,
+        entity: 'solicitud',
+        entityId: id,
+        before: antes,
+        after: { ...datos, ...(personaCorregida ? { personaCorregida } : {}) },
+      })
+
+      /**
+       * El segundo argumento de ok() es meta, no un mensaje: una frase ahí no
+       * llega a ninguna pantalla. Va el HECHO —si se corrigió también la
+       * persona— y la frase la escribe quien la muestra.
+       */
+      return res.json(
+        ok(supportRequestAdmin(actualizada), { personaCorregida: Boolean(personaCorregida) }),
+      )
+    } catch (error) {
+      next(error)
+    }
+  },
+
   async destroy(req, res, next) {
     try {
       const { id } = req.params
