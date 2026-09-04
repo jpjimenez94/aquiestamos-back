@@ -196,6 +196,18 @@ export async function getSharedCase(req, res, next) {
          */
         puedeDeclinar: asignacion.status === 'ACEPTADA',
         /**
+         * Si ya dijo que puede. Cambia la pregunta, no la puerta.
+         *
+         * Sin esto, su pantalla le seguía preguntando «¿puedes tomarlo?»
+         * después de que hubiera contestado que sí, mientras la ficha de
+         * coordinación ya lo daba por confirmado. Dos pantallas del mismo
+         * sistema diciendo cosas distintas sobre lo mismo.
+         *
+         * Puede seguir echándose atrás mientras nadie tenga hora reservada:
+         * eso lo decide `puedeDeclinar`, que es otra cosa.
+         */
+        confirmadoEn: asignacion.professionalConfirmedAt,
+        /**
          * SU agenda, la que la persona va a ver para elegir.
          *
          * Es el dato que le faltaba para poder contestar. El mensaje que le
@@ -339,16 +351,22 @@ export async function actualizarDisponibilidad(req, res, next) {
     })
 
     /**
-     * Y corregirla también es confirmar el caso.
+     * Corregir la agenda NO confirma el caso, y es a propósito.
      *
-     * El paso 4 espera a que él diga que su disponibilidad sigue vigente.
-     * Dejarla al día es una forma más fuerte de decirlo que pulsar un botón:
-     * si tuviéramos que pedirle además el clic, le estaríamos pidiendo dos
-     * veces lo mismo, que es el error que ya se cometió al pedirle sus días
-     * teniendo su agenda.
+     * Aquí se llamaba a `confirmar()`: se razonó que dejar la agenda al día
+     * decía más que pulsar un botón. Es una inferencia, y era mala. «Mi agenda
+     * es esta» y «me quedo con este caso» son dos afirmaciones distintas: puede
+     * estar poniendo sus horarios al día mientras todavía decide, o para
+     * enseñar por qué NO puede tomarlo.
+     *
+     * Se vio en pantalla: guardaba sus horarios, la ficha daba el caso por
+     * confirmado, y su propia pantalla le seguía preguntando «¿puedes
+     * tomarlo?». El sistema afirmaba en su nombre algo que él no había dicho.
+     *
+     * Confirmar sigue siendo el botón de «Sí puedo, sigo con el caso». Lo que
+     * sí actualiza esto es `availabilityConfirmedAt`, que es otra cosa: cuándo
+     * se revisó por última vez la agenda.
      */
-    await CaseAssignmentModel.confirmar(asignacion.id)
-
     await registrar({
       req,
       action: ACCION.EDITAR,

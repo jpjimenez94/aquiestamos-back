@@ -128,6 +128,9 @@ describe('caso compartido', () => {
         // Las mismas franjas en crudo: `agenda` es lo que se lee, esto lo que
         // se corrige desde su enlace.
         'franjas',
+        // Si ya dijo que puede. Cambia la pregunta que se le hace, no la
+        // puerta de salida.
+        'confirmadoEn',
         'appointments',
         'availableDays',
         'availableSlots',
@@ -366,18 +369,27 @@ describe('el profesional corrige su agenda desde su enlace', () => {
     expect(reglas[0].weekday).toBe('MIERCOLES')
 
     /**
-     * Y dejarla al día vale como confirmación del caso.
+     * Pero NO da el caso por confirmado. Son dos afirmaciones distintas.
      *
-     * El paso 4 espera a que él diga que su disponibilidad sigue vigente.
-     * Corregirla lo dice más fuerte que pulsar un botón; pedirle además el clic
-     * sería pedirle dos veces lo mismo.
+     * Aquí se llamaba a `confirmar()`, razonando que dejar la agenda al día
+     * decía más que pulsar un botón. Es una inferencia, y era mala: puede estar
+     * poniendo sus horarios al día mientras todavía decide, o justamente para
+     * enseñar por qué no puede tomarlo.
+     *
+     * Se vio en pantalla — guardaba sus horarios, la ficha daba el caso por
+     * confirmado, y su propia pantalla le seguía preguntando «¿puedes
+     * tomarlo?». El sistema afirmaba en su nombre algo que él no había dicho.
      */
     const asignacion = await prisma.caseAssignment.findFirst({
       where: { patientId: ids.paciente, professionalId: ids.profesional },
       orderBy: { startedAt: 'desc' },
     })
-    expect(asignacion.professionalConfirmedAt).not.toBeNull()
-    // Nulo = lo confirmó él, no coordinación desbloqueándolo.
-    expect(asignacion.confirmedByEmail).toBeNull()
+    expect(asignacion.professionalConfirmedAt).toBeNull()
+
+    // Lo que sí queda al día es cuándo se reviso la agenda, que es otra cosa.
+    const profesional = await prisma.professional.findUnique({
+      where: { id: ids.profesional },
+    })
+    expect(profesional.availabilityConfirmedAt).not.toBeNull()
   })
 })
