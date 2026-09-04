@@ -101,6 +101,15 @@ describe('caso compartido', () => {
     expect(res.status).toBe(200)
     expect(Object.keys(res.body.data).sort()).toEqual(
       [
+        /**
+         * Su propia disponibilidad. Es el único campo de aquí que NO es de la
+         * persona acompañada, y por eso puede estar.
+         *
+         * Se le pide confirmar que sus espacios «siguen vigentes» y no los ve
+         * por ningún lado: la agenda la mantiene coordinación desde la ficha, y
+         * a esta pantalla se entra con un enlace y un correo, no con una cuenta.
+         */
+        'agenda',
         'appointments',
         'availableDays',
         'availableSlots',

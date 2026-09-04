@@ -12,6 +12,7 @@ import { registrar, ACCION } from '../services/audit.service.js'
 import { reporteRecibido, propuestaRespondida } from '../notifications/eventos.js'
 import { env } from '../config/env.js'
 import { exigirTransicion } from '../services/assignmentState.service.js'
+import { franjasEnPalabras } from '../services/scheduling.service.js'
 
 /**
  * CONTROLADOR: caso compartido.
@@ -192,6 +193,20 @@ export async function getSharedCase(req, res, next) {
          * con coordinación y no de un clic.
          */
         puedeDeclinar: asignacion.status === 'ACEPTADA',
+        /**
+         * SU agenda, la que la persona va a ver para elegir.
+         *
+         * Es el dato que le faltaba para poder contestar. El mensaje que le
+         * llega dice que ella elegirá «entre los espacios que ya tienes
+         * marcados como libres» y le pide confirmarlos — pero él no los ve por
+         * ningún lado: su agenda la mantiene coordinación desde la ficha, y
+         * aquí entra con un enlace y su correo, no con una cuenta de portal.
+         *
+         * Sin esto, «confirma que siguen vigentes» le pide una firma a ciegas,
+         * y de ahí salen las cancelaciones tardías: las que dejan a alguien
+         * esperando el día de la sesión.
+         */
+        agenda: await franjasEnPalabras(asignacion.professionalId),
         ...casoCompartido(paciente, citas),
         reportes: reporteListaParaProfesional(reportes),
       }),
