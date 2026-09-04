@@ -13,6 +13,15 @@ export function cita(c) {
     id: c.id,
     inicio: c.startsAt,
     fin: c.endsAt,
+    /**
+     * Cuándo se agendó, que no es lo mismo que cuándo es.
+     *
+     * La ficha solo sabía «¿es hoy?», y con eso no puede distinguir una cita
+     * que se acaba de agendar para esta noche de una que lleva dos semanas
+     * agendada y hoy es el día. A la primera todavía no se le ha confirmado
+     * nada a nadie; a la segunda toca recordársela. Le pedía recordar las dos.
+     */
+    creadaEn: c.createdAt,
     inicioLocal: formatearLocal(c.startsAt),
     finLocal: formatearLocal(c.endsAt),
     franja: franjaDe(c.startsAt),
