@@ -8,6 +8,7 @@ import { formatearLocal } from '../services/timezone.service.js'
 import {
   huboSesion,
   esperandoCierre,
+  reporteDeLaCita,
   REPORTE_NIEGA,
 } from '../services/appointmentState.service.js'
 
@@ -316,14 +317,24 @@ export const DashboardController = {
                   professionalCardDocumentUrl: true,
                 },
               },
+              /*
+                Cinco, no uno. El de la sesión es el PRIMERO escrito después de
+                que empezara, que no tiene por qué ser el más nuevo de la
+                asignación: quien acompaña puede reportar dos veces. Con uno
+                solo en la mano no se puede emparejar; cinco cubre de sobra lo
+                que se escribe después de la última sesión, y ultimoReporte
+                sigue siendo reports[0] porque el orden no cambia.
+              */
               reports: {
                 orderBy: { createdAt: 'desc' },
-                take: 1,
+                take: 5,
                 select: {
                   id: true,
                   outcome: true,
                   createdAt: true,
                   notes: true,
+                  // De qué asignación cuelga: es la mitad del emparejamiento.
+                  assignmentId: true,
                 },
               },
             },
@@ -338,6 +349,9 @@ export const DashboardController = {
               status: true,
               modality: true,
               consentSigned: true,
+              // Para emparejarla con su reporte: los reportes cuelgan de la
+              // asignación, no de la cita.
+              caseAssignmentId: true,
             },
           },
         },
@@ -373,6 +387,21 @@ export const DashboardController = {
         const ultimaCita = p.appointments?.[0] ?? null
         const ultimoReporte = asignacion?.reports?.[0] ?? null
 
+        /**
+         * El reporte de ESA sesión, no el último que escribió el profesional.
+         *
+         * La tarjeta de Sofía decía «Con reporte» sobre su sesión del 4/09 y
+         * su ficha decía «Sin reportar» de la misma sesión. Las dos miraban
+         * datos distintos: la ficha empareja cada sesión con su reporte; el
+         * tablero solo preguntaba «¿esta asignación tiene algún reporte?», y
+         * el que tenía era de una sesión de agosto.
+         *
+         * Se empareja con la misma regla que la ficha —`reporteDeLaCita`— a
+         * propósito: dos reglas para lo mismo es como acabaron diciendo cosas
+         * distintas.
+         */
+        const reporteDeLaSesion = ultimaCita ? reporteDeLaCita(ultimaCita, asignacion?.reports ?? []) : null
+
         return {
           id: p.id,
           fullName: p.fullName,
@@ -389,6 +418,9 @@ export const DashboardController = {
                 fin: ultimaCita.endsAt,
                 estado: ultimaCita.status,
                 modalidad: ultimaCita.modality,
+                reporte: reporteDeLaSesion
+                  ? { id: reporteDeLaSesion.id, outcome: reporteDeLaSesion.outcome }
+                  : null,
               }
             : null,
           ultimoReporte: ultimoReporte
