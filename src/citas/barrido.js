@@ -243,6 +243,9 @@ export async function barrerCitas({
             nombre: pila(cita.patient?.fullName),
             profesional: pila(cita.professional?.fullName),
             cuando: cita.startsAt.toISOString(),
+            // La fecha en palabras, ya hecha: la plantilla del portal no sabe
+            // convertir un ISO en «lunes 25 de agosto, 7:30 p. m.».
+            cuandoLargo: enPalabras(cita.startsAt),
             enlace: `${env.sitioUrl.replace(/\/$/, '')}/consentimiento/${crearEnlaceConsentimiento(cita.id)}`,
           },
           entidad: 'cita',
@@ -277,6 +280,9 @@ export async function barrerCitas({
           payload: {
             nombre: pila(cita.professional?.fullName),
             cuando: cita.startsAt.toISOString(),
+            // La fecha en palabras, ya hecha: la plantilla del portal no sabe
+            // convertir un ISO en «lunes 25 de agosto, 7:30 p. m.».
+            cuandoLargo: enPalabras(cita.startsAt),
             ruta: `/portal/caso/${cita.patientId}`,
           },
           entidad: 'cita',

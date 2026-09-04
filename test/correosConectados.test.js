@@ -65,6 +65,35 @@ const PAYLOAD = {
   respuesta: '✅ Aceptó apoyar',
   motivoRechazo: '',
   disciplina: 'Trabajo social',
+
+  /**
+   * Lo que va ya redactado porque una plantilla plana no sabe hacerlo.
+   *
+   * Cada campo de aquí abajo existe por la misma razón: el código traducía,
+   * formateaba o ramificaba, y el portal solo sustituye. Se decide en el
+   * evento y viaja hecho, para que los dos caminos digan lo mismo.
+   */
+  cuandoLargo: 'lunes, 31 de agosto, 9:00 a. m.',
+  modalidadLegible: 'virtual',
+  // Sin ciudad, el codigo pinta «Ciudad: undefined» y el portal se come la
+  // linea entera: la comparacion cazaba una diferencia que era del fixture.
+  ciudad: 'Ibagué',
+  profesion: 'Psicología',
+  dias: 5,
+  enlace: 'https://x.test/consentimiento/abc',
+  motivo: 'Se le cruzó un viaje',
+  avisoMenor: '<strong>Es menor de edad.</strong>',
+  explicacion:
+    'Nadie agendó la sesión con <strong>Sofía Vélez</strong> a tiempo, así que el sistema liberó el caso. Puede que ella no eligiera hora, o que él nunca recibiera el aviso.',
+  enlaceNueva: 'https://x.test/portal/personas/nueva',
+  enlaceExistente: 'https://x.test/portal/personas/existente',
+  asuntoAdmitida: 'Persona admitida · prioridad media',
+  avisoSinRespuesta: null,
+  prioridadLegible: 'Media',
+  agenda: 'lunes de 8:00 a. m. a 12:00 p. m.',
+  desdeCuando: 'lunes, 3 de marzo, 9:00 a. m.',
+  completionUrl: 'https://x.test/entrega/abc',
+  completionNote: 'Quedó todo listo',
 }
 
 /** Lo que el despachador arma con el texto guardado en el portal. */
@@ -102,8 +131,16 @@ describe('la cita agendada lleva la sala', () => {
 })
 
 describe('los correos del portal salen igual que los del código', () => {
-  it('las ocho plantillas tienen su equivalente en Parametrización', () => {
-    expect(PAREJAS).toHaveLength(8)
+  /**
+   * Eran ocho de veintisiete. Las otras diecinueve se podían editar en el
+   * portal —o ni eso— y el correo salía igual, con el texto del código.
+   *
+   * Quedan fuera solo `COORD_ERROR`, que es una alerta técnica de servidor y no
+   * un mensaje a una persona: no tiene sentido que coordinación reescriba el
+   * informe de un fallo.
+   */
+  it('todas menos la alerta técnica tienen su equivalente en Parametrización', () => {
+    expect(PAREJAS).toHaveLength(26)
     for (const [, claveDelPortal] of PAREJAS) {
       expect(DEFAULT_SETTINGS.find((d) => d.key === claveDelPortal)).toBeDefined()
     }

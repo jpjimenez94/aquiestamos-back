@@ -394,9 +394,9 @@ URL firmada de **60 s**. Endpoints: `POST /api/documentos` ·
 
 ---
 
-## 🎛️ Parametrización — 32 claves (`/portal/parametrizacion`)
+## 🎛️ Parametrización — 55 claves (`/portal/parametrizacion`)
 
-**16 mensajes de WhatsApp.** Los pasos son los de `front/lib/pasosDelCaso.ts`, que
+**18 mensajes de WhatsApp.** Los pasos son los de `front/lib/pasosDelCaso.ts`, que
 son siete. Esta lista llevaba los del manual viejo de diez —«paso 1», «2b», «3/8»,
 «9b», «10»— y contradecía al `name` de cada clave, que sí está alineado:
 
@@ -420,13 +420,27 @@ y `WHATSAPP_REAGENDAMIENTO_EXCUSAS` (mover la sesión), **`WHATSAPP_CAMBIO_DE_PR
 
 > El paso 6 —«La sesión»— no tiene mensaje propio, y el 1 tampoco.
 
-**8 plantillas de correo:** `CORREO_POSTULACION_RECIBIDA` · `CORREO_POSTULACION_APROBADA` ·
-`CORREO_SOLICITUD_DOCUMENTOS` · `CORREO_CITA_AGENDADA` · `CORREO_REPORTE_RECIBIDO` ·
-`CORREO_TAREA_INVITACION` · `CORREO_TAREA_RESPUESTA` · `CORREO_VOLUNTARIO_APOYO_RECIBIDO`
+**26 plantillas de correo.** Eran 8 conectadas de 27 que existen: las otras 19 se
+podían editar —o ni aparecían— y el correo salía igual, con el texto del código.
+La correspondencia clave-de-aviso → clave-del-portal está escrita explícita en
+`src/notifications/plantillaEditable.js`, y `test/correosConectados.test.js`
+compara los dos caminos byte a byte: conectar no puede cambiar ni una coma de lo
+que sale hoy.
 
-**8 parámetros generales:** `DURACION_CITA_MINUTOS` · `DESCANSO_CITA_MINUTOS` ·
-`DIAS_VENCIMIENTO_PROPUESTA` · `SLA_MAXIMO_ALTA_DIAS` · `DOMINIO_JITSI` ·
-`TELEFONO_SOPORTE_OFICIAL` · `NOMBRE_RED` · `SITIO_WEB_URL`
+Queda fuera a propósito **`COORD_ERROR`**, que es una alerta técnica de servidor
+y no un mensaje a una persona: no tiene sentido que coordinación reescriba el
+informe de un fallo.
+
+> Una plantilla del portal **no sabe ramificar ni transformar**. Si el texto
+> depende de un `if`, traduce un enum, formatea una fecha o baja algo a
+> minúscula, eso se calcula en `notifications/eventos.js` y viaja como variable
+> ya redactada. Saltarse esta regla es lo que hizo que un correo dijera
+> «ACEPTADO» en el asunto y «❌ No puede en este momento» en el cuerpo.
+
+**11 parámetros generales:** `DURACION_CITA_MINUTOS` · `DESCANSO_CITA_MINUTOS` ·
+`DIAS_VENCIMIENTO_PROPUESTA` · `DIAS_VENCIMIENTO_ACEPTADA` · `SLA_MAXIMO_ALTA_DIAS` ·
+`CONFIRMAR_DISPONIBILIDAD_DIAS` · `DOMINIO_JITSI` · `TELEFONO_SOPORTE_OFICIAL` ·
+`NOMBRE_RED` · `SITIO_WEB_URL` · y el resto en `settings.service.js`
 
 > Estos valores se editan desde el portal, no en código. Antes de hardcodear un texto,
 > mirar si ya existe la clave.

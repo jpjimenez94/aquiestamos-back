@@ -35,19 +35,23 @@ Si en este momento estás en peligro o sientes que puedes hacerte daño, no espe
     description:
       'Enviado al psicólogo cuando se le asigna un acompañamiento. Ya no se le pide permiso y se espera: se le avisa, y si no puede lo dice desde su enlace y el caso pasa a otra persona el mismo día.',
     dataType: 'TEXTO',
-    variables: ['profesional', 'ciudad', 'modalidad', 'cuando', 'faltan', 'urgencia', 'enlace'],
+    variables: ['profesional', 'ciudad', 'modalidad', 'faltan', 'urgencia', 'agenda', 'enlace'],
     defaultValue: `Hola {profesional}, te escribimos de Red Aquí Estamos.
 
 Te asignamos un acompañamiento:
 
 · La persona está en {ciudad}.
 · Prefiere que sea {modalidad}.
-· Puede {cuando}.
 · {faltan}
 
 {urgencia}
 
-Ella va a elegir la hora directamente de tu agenda, entre los espacios que ya tienes marcados como libres. Cuando lo haga te llega la confirmación con el día, la hora y el enlace de la videollamada.
+Ella va a elegir la hora directamente de tu agenda, entre los espacios que ya tienes marcados como libres.
+· {agenda}
+
+*Confírmanos que esos espacios siguen vigentes.* Si cambiaron, dínoslo y los ajustamos antes de pasárselos.
+
+Cuando ella elija te llega la confirmación con el día, la hora y el enlace de la videollamada.
 
 Aquí ves el caso, entrando con el correo con el que te registraste:
 {enlace}
@@ -653,6 +657,351 @@ Nos comunicamos contigo reconociendo tu valioso liderazgo en *{territorio}* y qu
     dataType: 'TEXTO',
     variables: [],
     defaultValue: 'https://www.redaquiestamos.org',
+  },
+  {
+    key: 'CORREO_COORD_POSTULACION',
+    category: 'PLANTILLA_CORREO',
+    name: "Correo · Aviso a coordinación de postulación nueva",
+    description: "Le llega a coordinación cuando alguien se postula como profesional.",
+    dataType: 'JSON',
+    variables: ["nombre","ciudad","profesion"],
+    defaultValue: JSON.stringify({
+          "asunto": "Nueva postulación de profesional",
+          "titulo": "Llegó una postulación",
+          "parrafos": [
+                "Hay una postulación nueva esperando revisión."
+          ],
+          "datos": [
+                "<strong>Quién:</strong> {nombre}",
+                "<strong>Ciudad:</strong> {ciudad}",
+                "<strong>Profesión:</strong> {profesion}"
+          ],
+          "botonTexto": "Ver las postulaciones"
+    }),
+  },
+  {
+    key: 'CORREO_COORD_APOYO',
+    category: 'PLANTILLA_CORREO',
+    name: "Correo · Aviso a coordinación de voluntariado de apoyo",
+    description: "Le llega a coordinación cuando alguien se registra desde otra disciplina.",
+    dataType: 'JSON',
+    variables: ["nombre","disciplina","ciudad"],
+    defaultValue: JSON.stringify({
+          "asunto": "Nuevo voluntariado de apoyo",
+          "titulo": "Alguien se sumó desde otra disciplina",
+          "parrafos": [
+                "Hay un registro nuevo en el directorio de voluntariado de apoyo."
+          ],
+          "datos": [
+                "<strong>Quién:</strong> {nombre}",
+                "<strong>Disciplina:</strong> {disciplina}",
+                "<strong>Ciudad:</strong> {ciudad}"
+          ],
+          "botonTexto": "Ver el directorio"
+    }),
+  },
+  {
+    key: 'CORREO_COORD_SOLICITUD',
+    category: 'PLANTILLA_CORREO',
+    name: "Correo · Aviso a coordinación de solicitud nueva",
+    description: "Entró una solicitud por el formulario público. No lleva datos de la persona a propósito.",
+    dataType: 'JSON',
+    variables: ["ciudad"],
+    defaultValue: JSON.stringify({
+          "asunto": "Nueva solicitud de acompañamiento",
+          "titulo": "Llegó una solicitud",
+          "parrafos": [
+                "Entró una solicitud de acompañamiento por el formulario público.",
+                "Los datos de la persona están en el portal. Este correo no los incluye a propósito."
+          ],
+          "datos": [
+                "<strong>Desde:</strong> {ciudad}"
+          ],
+          "botonTexto": "Ver las solicitudes"
+    }),
+  },
+  {
+    key: 'CORREO_COORD_TAMIZAJE_ALTA',
+    category: 'PLANTILLA_CORREO',
+    name: "Correo · Aviso urgente de prioridad alta",
+    description: "El aviso más urgente que manda el sistema: alguien respondió el tamizaje y salió prioridad alta.",
+    dataType: 'JSON',
+    variables: ["ciudad","avisoMenor"],
+    defaultValue: JSON.stringify({
+          "asunto": "URGENTE · alguien necesita acompañamiento hoy",
+          "titulo": "Hay una solicitud de prioridad alta",
+          "parrafos": [
+                "Una persona respondió las preguntas previas y sus respuestas la ponen en prioridad alta.",
+                "Los datos y el motivo están en el portal. Este correo no los incluye a propósito."
+          ],
+          "datos": [
+                "<strong>Desde:</strong> {ciudad}",
+                "{avisoMenor}"
+          ],
+          "botonTexto": "Ver la solicitud"
+    }),
+  },
+  {
+    key: 'CORREO_COORD_PROPUESTA_ACEPTADA',
+    category: 'PLANTILLA_CORREO',
+    name: "Correo · El profesional confirmó el caso",
+    description: "Le llega a coordinación cuando el profesional confirma desde su enlace.",
+    dataType: 'JSON',
+    variables: ["profesional","nota"],
+    defaultValue: JSON.stringify({
+          "asunto": "Un profesional confirmó un caso",
+          "titulo": "Confirmó que puede tomarlo",
+          "parrafos": [
+                "<strong>{profesional}</strong> confirmó que puede acompañar un caso que le asignaste.",
+                "La persona elige la hora de su agenda. Si todavía no le has mandado su enlace, es el momento."
+          ],
+          "datos": [
+                "<strong>Además dijo:</strong> {nota}"
+          ],
+          "botonTexto": "Ver el caso"
+    }),
+  },
+  {
+    key: 'CORREO_COORD_PROPUESTA_RECHAZADA',
+    category: 'PLANTILLA_CORREO',
+    name: "Correo · El profesional no pudo tomar el caso",
+    description: "Le llega a coordinación cuando el profesional declina. Hay que buscarle otro.",
+    dataType: 'JSON',
+    variables: ["profesional","motivo"],
+    defaultValue: JSON.stringify({
+          "asunto": "Un profesional no pudo tomar un caso",
+          "titulo": "Hay que proponérselo a otro",
+          "parrafos": [
+                "<strong>{profesional}</strong> no puede tomar un caso que le propusiste.",
+                "La persona vuelve a la cola de pendientes por asignar. Cuanto antes se le proponga a alguien más, menos espera."
+          ],
+          "datos": [
+                "<strong>Dijo:</strong> {motivo}"
+          ],
+          "botonTexto": "Buscarle otro profesional"
+    }),
+  },
+  {
+    key: 'CORREO_COORD_ASIGNACION_VENCIDA',
+    category: 'PLANTILLA_CORREO',
+    name: "Correo · El barrido liberó una asignación",
+    description: "El caso volvió a la cola por falta de respuesta. No reparte culpas: el sistema no sabe de quién fue el silencio.",
+    dataType: 'JSON',
+    variables: ["explicacion"],
+    defaultValue: JSON.stringify({
+          "asunto": "Un caso volvió a la cola por falta de respuesta",
+          "titulo": "Hay que proponérselo a otro profesional",
+          "parrafos": [
+                "{explicacion}",
+                "El cupo del profesional quedó libre y la persona volvió a la cola de pendientes por asignar."
+          ],
+          "botonTexto": "Buscarle otro profesional"
+    }),
+  },
+  {
+    key: 'CORREO_RECORDATORIO_CITA_PROFESIONAL',
+    category: 'PLANTILLA_CORREO',
+    name: "Correo · Recordatorio de sesión al profesional",
+    description: "Sale solo, unas horas antes de la sesión.",
+    dataType: 'JSON',
+    variables: ["cuandoLargo","nombre","modalidadLegible"],
+    defaultValue: JSON.stringify({
+          "asunto": "Recordatorio: tienes sesión {cuandoLargo}",
+          "titulo": "Hola {nombre}, tu sesión se acerca",
+          "parrafos": [
+                "Te recordamos que tienes una sesión de acompañamiento <strong>{cuandoLargo}</strong> ({modalidadLegible}).",
+                "Los datos de contacto de la persona están en tu enlace del caso, como siempre."
+          ],
+          "botonTexto": "Abrir mi caso"
+    }),
+  },
+  {
+    key: 'CORREO_RECORDATORIO_CITA_PERSONA',
+    category: 'PLANTILLA_CORREO',
+    name: "Correo · Recordatorio de sesión a la persona",
+    description: "Uno de los dos únicos correos que recibe la persona acompañada. Lleva las líneas de crisis.",
+    dataType: 'JSON',
+    variables: ["cuandoLargo","nombre","profesional","modalidadLegible"],
+    defaultValue: JSON.stringify({
+          "asunto": "Recordatorio: tu acompañamiento es {cuandoLargo}",
+          "titulo": "Hola {nombre}, tu espacio se acerca",
+          "parrafos": [
+                "Te recordamos tu sesión de acompañamiento con <strong>{profesional}</strong>: <strong>{cuandoLargo}</strong> ({modalidadLegible}).",
+                "{profesional} se pondrá en contacto contigo para ese momento. No tienes que hacer nada más.",
+                "Si te surge algo y no puedes, respóndenos por WhatsApp con tiempo y lo movemos. No pasa nada.",
+                "Si en este momento estás en peligro o sientes que puedes hacerte daño, no esperes: llama al 123 (emergencias) o al 106 (salud mental). Son gratuitas y atienden a toda hora."
+          ]
+    }),
+  },
+  {
+    key: 'CORREO_FALTA_CONSENTIMIENTO',
+    category: 'PLANTILLA_CORREO',
+    name: "Correo · Falta la firma del consentimiento",
+    description: "A la persona, un par de horas después de agendar, si no firmó. El otro correo que ella recibe.",
+    dataType: 'JSON',
+    variables: ["nombre","profesional","cuandoLargo"],
+    defaultValue: JSON.stringify({
+          "asunto": "Te falta un paso para tu sesión",
+          "titulo": "Hola {nombre}, quedó pendiente tu consentimiento",
+          "parrafos": [
+                "Tu sesión con <strong>{profesional}</strong> quedó agendada para <strong>{cuandoLargo}</strong>.",
+                "Antes de la sesión necesitamos que leas y aceptes el consentimiento. Es corto y se hace desde el celular, en un minuto.",
+                "Si cambiaste de opinión o ya no puedes, escríbenos por WhatsApp: movemos la hora o la soltamos, sin problema."
+          ],
+          "botonTexto": "Leer y firmar"
+    }),
+  },
+  {
+    key: 'CORREO_PIDE_REPORTE',
+    category: 'PLANTILLA_CORREO',
+    name: "Correo · Pedirle el reporte al profesional",
+    description: "Al profesional, unas horas después de la sesión, para que cuente qué pasó.",
+    dataType: 'JSON',
+    variables: ["nombre","cuandoLargo"],
+    defaultValue: JSON.stringify({
+          "asunto": "¿Cómo te fue? Cuéntanos desde tu enlace",
+          "titulo": "Hola {nombre}, pasó la hora de tu sesión",
+          "parrafos": [
+                "Tu sesión estaba agendada para {cuandoLargo}. Entra a tu enlace del caso y cuéntanos tres cosas: si se pudo hacer, cómo te fue, y si crees que la persona necesita más sesiones o con esta fue suficiente.",
+                "Con eso cerramos esta cita y cuadramos la siguiente si hace falta, sin tener que escribirte a preguntar."
+          ],
+          "botonTexto": "Contar cómo me fue"
+    }),
+  },
+  {
+    key: 'CORREO_COORD_DOCUMENTOS_RECIBIDOS',
+    category: 'PLANTILLA_CORREO',
+    name: "Correo · Documentos recibidos, falta verificar",
+    description: "Un profesional subió su tarjeta y su identidad por su enlace.",
+    dataType: 'JSON',
+    variables: ["profesional"],
+    defaultValue: JSON.stringify({
+          "asunto": "Documentos recibidos: hay una verificación pendiente",
+          "titulo": "Un profesional subió sus documentos",
+          "parrafos": [
+                "<strong>{profesional}</strong> subió su tarjeta (o certificado) y su documento de identidad por su enlace.",
+                "Están en la pantalla de verificaciones, con el documento a la vista y los datos del perfil al lado, para aprobar en un clic."
+          ],
+          "botonTexto": "Revisar y aprobar"
+    }),
+  },
+  {
+    key: 'CORREO_COORD_POSIBLE_DUPLICADO',
+    category: 'PLANTILLA_CORREO',
+    name: "Correo · Posible ficha duplicada",
+    description: "El teléfono de una admisión ya aparece en otra ficha activa.",
+    dataType: 'JSON',
+    variables: ["ciudad","enlaceNueva","enlaceExistente"],
+    defaultValue: JSON.stringify({
+          "asunto": "Posible ficha duplicada",
+          "titulo": "El mismo teléfono está en dos fichas",
+          "parrafos": [
+                "Se admitió a una persona en {ciudad} cuyo teléfono ya aparece en otra ficha activa. Puede ser la misma persona pidiendo ayuda dos veces.",
+                "Revisa las dos y, si son la misma, cierra una con motivo: dos fichas de la misma persona son dos profesionales llamando al mismo teléfono."
+          ],
+          "datos": [
+                "<strong>Ficha nueva:</strong> {enlaceNueva}",
+                "<strong>Ficha existente:</strong> {enlaceExistente}"
+          ]
+    }),
+  },
+  {
+    key: 'CORREO_COORD_SLA_ALTA',
+    category: 'PLANTILLA_CORREO',
+    name: "Correo · Prioridad alta sin asignar",
+    description: "Una persona de prioridad alta lleva demasiados días en la cola.",
+    dataType: 'JSON',
+    variables: ["dias","ciudad"],
+    defaultValue: JSON.stringify({
+          "asunto": "Prioridad ALTA sin asignar hace {dias} días",
+          "titulo": "Un caso urgente se está quedando en la cola",
+          "parrafos": [
+                "Una persona admitida con <strong>prioridad alta</strong> en {ciudad} lleva <strong>{dias} días</strong> sin profesional asignado.",
+                "Cuanto antes se le proponga a alguien, menos espera quien peor está."
+          ],
+          "botonTexto": "Buscarle profesional"
+    }),
+  },
+  {
+    key: 'CORREO_TAREA_AGRADECIMIENTO',
+    category: 'PLANTILLA_CORREO',
+    name: "Correo · Agradecimiento al voluntario",
+    description: "Al voluntario que completó una labor.",
+    dataType: 'JSON',
+    variables: ["titulo","nombre"],
+    defaultValue: JSON.stringify({
+          "asunto": "[Aquí Estamos] ¡Muchas gracias por tu apoyo con \"{titulo}\"!",
+          "titulo": "¡Muchas gracias, {nombre}!",
+          "parrafos": [
+                "Queremos agradecerte de corazón por tu valiosa colaboración en la labor <strong>{titulo}</strong>.",
+                "Gracias a tu tiempo y disciplina, el equipo de la Red Aquí Estamos puede seguir brindando acompañamiento oportuno y de calidad a quienes más lo necesitan.",
+                "Pronto te contactaremos cuando tengamos nuevas iniciativas en las que puedas seguir aportando tu talento."
+          ],
+          "botonTexto": "Conoce más sobre la Red"
+    }),
+  },
+  {
+    key: 'CORREO_TAREA_ENTREGA_COORD',
+    category: 'PLANTILLA_CORREO',
+    name: "Correo · Entrega de labor a coordinación",
+    description: "Le llega a coordinación cuando un voluntario marca su labor como completada.",
+    dataType: 'JSON',
+    variables: ["nombreVoluntario","titulo","completionUrl","completionNote"],
+    defaultValue: JSON.stringify({
+          "asunto": "Entrega de labor completada: {nombreVoluntario} — {titulo}",
+          "titulo": "Un voluntario completó su labor",
+          "parrafos": [
+                "<strong>{nombreVoluntario}</strong> marcó como completada la tarea <strong>{titulo}</strong>."
+          ],
+          "datos": [
+                "<strong>Enlace de entrega:</strong> <a href=\"{completionUrl}\">{completionUrl}</a>",
+                "<strong>Comentario del voluntario:</strong> {completionNote}"
+          ],
+          "botonTexto": "Ver la tarea en el portal"
+    }),
+  },
+  {
+    key: 'CORREO_COORD_PACIENTE_ADMITIDO',
+    category: 'PLANTILLA_CORREO',
+    name: "Correo · Persona admitida, falta asignarle",
+    description: "Hay alguien esperando profesional. El texto cambia si nunca respondió el tamizaje.",
+    dataType: 'JSON',
+    variables: ["asuntoAdmitida","avisoSinRespuesta","prioridadLegible","ciudad"],
+    defaultValue: JSON.stringify({
+          "asunto": "{asuntoAdmitida}",
+          "titulo": "Hay alguien esperando profesional",
+          "parrafos": [
+                "Se admitió una solicitud y está pendiente de que se le asigne profesional.",
+                "{avisoSinRespuesta}"
+          ],
+          "datos": [
+                "<strong>Prioridad:</strong> {prioridadLegible}",
+                "<strong>Ciudad:</strong> {ciudad}"
+          ],
+          "botonTexto": "Buscarle profesional"
+    }),
+  },
+  {
+    key: 'CORREO_CONFIRMAR_DISPONIBILIDAD',
+    category: 'PLANTILLA_CORREO',
+    name: "Correo · ¿Tu disponibilidad sigue igual?",
+    description: "Al profesional cada tantos meses. Es lo que hace justo asignar sin preguntar.",
+    dataType: 'JSON',
+    variables: ["nombre","agenda","desdeCuando"],
+    defaultValue: JSON.stringify({
+          "asunto": "¿Tu disponibilidad sigue igual?",
+          "titulo": "Hola {nombre}, una pregunta rápida",
+          "parrafos": [
+                "Cuando te llega un acompañamiento, la persona elige su hora directamente de la agenda que tienes en tu perfil. Por eso te preguntamos de vez en cuando si sigue estando al día.",
+                "Si nada cambió, no tienes que hacer nada: con eso nos vale. Si cambió —otro trabajo, otros horarios, o simplemente este no es buen momento— entra y ajústala, o dinos y te dejamos en pausa.",
+                "Estar en pausa no es irse de la red. Es no recibir casos hasta que vuelvas a decirnos que sí."
+          ],
+          "datos": [
+                "<strong>Tu agenda hoy:</strong> {agenda}",
+                "<strong>La cargaste:</strong> {desdeCuando}"
+          ],
+          "botonTexto": "Revisar mi disponibilidad"
+    }),
   },
 ]
 

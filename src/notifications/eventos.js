@@ -4,7 +4,7 @@ import { UserModel } from '../models/user.model.js'
 import { construir } from './plantillas.js'
 import { env } from '../config/env.js'
 import { generarTokenSala } from '../services/meeting.service.js'
-import { ETIQUETAS_RESULTADO, ETIQUETAS_QUE_SIGUE } from '../catalogos.js'
+import { ETIQUETAS_RESULTADO, ETIQUETAS_QUE_SIGUE, ETIQUETAS_PRIORIDAD } from '../catalogos.js'
 
 /**
  * Los avisos que dispara cada cosa que pasa en la red.
@@ -229,6 +229,23 @@ export async function pacienteAdmitido(paciente, { sinRespuesta = false } = {}) 
       prioridad: paciente.priority,
       ciudad: paciente.city,
       sinRespuesta,
+      /**
+       * Las tres piezas que cambian según si respondió, ya redactadas.
+       *
+       * Es el aviso que más ramifica —hasta el asunto es distinto— y ese
+       * matiz no es de tono: dice que la prioridad la supuso el sistema y que
+       * conviene llamarla antes de asignarle a nadie. Una plantilla plana no
+       * sabe elegir, así que se elige aquí.
+       */
+      asuntoAdmitida: sinRespuesta
+        ? 'Persona admitida sin haber respondido · hay que llamarla'
+        : `Persona admitida · prioridad ${(ETIQUETAS_PRIORIDAD[paciente.priority] ?? paciente.priority).toLowerCase()}`,
+      avisoSinRespuesta: sinRespuesta
+        ? 'Nunca respondió las preguntas, así que la entramos igual para que no se quedara fuera de la cola. <strong>No sabemos cómo está</strong>: la prioridad de abajo es una suposición. Vale la pena llamarla antes de asignarle a alguien.'
+        : null,
+      prioridadLegible: `${ETIQUETAS_PRIORIDAD[paciente.priority] ?? paciente.priority}${
+        sinRespuesta ? ' (supuesta, no respondió)' : ''
+      }`,
       ruta: `/portal/personas/${paciente.id}`,
     },
     entidad: 'paciente',
@@ -357,6 +374,9 @@ export async function tamizajeRespondido({ solicitud, respuesta }) {
     payload: {
       ciudad: solicitud.city ?? solicitud.place ?? 'sin especificar',
       esMenor: solicitud.isMinor === true,
+      // La línea ya escrita, o nada. Una plantilla del portal no sabe decidir
+      // si sobra; sí sabe caerse cuando la variable llega vacía.
+      avisoMenor: solicitud.isMinor === true ? '<strong>Es menor de edad.</strong>' : null,
       ruta: '/portal/solicitudes',
     },
     entidad: 'tamizaje',
@@ -385,6 +405,17 @@ export async function asignacionVencida({ asignacion, profesional, tramo }) {
     payload: {
       profesional: profesional.fullName,
       tramo,
+      /**
+       * Cuál de los dos silencios fue, ya redactado.
+       *
+       * El texto depende de `tramo` y una plantilla plana no ramifica. Se
+       * decide aquí, que es donde se sabe, para que el correo diga lo mismo
+       * salga del código o del portal.
+       */
+      explicacion:
+        tramo === 'profesional'
+          ? `<strong>${profesional.fullName}</strong> no respondió a la propuesta a tiempo, así que el sistema liberó el caso.`
+          : `Nadie agendó la sesión con <strong>${profesional.fullName}</strong> a tiempo, así que el sistema liberó el caso. Puede que ella no eligiera hora, o que él nunca recibiera el aviso.`,
       ruta: `/portal/personas/${asignacion.patientId}`,
     },
     entidad: 'asignacion',
@@ -423,6 +454,10 @@ export async function avisoPosibleDuplicado({ nueva, existente }) {
       ciudad: nueva.city,
       rutaNueva: `/portal/personas/${nueva.id}`,
       rutaExistente: `/portal/personas/${existente.id}`,
+      // Las URL completas: si la plantilla del portal las armara pegando el
+      // dominio, se guardaría en la base el del entorno donde se sembró.
+      enlaceNueva: `${env.sitioUrl.replace(/\/$/, '')}/portal/personas/${nueva.id}`,
+      enlaceExistente: `${env.sitioUrl.replace(/\/$/, '')}/portal/personas/${existente.id}`,
     },
     entidad: 'paciente',
     entidadId: nueva.id,

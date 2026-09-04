@@ -15,6 +15,7 @@ import { reporte } from '../views/caseReport.view.js'
 import { reporteDeLaCita } from '../services/appointmentState.service.js'
 import { pacienteAdmitido } from '../notifications/eventos.js'
 import { candidatosPara } from '../services/matching.service.js'
+import { franjasEnPalabras } from '../services/scheduling.service.js'
 import { registrar, ACCION } from '../services/audit.service.js'
 import { ok, created, failure } from '../views/response.view.js'
 import { pacienteLista, pacienteSegunRol } from '../views/patient.view.js'
@@ -154,6 +155,18 @@ export const PatientController = {
                   nombre: asignacion.professional.fullName,
                   // Para armar el enlace de WhatsApp desde el portal.
                   telefono: asignacion.professional.phone,
+                  /**
+                   * Su agenda, en palabras, para poder ponérsela en el aviso.
+                   *
+                   * El mensaje del paso 3 le dice que la persona va a elegir
+                   * «entre los espacios que ya tienes marcados como libres», y
+                   * él nunca ha visto esos espacios: su agenda la mantiene
+                   * coordinación desde la ficha, y no tiene cuenta en el portal
+                   * para mirarla. Pedirle que acepte un caso sobre una
+                   * disponibilidad que no puede ver es pedirle una firma a
+                   * ciegas — y es de donde salen las cancelaciones tardías.
+                   */
+                  agenda: await franjasEnPalabras(asignacion.professional.id),
                 },
               }
             : null,

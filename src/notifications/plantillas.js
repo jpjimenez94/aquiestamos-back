@@ -185,7 +185,9 @@ export const PLANTILLAS = {
       ],
       datos: [
         `<strong>Desde:</strong> ${p.ciudad}`,
-        p.esMenor ? '<strong>Es menor de edad.</strong>' : null,
+        // La frase ya redactada, o nada. Una plantilla plana no sabe decidir
+        // si una línea sobra; lo que sí sabe es caerse cuando llega vacía.
+        p.avisoMenor ?? (p.esMenor ? '<strong>Es menor de edad.</strong>' : null),
       ].filter(Boolean),
       boton: { texto: 'Ver la solicitud', url: urlDelSitio(p.ruta) },
     }),
@@ -232,7 +234,11 @@ export const PLANTILLAS = {
     armar('Un caso volvió a la cola por falta de respuesta', {
       titulo: 'Hay que proponérselo a otro profesional',
       parrafos: [
-        p.tramo === 'profesional'
+        // Ramifica por tramo, y una plantilla del portal no puede: la
+        // explicación llega ya escrita desde el barrido, que es quien sabe
+        // cuál de los dos silencios fue.
+        p.explicacion ??
+        (p.tramo === 'profesional'
           ? `<strong>${p.profesional}</strong> no respondió a la propuesta a tiempo, así que el sistema liberó el caso.`
           /**
            * Decía «La persona no confirmó horario». El sistema no sabe eso.
@@ -243,7 +249,7 @@ export const PLANTILLAS = {
            * le llegó el mensaje. Culpar a la persona en un correo que nadie va
            * a contrastar convierte una duda en un dato falso.
            */
-          : `Nadie agendó la sesión con <strong>${p.profesional}</strong> a tiempo, así que el sistema liberó el caso. Puede que ella no eligiera hora, o que él nunca recibiera el aviso.`,
+          : `Nadie agendó la sesión con <strong>${p.profesional}</strong> a tiempo, así que el sistema liberó el caso. Puede que ella no eligiera hora, o que él nunca recibiera el aviso.`),
         'El cupo del profesional quedó libre y la persona volvió a la cola de pendientes por asignar.',
       ],
       boton: { texto: 'Buscarle otro profesional', url: urlDelSitio(p.ruta) },
@@ -302,7 +308,7 @@ export const PLANTILLAS = {
     armar('Te falta un paso para tu sesión', {
       titulo: `Hola ${p.nombre}, quedó pendiente tu consentimiento`,
       parrafos: [
-        `Tu sesión con <strong>${p.profesional}</strong> quedó agendada para <strong>${enPalabras(p.cuando)}</strong>.`,
+        `Tu sesión con <strong>${p.profesional}</strong> quedó agendada para <strong>${p.cuandoLargo ?? enPalabras(p.cuando)}</strong>.`,
         'Antes de la sesión necesitamos que leas y aceptes el consentimiento. Es corto y se hace desde el celular, en un minuto.',
         'Si cambiaste de opinión o ya no puedes, escríbenos por WhatsApp: movemos la hora o la soltamos, sin problema.',
       ],
@@ -314,7 +320,7 @@ export const PLANTILLAS = {
     armar('¿Cómo te fue? Cuéntanos desde tu enlace', {
       titulo: `Hola ${p.nombre}, pasó la hora de tu sesión`,
       parrafos: [
-        `Tu sesión estaba agendada para ${enPalabras(p.cuando)}. Entra a tu enlace del caso y cuéntanos tres cosas: si se pudo hacer, cómo te fue, y si crees que la persona necesita más sesiones o con esta fue suficiente.`,
+        `Tu sesión estaba agendada para ${p.cuandoLargo ?? enPalabras(p.cuando)}. Entra a tu enlace del caso y cuéntanos tres cosas: si se pudo hacer, cómo te fue, y si crees que la persona necesita más sesiones o con esta fue suficiente.`,
         'Con eso cerramos esta cita y cuadramos la siguiente si hace falta, sin tener que escribirte a preguntar.',
       ],
       boton: { texto: 'Contar cómo me fue', url: urlDelSitio(p.ruta) },
@@ -354,8 +360,11 @@ export const PLANTILLAS = {
         'Revisa las dos y, si son la misma, cierra una con motivo: dos fichas de la misma persona son dos profesionales llamando al mismo teléfono.',
       ],
       datos: [
-        `<strong>Ficha nueva:</strong> ${urlDelSitio(p.rutaNueva)}`,
-        `<strong>Ficha existente:</strong> ${urlDelSitio(p.rutaExistente)}`,
+        // Las URL completas, no la ruta: `urlDelSitio` le pega el dominio del
+        // entorno, y aplanar eso en una plantilla del portal hornearía
+        // «localhost:3000» en el texto que se guarda en la base.
+        `<strong>Ficha nueva:</strong> ${p.enlaceNueva ?? urlDelSitio(p.rutaNueva)}`,
+        `<strong>Ficha existente:</strong> ${p.enlaceExistente ?? urlDelSitio(p.rutaExistente)}`,
       ],
     }),
 
@@ -440,25 +449,35 @@ export const PLANTILLAS = {
       boton: { texto: 'Ver la tarea en el portal', url: urlDelSitio(p.ruta) },
     }),
 
-  /** A coordinación: se admitió a alguien y falta asignarle profesional. */
+  /**
+   * A coordinación: se admitió a alguien y falta asignarle profesional.
+   *
+   * Es la que más ramifica de todas —hasta el asunto cambia— y por eso es la
+   * que peor se aplanaría. Las tres piezas que dependen de `sinRespuesta` van
+   * ya redactadas en el payload; los `??` sostienen a quien llame con el
+   * payload viejo.
+   */
   COORD_PACIENTE_ADMITIDO: (p) =>
     armar(
-      p.sinRespuesta
-        ? 'Persona admitida sin haber respondido · hay que llamarla'
-        : `Persona admitida · prioridad ${(ETIQUETAS_PRIORIDAD[p.prioridad] ?? p.prioridad).toLowerCase()}`,
+      p.asuntoAdmitida ??
+        (p.sinRespuesta
+          ? 'Persona admitida sin haber respondido · hay que llamarla'
+          : `Persona admitida · prioridad ${(ETIQUETAS_PRIORIDAD[p.prioridad] ?? p.prioridad).toLowerCase()}`),
       {
         titulo: 'Hay alguien esperando profesional',
         parrafos: [
           'Se admitió una solicitud y está pendiente de que se le asigne profesional.',
           // Esto cambia lo que hay que hacer, no solo el tono: la prioridad de
           // esta persona no la dijo ella, la supuso el sistema.
-          p.sinRespuesta
-            ? 'Nunca respondió las preguntas, así que la entramos igual para que no se quedara fuera de la cola. <strong>No sabemos cómo está</strong>: la prioridad de abajo es una suposición. Vale la pena llamarla antes de asignarle a alguien.'
-            : null,
+          p.avisoSinRespuesta ??
+            (p.sinRespuesta
+              ? 'Nunca respondió las preguntas, así que la entramos igual para que no se quedara fuera de la cola. <strong>No sabemos cómo está</strong>: la prioridad de abajo es una suposición. Vale la pena llamarla antes de asignarle a alguien.'
+              : null),
         ].filter(Boolean),
         datos: [
-          `<strong>Prioridad:</strong> ${ETIQUETAS_PRIORIDAD[p.prioridad] ?? p.prioridad}${
-            p.sinRespuesta ? ' (supuesta, no respondió)' : ''
+          `<strong>Prioridad:</strong> ${
+            p.prioridadLegible ??
+            `${ETIQUETAS_PRIORIDAD[p.prioridad] ?? p.prioridad}${p.sinRespuesta ? ' (supuesta, no respondió)' : ''}`
           }`,
           `<strong>Ciudad:</strong> ${p.ciudad}`,
         ],
