@@ -418,7 +418,34 @@ Y cinco que no son de un paso, sino de una rama: `WHATSAPP_REAGENDAMIENTO_PEDIR_
 y `WHATSAPP_REAGENDAMIENTO_EXCUSAS` (mover la sesión), **`WHATSAPP_CAMBIO_DE_PROFESIONAL`**
 (reasignar), `WHATSAPP_PEDIR_DOCUMENTOS` y `WHATSAPP_LIDER_COMUNITARIO`.
 
-> El paso 6 —«La sesión»— no tiene mensaje propio, y el 1 tampoco.
+### La forma del acompañamiento no es una línea
+
+Los siete pasos se leen como una secuencia, y no lo son:
+
+```
+1 → 2 → 3 → 4 → (5 → 6 → 4)* → 7
+```
+
+Los pasos **1 a 3 ocurren una vez**. El **7 ocurre una vez, al final**. Y el
+**4-5-6 se repite por cada sesión**: ella vuelve a elegir hora con el mismo
+enlace, se prepara la sesión, ocurre, y vuelta a empezar.
+
+`pasoDelCaso()` devuelve un solo número, así que en un caso en curso oscila
+entre el 5 y el 6 y nunca vuelve a marcar el 4. Eso es una limitación conocida y
+aceptada: la tira lo dice con una línea debajo —«los pasos 4 a 6 se repiten en
+cada sesión: este acompañamiento lleva N sesiones»— en vez de fingir que el caso
+avanza en línea recta. Antes, ver el paso actual pasar del 6 al 4 parecía un
+error, y un caso de seis sesiones se veía igual que uno de una.
+
+> **El paso 6 no tiene mensaje, y no le falta.** Su acción es la sala: lo que
+> ocurre ahí es entrar a la videollamada, y ese enlace ya viaja en el despacho
+> del paso 5 y en el correo de cita agendada. El paso 1 tampoco tiene mensaje
+> propio, por lo mismo: es un formulario que se llena, no algo que se avisa.
+>
+> Si alguna vez hace falta uno, el candidato es un «¿pudiste conectarte?»
+> cuando nadie entró a la sala pasada la hora — hoy una sesión que no ocurre
+> solo se detecta cuando alguien la reporta. Pero eso es una función nueva, no
+> un hueco que tapar.
 
 **26 plantillas de correo.** Eran 8 conectadas de 27 que existen: las otras 19 se
 podían editar —o ni aparecían— y el correo salía igual, con el texto del código.
