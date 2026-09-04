@@ -39,6 +39,27 @@ beforeAll(async () => {
   })
   profesionalId = profesional.id
 
+  /**
+   * Con agenda, porque sin ella ya no se le puede asignar nada.
+   *
+   * Asignar sin preguntar solo es justo si a quien recibe el caso se le puede
+   * elegir una hora: el paso siguiente manda a la persona a escoger «entre los
+   * espacios que él ya tiene marcados como libres». Un profesional sin franjas
+   * es una pantalla vacía y un caso parado, así que `proponerCaso` lo rechaza.
+   *
+   * Quien sale de aprobar una postulación llega igual: sus días y franjas del
+   * formulario se convierten en reglas de disponibilidad.
+   */
+  await prisma.availabilityRule.create({
+    data: {
+      professionalId: profesional.id,
+      weekday: 'MARTES',
+      startMinute: 8 * 60,
+      endMinute: 12 * 60,
+      modality: 'VIRTUAL',
+    },
+  })
+
   const paciente = await prisma.patient.create({
     data: {
       fullName: `Persona ${MARCA}`,
@@ -55,6 +76,7 @@ beforeAll(async () => {
 afterAll(async () => {
   await prisma.caseAssignment.deleteMany({ where: { patientId: pacienteId } })
   await prisma.patient.deleteMany({ where: { id: pacienteId } })
+  await prisma.availabilityRule.deleteMany({ where: { professionalId: profesionalId } })
   await prisma.professional.deleteMany({ where: { id: profesionalId } })
 })
 

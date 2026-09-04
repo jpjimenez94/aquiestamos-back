@@ -5,6 +5,7 @@ import {
   PROPUESTA_VENCE_DIAS,
   ACEPTADA_VENCE_DIAS,
 } from '../src/asignacion/barrido.js'
+import { crearCita } from '../src/services/appointment.service.js'
 
 /**
  * El barrido que libera lo que se quedó esperando.
@@ -64,10 +65,14 @@ beforeAll(async () => {
 // Solo puede haber una asignación viva por persona a la vez —hay un índice
 // único que lo impide—, así que cada prueba empieza con la mesa limpia.
 beforeEach(async () => {
+  // Las citas primero: cuelgan de la asignación y la llave foránea no deja
+  // borrarla debajo de ellas.
+  await prisma.appointment.deleteMany({ where: { patientId: pacienteId } })
   await prisma.caseAssignment.deleteMany({ where: { patientId: pacienteId } })
 })
 
 afterAll(async () => {
+  await prisma.appointment.deleteMany({ where: { patientId: pacienteId } })
   await prisma.caseAssignment.deleteMany({ where: { patientId: pacienteId } })
   await prisma.patient.deleteMany({ where: { id: pacienteId } })
   await prisma.professional.deleteMany({ where: { id: profesionalId } })
@@ -160,6 +165,49 @@ describe('las propuestas que quedaron de antes', () => {
 
   it('el plazo por defecto siguen siendo 2 días', () => {
     expect(PROPUESTA_VENCE_DIAS).toBe(2)
+  })
+})
+
+describe('un caso que ya tiene sesión agendada', () => {
+  /**
+   * Coordinación también agenda, y el barrido no puede llevárselo por delante.
+   *
+   * Hay dos puertas para poner hora: el enlace de la persona —`confirmarHorario`,
+   * que sí activaba la asignación— y «Ya me confirmó: agendar», para cuando ella
+   * responde por WhatsApp y coordinación transcribe lo que dijo. La segunda pasa
+   * por `crearCita`, y `crearCita` no activaba nada: la asignación se quedaba en
+   * ACEPTADA con una sesión confirmada colgando.
+   *
+   * Lo que hacía el barrido con eso era lo peor posible. A los tres días de
+   * asignar —el reloj arranca ahí— cancelaba la asignación Y su cita, devolvía a
+   * la persona a la cola y le escribía a coordinación diciendo que nadie había
+   * agendado. Alguien había agendado, desde el propio portal, y la sesión estaba
+   * en la agenda del profesional.
+   */
+  it('agendar desde coordinación lo pone ACTIVO, y el barrido ya no lo toca', async () => {
+    const a = await asignacionDeHace('ACEPTADA', 5 * DIA)
+
+    const inicio = new Date(Date.now() + 3 * DIA)
+    const fin = new Date(inicio.getTime() + 45 * 60000)
+    await crearCita({
+      professionalId: profesionalId,
+      patientId: pacienteId,
+      inicio,
+      fin,
+      modalidad: 'VIRTUAL',
+      estado: 'CONFIRMADA',
+      // El profesional de esta prueba no tiene franjas cargadas; lo que se mira
+      // aquí es el estado de la asignación, no la agenda.
+      permitirFueraDeFranja: true,
+    })
+
+    expect(await estadoDe(a.id)).toBe('ACTIVA')
+
+    await barrerAsignaciones()
+
+    expect(await estadoDe(a.id)).toBe('ACTIVA')
+    const cita = await prisma.appointment.findFirst({ where: { caseAssignmentId: a.id } })
+    expect(cita.status).toBe('CONFIRMADA')
   })
 })
 

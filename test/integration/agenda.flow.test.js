@@ -275,6 +275,24 @@ describe('3 · asignación', () => {
       },
     })
 
+    /**
+     * Con agenda, para que lo que falle sea lo que esta prueba mira.
+     *
+     * `proponerCaso` rechaza a quien no tiene franjas cargadas: sin agenda, la
+     * persona no tendría dónde elegir hora. Sin esta regla el 422 de «sin
+     * agenda» taparía el 409 de «ya tiene profesional», y la prueba se pondría
+     * verde por el motivo equivocado. Se reutiliza más abajo, en el 7.
+     */
+    await prisma.availabilityRule.create({
+      data: {
+        professionalId: otro.id,
+        weekday: 'MIERCOLES',
+        startMinute: 14 * 60,
+        endMinute: 18 * 60,
+        modality: 'VIRTUAL',
+      },
+    })
+
     const res = await request(app)
       .post('/api/appointments/asignar')
       .set(agendador())

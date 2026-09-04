@@ -239,7 +239,17 @@ describe('el profesional responde qué pasó', () => {
       .send({
         outcome: 'CITA_ACORDADA',
         modality: 'PRESENCIAL',
-        meetsAt: '2026-09-03T20:00:00.000Z',
+        /**
+         * Por delante, siempre — y calculado, no escrito.
+         *
+         * Aquí había un 3 de septiembre de 2026 fijo. El validador exige que
+         * la cita acordada esté en el futuro (esa regla nació de una fecha
+         * tecleada al revés que se guardó con medio año de retraso), así que
+         * la prueba era una bomba de relojería: verde hasta el 3 de
+         * septiembre, roja para siempre desde el 4, sin que nadie tocara el
+         * código que dice probar.
+         */
+        meetsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
       })
     expect(completo.status).toBe(201)
   })
