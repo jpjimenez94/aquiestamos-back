@@ -24,21 +24,45 @@ import { DEFAULT_SETTINGS } from '../src/services/settings.service.js'
  * «Modalidad: …»— porque el generador solo miraba título, párrafos y botón.
  */
 
+/**
+ * El payload tiene que ser EL DE PRODUCCIÓN, no uno que quede bonito.
+ *
+ * Aquí estuvo el agujero. Este fixture traía `accion: 'aceptó'`,
+ * `resultado: 'Ya la acompañé'` y `modalidad: 'virtual'` —valores ya
+ * redactados— justo en los tres campos donde los dos caminos se separaban: el
+ * código ramificaba con `p.accion === 'ACEPTADO'`, traducía el enum del
+ * resultado y bajaba la modalidad a minúscula; la plantilla del portal no sabe
+ * hacer nada de eso y sustituye tal cual.
+ *
+ * Con valores ya humanizados la comparación byte a byte cuadraba siempre: la
+ * traducción no encontraba clave y caía en el propio valor, `.toLowerCase()` no
+ * cambiaba nada, y `'aceptó' === 'ACEPTADO'` era falso en los dos caminos por
+ * igual. La prueba estaba verde mientras el correo real salía diciendo
+ * «ACEPTADO» en el asunto y «❌ No puede en este momento» en el cuerpo.
+ *
+ * Regla para quien añada un campo: escribe aquí exactamente lo que le pasa
+ * `eventos.js`. Si eso hace fallar la comparación, el fallo es del correo.
+ */
 const PAYLOAD = {
   nombre: 'Ana Ruiz',
   profesional: 'Sofía Vélez',
   nombreVoluntario: 'Camilo Pérez',
   cuando: 'lunes, 31 de agosto, 9:00 a. m.',
+  // `citaAgendada` la baja a minúscula antes de encolar.
   modalidad: 'virtual',
   ruta: '/portal/caso/abc',
-  resultado: 'Ya la acompañé',
-  queSigue: 'Necesita otra sesión',
+  // `reporteRecibido` traduce los enums con las tablas de `catalogos.js`.
+  resultado: 'Ya la acompane',
+  queSigue: 'Necesita más sesiones',
   dificultades: 'ninguna',
   titulo: 'Apoyo en la jornada',
   descripcion: 'Acompañar la jornada del sábado',
   nota: 'Llevar carné',
   fechaLimite: '30 de agosto',
-  accion: 'aceptó',
+  // `tareaRespondida` manda el enum crudo Y las dos formas ya redactadas.
+  accion: 'ACEPTADO',
+  accionLegible: 'Aceptó',
+  respuesta: '✅ Aceptó apoyar',
   motivoRechazo: '',
   disciplina: 'Trabajo social',
 }

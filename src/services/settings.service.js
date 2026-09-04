@@ -35,13 +35,15 @@ Si en este momento estás en peligro o sientes que puedes hacerte daño, no espe
     description:
       'Enviado al psicólogo cuando se le asigna un acompañamiento. Ya no se le pide permiso y se espera: se le avisa, y si no puede lo dice desde su enlace y el caso pasa a otra persona el mismo día.',
     dataType: 'TEXTO',
-    variables: ['profesional', 'ciudad', 'modalidad', 'urgencia', 'enlace'],
+    variables: ['profesional', 'ciudad', 'modalidad', 'cuando', 'faltan', 'urgencia', 'enlace'],
     defaultValue: `Hola {profesional}, te escribimos de Red Aquí Estamos.
 
 Te asignamos un acompañamiento:
 
 · La persona está en {ciudad}.
 · Prefiere que sea {modalidad}.
+· Puede {cuando}.
+· {faltan}
 
 {urgencia}
 
@@ -63,10 +65,10 @@ Gracias por tu tiempo.`,
     description:
       'Enviado a la persona en cuanto tiene profesional. Con el enlace elige ella misma la hora, entre las que él tiene libres. El enlace le sirve para todas sus sesiones y sigue funcionando si más adelante la acompaña otra persona.',
     dataType: 'TEXTO',
-    variables: ['nombre', 'profesional', 'enlaceAgenda', 'nota'],
+    variables: ['nombre', 'profesional', 'saludo', 'enlaceAgenda', 'nota'],
     defaultValue: `Hola {nombre}, te escribimos de la Red Aquí Estamos.
 
-Ya tenemos quién te acompañe: {profesional}, profesional de la red. Solo falta que elijas a qué hora.
+{saludo} Solo falta que elijas a qué hora.
 
 *Entra aquí y escoge la que mejor te sirva*, entre las que {profesional} tiene libres:
 {enlaceAgenda}
@@ -135,7 +137,7 @@ Si te surge alguna duda o necesitas mover el horario, escríbenos por aquí con 
     name: 'Paso 5 · Entregarle el caso al profesional',
     description: 'Entrega formal del caso al psicólogo con responsabilidades de contacto previo (15 min), puntualidad, enlace al caso y sala virtual.',
     dataType: 'TEXTO',
-    variables: ['profesional', 'persona', 'cuando', 'modalidad', 'enlaceReunion', 'canalContacto', 'enlaceCaso'],
+    variables: ['profesional', 'persona', 'cuando', 'modalidad', 'enlaceReunion', 'canalContacto', 'enlaceCaso', 'consentimiento'],
     defaultValue: `Hola {profesional}, {persona} ya eligió su hora.
 
 De acuerdo con la disponibilidad que tienes cargada en tu perfil, quedó agendado el acompañamiento:
@@ -145,7 +147,7 @@ De acuerdo con la disponibilidad que tienes cargada en tu perfil, quedó agendad
 · *Modalidad:* {modalidad}
 · *Enlace de videollamada:* {enlaceReunion}
 · *Canal preferido de la persona:* {canalContacto}
-· *Consentimiento informado:* Firmado por la persona
+· *Consentimiento informado:* {consentimiento}
 
 *Tu responsabilidad en este acompañamiento:*
 1. Tú das el primer paso: ponte en contacto con ella por {canalContacto} unos *15 minutos antes* de la cita para coordinar el inicio de la sesión en la fecha y hora acordadas. Ella ya sabe que la vas a contactar.
@@ -268,19 +270,70 @@ Queremos pedirte una disculpa sincera: {profesional} tuvo {motivo} y se le cruza
 Muchas gracias por tu comprensión y paciencia.`,
   },
   {
+    key: 'WHATSAPP_CAMBIO_DE_PROFESIONAL',
+    category: 'MENSAJE_WHATSAPP',
+    name: 'Cambio de profesional · Avisarle a la persona',
+    description:
+      'Enviado a la persona acompañada cuando su caso se reasigna. Era el único cambio del que nadie le avisaba: su cita se cancelaba y lo siguiente que veía era su enlace de agenda diciendo «todavía estamos buscando».',
+    dataType: 'TEXTO',
+    variables: ['nombre', 'profesional', 'citaCancelada'],
+    defaultValue: `Hola {nombre}, te escribimos de la Red Aquí Estamos.
+
+Tenemos que contarte un cambio: {profesional} no va a poder seguir con tu acompañamiento.
+
+{citaCancelada}
+
+No es por nada que hayas hecho, y tu proceso sigue en pie. Ya estamos buscando a otra persona de la red para ti; te escribimos por aquí en cuanto la tengamos, con su nombre y con tu enlace para elegir hora.
+
+Sentimos el cambio y la espera. Si necesitas algo mientras tanto, escríbenos por aquí.
+
+Si en este momento estás en peligro o sientes que puedes hacerte daño, no esperes nuestra respuesta: llama al *106* (línea 106) o al *192* (línea 192). Son gratuitas y atienden a toda hora.`,
+  },
+  {
+    key: 'WHATSAPP_CITA_CANCELADA_PERSONA',
+    category: 'MENSAJE_WHATSAPP',
+    name: 'Cancelar la sesión · Avisarle a la persona',
+    description:
+      'Enviado a la persona acompañada cuando se cancela una sesión suya sin reprogramarla en el momento. Cancelar no avisaba a nadie: ella podía presentarse a una sesión que ya no existía.',
+    dataType: 'TEXTO',
+    variables: ['nombre', 'profesional', 'cuando'],
+    defaultValue: `Hola {nombre}, te escribimos de la Red Aquí Estamos.
+
+Tenemos que cancelar la sesión que tenías el {cuando} con {profesional}. Sentimos el cambio.
+
+Tu acompañamiento sigue en pie. Con el mismo enlace donde elegiste la hora puedes escoger otra, entre las que {profesional} tiene libres.
+
+Si prefieres que la cuadremos nosotros, dinos por aquí qué días y horas te sirven y lo hacemos.`,
+  },
+  {
+    key: 'WHATSAPP_CITA_CANCELADA_PROFESIONAL',
+    category: 'MENSAJE_WHATSAPP',
+    name: 'Cancelar la sesión · Avisarle al profesional',
+    description:
+      'Enviado al psicólogo cuando se cancela una sesión suya. Sin este aviso podía presentarse a una cita que ya no existía: no tiene cuenta en el portal para verlo por su cuenta.',
+    dataType: 'TEXTO',
+    variables: ['profesional', 'persona', 'cuando'],
+    defaultValue: `Hola {profesional}, te escribimos de Red Aquí Estamos.
+
+Cancelamos la sesión que tenías el {cuando} con {persona}. Ese espacio te queda libre.
+
+El caso sigue contigo: ella puede elegir otra hora de tu agenda, y cuando lo haga te llega la confirmación con el día, la hora y el enlace de la videollamada.
+
+Gracias por tu tiempo.`,
+  },
+  {
     key: 'WHATSAPP_PEDIR_DOCUMENTOS',
     category: 'MENSAJE_WHATSAPP',
     name: 'Documentación · Pedir Tarjeta Profesional / Cédula',
     description: 'Solicitud al psicólogo para cargar su tarjeta profesional y cédula de ciudadanía por enlace seguro.',
     dataType: 'TEXTO',
-    variables: ['profesional', 'enlace'],
+    variables: ['profesional', 'documentos', 'enlace'],
     defaultValue: `Hola {profesional}, te escribimos de Red Aquí Estamos.
 
 Recibimos tu postulación para acompañar en la red. Gracias por dar este paso: nos alegra contar contigo.
 
 Para dejar tu perfil listo y poder asignarte acompañamientos, nos faltan dos documentos. Es por la seguridad de todos — de quienes acompañan y de quienes son acompañados:
-· Si ya eres graduado/a: tu *tarjeta profesional* (foto o PDF).
-· Si estás en formación: tu *certificado de estudios* o constancia de matrícula.
+{documentos}
 · Tu *documento de identidad*.
 
 Los puedes subir en esta página de nuestro sitio, redaquiestamos.org:
@@ -405,7 +458,7 @@ Nos comunicamos contigo reconociendo tu valioso liderazgo en *{territorio}* y qu
           "datos": [
                 "<strong>Cuándo:</strong> {cuando}",
                 "<strong>Modalidad:</strong> {modalidad}",
-                "<strong>Sala virtual:</strong> {sala}"
+                "<strong>Sala virtual:</strong> <a href=\"{sala}\">{sala}</a>"
           ],
           "botonTexto": "Ver el caso"
     }),
@@ -459,15 +512,15 @@ Nos comunicamos contigo reconociendo tu valioso liderazgo en *{territorio}* y qu
     name: 'Correo · Respuesta de Voluntario a Tarea',
     description: 'Aviso a coordinación cuando un voluntario acepta o rechaza una tarea asignada.',
     dataType: 'JSON',
-    variables: ['accion', 'titulo', 'nombreVoluntario', 'motivoRechazo', 'ruta'],
+    variables: ['accionLegible', 'respuesta', 'titulo', 'nombreVoluntario', 'motivoRechazo', 'ruta'],
     defaultValue: JSON.stringify({
-          "asunto": "Respuesta de voluntario: {accion} — {titulo}",
+          "asunto": "Respuesta de voluntario: {accionLegible} — {titulo}",
           "titulo": "Un voluntario respondió a una tarea asignada",
           "parrafos": [
                 "<strong>{nombreVoluntario}</strong> respondió a la tarea <strong>{titulo}</strong>."
           ],
           "datos": [
-                "<strong>Respuesta:</strong> ❌ No puede en este momento",
+                "<strong>Respuesta:</strong> {respuesta}",
                 "<strong>Motivo:</strong> {motivoRechazo}"
           ],
           "botonTexto": "Ver la tarea en el portal"

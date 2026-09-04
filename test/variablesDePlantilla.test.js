@@ -25,23 +25,20 @@ const PLANTILLAS = DEFAULT_SETTINGS.filter(
 )
 
 /**
- * Los de WhatsApp llegan de verdad al mensaje; los de correo todavía no.
+ * Por qué a los correos solo se les exige una de las dos direcciones.
  *
- * Las ocho plantillas de correo se sirven al portal, se editan y se guardan,
- * pero quien manda los correos —`notifications/plantillas.js`— no las lee: el
- * texto sale del código. Se comprobó buscando quién las consume y no las
- * consume nadie.
+ * Este bloque decía que las plantillas de correo «no las lee nadie: el texto
+ * sale del código», y sobre esa premisa relajaba la comprobación. Dejó de ser
+ * cierto cuando `notifications/plantillaEditable.js` las conectó: hoy las ocho
+ * salen del portal, igual que los WhatsApp. La premisa caducó y la relajación
+ * se quedó, aplicada justo a las plantillas que ahora sí se envían.
  *
- * Conectarlas no es cablearlas: sus textos y los del código llevan tiempo
- * separados sin que nadie lo notara. El asunto del acuse de postulación es
- * «Recibimos tu postulación» en el código y «Recibimos tu postulación · Red
- * Aquí Estamos» en el portal, y el saludo es por nombre de pila en uno y con
- * apellido en el otro. Enchufarlas hoy cambiaría en silencio el asunto y el
- * saludo de todos los correos que salen.
- *
- * Mientras eso no se decida, sus variables declaradas describen lo que se
- * PODRÁ usar, no lo que el texto usa: por eso solo se les exige la otra
- * dirección, que es la que sí engaña a quien edita.
+ * La relajación sigue, pero por otro motivo y acotado: en los correos hay
+ * variables que el TEXTO no usa porque las consume el código —`ruta` arma la
+ * URL del botón, que no se edita desde una pantalla—, así que exigir «todo lo
+ * anunciado aparece escrito» daría falsos positivos. La otra dirección —«nada
+ * usa lo que no se anuncia»— sí se les exige, abajo, junto con los WhatsApp:
+ * esa es la que engaña a quien edita.
  */
 const LLEGAN_AL_MENSAJE = PLANTILLAS.filter((p) => p.category === 'MENSAJE_WHATSAPP')
 
@@ -49,6 +46,46 @@ const LLEGAN_AL_MENSAJE = PLANTILLAS.filter((p) => p.category === 'MENSAJE_WHATS
 function usadasEn(texto) {
   return new Set([...String(texto).matchAll(/\{(\w+)\}/g)].map((m) => m[1]))
 }
+
+/**
+ * Un requisito legal no se afirma con texto fijo.
+ *
+ * El despacho al profesional llevaba escrita la línea «Consentimiento
+ * informado: Firmado por la persona», sin variable, en la plantilla del
+ * portal. El código sí miraba el dato y avisaba cuando faltaba — pero la
+ * plantilla manda, así que lo que salía era la afirmación, firmara ella o no.
+ *
+ * El profesional lee que ya está, no lo pide, y la sesión ocurre sin
+ * consentimiento registrado. Es peor que no decir nada, y no lo caza ninguna
+ * prueba de las de arriba: como frase fija, es texto válido.
+ *
+ * La regla es la que faltaba: si una plantilla habla del consentimiento, tiene
+ * que hacerlo con una variable, porque el hecho lo sabe el código y no la
+ * pantalla.
+ */
+describe('lo que no puede ir escrito fijo', () => {
+  const HABLAN_DEL_CONSENTIMIENTO = PLANTILLAS.flatMap((p) =>
+    String(p.defaultValue)
+      .split('\n')
+      .filter((linea) => /consentimiento/i.test(linea))
+      .map((linea) => [p.key, linea.trim()]),
+  )
+
+  it('alguna plantilla lo menciona, o esta prueba no está mirando nada', () => {
+    expect(HABLAN_DEL_CONSENTIMIENTO.length).toBeGreaterThan(0)
+  })
+
+  it.each(HABLAN_DEL_CONSENTIMIENTO)(
+    '%s · no da por firmado el consentimiento con texto fijo',
+    (_clave, linea) => {
+      // Una línea que solo invita a firmarlo no afirma nada; la que informa de
+      // su estado sí, y esa tiene que calcularlo.
+      const afirmaEstado = /firmad|sin firmar|todav[ií]a no/i.test(linea)
+      if (!afirmaEstado) return
+      expect(linea).toMatch(/\{\w+\}/)
+    },
+  )
+})
 
 describe('las variables de cada plantilla', () => {
   it('hay plantillas que revisar', () => {

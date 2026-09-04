@@ -4,6 +4,7 @@ import { UserModel } from '../models/user.model.js'
 import { construir } from './plantillas.js'
 import { env } from '../config/env.js'
 import { generarTokenSala } from '../services/meeting.service.js'
+import { ETIQUETAS_RESULTADO, ETIQUETAS_QUE_SIGUE } from '../catalogos.js'
 
 /**
  * Los avisos que dispara cada cosa que pasa en la red.
@@ -87,11 +88,20 @@ export async function correosDeCoordinacion() {
   return Array.from(mapa.values())
 }
 
+/**
+ * Devuelve cuántos avisos se encolaron DE VERDAD.
+ *
+ * `encolar` devuelve null cuando la clave ya existía —esa es la deduplicación—
+ * y quien llama necesita poder distinguirlo. El barrido de citas contaba como
+ * enviadas todas las alertas de SLA que pedía, incluidas las que la
+ * deduplicación descartaba, y su log afirmaba cada hora que había avisado.
+ */
 async function avisarACoordinacion({ plantilla, payload, entidad, entidadId, clave }) {
   const destinos = await correosDeCoordinacion()
+  let encolados = 0
 
   for (const destino of destinos) {
-    await encolar({
+    const creado = await encolar({
       plantilla,
       para: destino.email,
       nombre: destino.name,
@@ -101,7 +111,10 @@ async function avisarACoordinacion({ plantilla, payload, entidad, entidadId, cla
       // La clave incluye el destinatario: cada persona recibe el suyo una vez.
       clave: `${clave}:${destino.email}`,
     })
+    if (creado != null) encolados += 1
   }
+
+  return encolados
 }
 
 // ---------------------------------------------------------------------------
@@ -245,7 +258,10 @@ export async function citaAgendada({ cita, profesional, cuando }) {
     payload: {
       nombre: primerNombre(profesional.fullName),
       cuando,
-      modalidad: cita.modality,
+      // En minúscula desde el payload: la plantilla del código lo hacía al
+      // pintar y la del portal no puede, así que el mismo correo salía
+      // «VIRTUAL» por un camino y «virtual» por el otro.
+      modalidad: String(cita.modality ?? '').toLowerCase(),
       sala,
       ruta: `/portal/caso/${cita.patientId}`,
     },
@@ -264,10 +280,19 @@ export async function reporteRecibido({ reporte, asignacion }) {
     ? await UserModel.findById(asignacion.createdById).catch(() => null)
     : null
 
+  /**
+   * Traducidos aquí, no en la plantilla.
+   *
+   * Iban como enums crudos y la plantilla del código los traducía al pintarlos.
+   * La del portal no puede hacer eso: sustituye `{resultado}` tal cual, así que
+   * a quien asignó le llegaba «Respuesta sobre un caso: YA_ATENDIDA». Traducir
+   * en el payload arregla los dos caminos a la vez, y las tablas de etiquetas
+   * siguen siendo la única fuente de esos nombres.
+   */
   const payload = {
     profesional: asignacion.professional.fullName,
-    resultado: reporte.outcome,
-    queSigue: reporte.followUp || null,
+    resultado: ETIQUETAS_RESULTADO[reporte.outcome] ?? reporte.outcome,
+    queSigue: reporte.followUp ? ETIQUETAS_QUE_SIGUE[reporte.followUp] ?? reporte.followUp : null,
     dificultades: reporte.contactDifficulties || null,
     ruta: `/portal/personas/${asignacion.patientId}`,
   }
@@ -405,8 +430,25 @@ export async function avisoPosibleDuplicado({ nueva, existente }) {
   })
 }
 
+/**
+ * A coordinación: una persona de prioridad ALTA lleva demasiado esperando.
+ *
+ * La clave llevaba solo el identificador de la persona, así que cada una podía
+ * generar UNA alerta en toda su vida. Y no es un caso teórico: al liberarse una
+ * asignación vuelve a EN_ADMISION y reentra en la consulta del SLA, de modo que
+ * el segundo atasco —el que ocurre después de haberle fallado una vez— salía en
+ * silencio.
+ *
+ * Se agrupa por semana: vuelve a sonar si el atasco sigue o si reaparece, pero
+ * no una vez al día. Una alerta que se repite a diario se deja de leer, y
+ * entonces deja de avisar también la que importa.
+ */
 export async function avisoSlaAlta({ paciente, dias }) {
-  await avisarACoordinacion({
+  const semana = new Date()
+  const lunes = new Date(semana.getFullYear(), semana.getMonth(), semana.getDate() - ((semana.getDay() + 6) % 7))
+  const bucket = lunes.toISOString().slice(0, 10)
+
+  const encolados = await avisarACoordinacion({
     plantilla: 'COORD_SLA_ALTA',
     payload: {
       ciudad: paciente.city,
@@ -415,9 +457,11 @@ export async function avisoSlaAlta({ paciente, dias }) {
     },
     entidad: 'paciente',
     entidadId: paciente.id,
-    clave: `sla-alta:${paciente.id}`,
+    clave: `sla-alta:${paciente.id}:${bucket}`,
   })
-  return true
+
+  // Lo que devuelve es «¿salió algo?», no «¿lo intenté?». El barrido lo cuenta.
+  return encolados > 0
 }
 
 export async function propuestaRespondida({ asignacion, profesional }) {
@@ -469,6 +513,16 @@ export async function tareaRespondida({ asignacion, tarea, colaborador }) {
       nombreVoluntario: colaborador.fullName,
       titulo: tarea.title,
       accion: asignacion.status,
+      /**
+       * La respuesta, ya redactada, porque una plantilla no sabe ramificar.
+       *
+       * `accion` es el enum crudo (ACEPTADO / RECHAZADO) y sigue viajando para
+       * quien quiera el dato. Lo que se LEE va aquí, calculado una vez, para
+       * que el asunto y el cuerpo no puedan volver a contradecirse.
+       */
+      accionLegible: asignacion.status === 'ACEPTADO' ? 'Aceptó' : 'No puede',
+      respuesta:
+        asignacion.status === 'ACEPTADO' ? '✅ Aceptó apoyar' : '❌ No puede en este momento',
       motivoRechazo: asignacion.declineReason ?? null,
       ruta: `/portal/colaboradores/tareas/${tarea.id}`,
     },

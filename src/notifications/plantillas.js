@@ -190,20 +190,29 @@ export const PLANTILLAS = {
       boton: { texto: 'Ver la solicitud', url: urlDelSitio(p.ruta) },
     }),
 
-  /** A coordinación: el profesional aceptó y dejó sus horarios. */
+  /**
+   * A coordinación: el profesional confirmó que puede.
+   *
+   * Pedía `dias` y `franjas` y nadie se los pasaba: esos campos se quitaron del
+   * dominio a propósito cuando la agenda del profesional pasó a ser la única
+   * fuente de cuándo puede. El correo salía siempre con «Puede: sin
+   * especificar» y «Franjas: sin especificar», dos líneas que solo servían para
+   * hacer dudar a quien las leía. Y el fixture de la prueba se los inventaba,
+   * así que estaba en verde sobre un payload que producción nunca genera.
+   *
+   * Lo que sí dice algo es la nota —el matiz que él escribe con sus palabras—
+   * y el enlace: la persona elige de su agenda real, así que no hay horarios
+   * que transcribir.
+   */
   COORD_PROPUESTA_ACEPTADA: (p) =>
-    armar('Un profesional acepto un caso · falta cuadrar horario', {
-      titulo: 'Aceptó, y ya dijo cuándo puede',
+    armar('Un profesional confirmó un caso', {
+      titulo: 'Confirmó que puede tomarlo',
       parrafos: [
-        `<strong>${p.profesional}</strong> acepta acompañar un caso que le propusiste.`,
-        'Ya puedes escribirle a la persona con estos horarios y cuadrar uno. Hasta que no se cuadre, el caso sigue esperando.',
+        `<strong>${p.profesional}</strong> confirmó que puede acompañar un caso que le asignaste.`,
+        'La persona elige la hora de su agenda. Si todavía no le has mandado su enlace, es el momento.',
       ],
-      datos: [
-        `<strong>Puede:</strong> ${(p.dias ?? []).map((d) => ETIQUETAS_DIA[d] ?? d).join(', ') || 'sin especificar'}`,
-        `<strong>Franjas:</strong> ${(p.franjas ?? []).map((f) => ETIQUETAS_FRANJA[f] ?? f).join(', ') || 'sin especificar'}`,
-        p.nota ? `<strong>Además dijo:</strong> ${p.nota}` : null,
-      ].filter(Boolean),
-      boton: { texto: 'Cuadrar el horario', url: urlDelSitio(p.ruta) },
+      datos: [p.nota ? `<strong>Además dijo:</strong> ${p.nota}` : null].filter(Boolean),
+      boton: { texto: 'Ver el caso', url: urlDelSitio(p.ruta) },
     }),
 
   /** A coordinación: el profesional no puede. Hay que buscarle otro. */
@@ -225,7 +234,16 @@ export const PLANTILLAS = {
       parrafos: [
         p.tramo === 'profesional'
           ? `<strong>${p.profesional}</strong> no respondió a la propuesta a tiempo, así que el sistema liberó el caso.`
-          : `La persona no confirmó horario con <strong>${p.profesional}</strong> a tiempo, así que el sistema liberó el caso.`,
+          /**
+           * Decía «La persona no confirmó horario». El sistema no sabe eso.
+           *
+           * Desde que asignar dejó de pedir permiso, el reloj de este tramo
+           * arranca al asignar, y al profesional se le avisa a mano. Así que un
+           * caso puede vencer porque ella no eligió hora, o porque a él nunca
+           * le llegó el mensaje. Culpar a la persona en un correo que nadie va
+           * a contrastar convierte una duda en un dato falso.
+           */
+          : `Nadie agendó la sesión con <strong>${p.profesional}</strong> a tiempo, así que el sistema liberó el caso. Puede que ella no eligiera hora, o que él nunca recibiera el aviso.`,
         'El cupo del profesional quedó libre y la persona volvió a la cola de pendientes por asignar.',
       ],
       boton: { texto: 'Buscarle otro profesional', url: urlDelSitio(p.ruta) },
@@ -233,27 +251,44 @@ export const PLANTILLAS = {
 
   // ------------------------------------------------------------- citas (barrido)
 
-  /** Fecha ISO → «lunes 25 de agosto, 7:30 p. m.» en hora de Bogotá. */
-  RECORDATORIO_CITA_PROFESIONAL: (p) =>
-    armar(`Recordatorio: tienes sesión ${enPalabras(p.cuando)}`, {
+  /**
+   * La fecha en palabras y la modalidad en minúscula viajan ya hechas.
+   *
+   * `enPalabras()` convierte un ISO en «lunes 25 de agosto, 7:30 p. m.» y
+   * `.toLowerCase()` deja «virtual» en vez de «VIRTUAL». Una plantilla plana no
+   * sabe hacer ninguna de las dos, así que al conectar estos correos al portal
+   * saldrían con el ISO crudo y la modalidad gritando — exactamente el fallo que
+   * ya tuvo `TAREA_RESPUESTA`.
+   *
+   * Los `??` son para quien siga llamando con el payload viejo: pruebas y
+   * scripts a mano.
+   */
+  RECORDATORIO_CITA_PROFESIONAL: (p) => {
+    const cuando = p.cuandoLargo ?? enPalabras(p.cuando)
+    const modalidad = p.modalidadLegible ?? String(p.modalidad ?? '').toLowerCase()
+    return armar(`Recordatorio: tienes sesión ${cuando}`, {
       titulo: `Hola ${p.nombre}, tu sesión se acerca`,
       parrafos: [
-        `Te recordamos que tienes una sesión de acompañamiento <strong>${enPalabras(p.cuando)}</strong> (${String(p.modalidad ?? '').toLowerCase()}).`,
+        `Te recordamos que tienes una sesión de acompañamiento <strong>${cuando}</strong> (${modalidad}).`,
         'Los datos de contacto de la persona están en tu enlace del caso, como siempre.',
       ],
       boton: { texto: 'Abrir mi caso', url: urlDelSitio(p.ruta) },
-    }),
+    })
+  },
 
-  RECORDATORIO_CITA_PERSONA: (p) =>
-    armar(`Recordatorio: tu acompañamiento es ${enPalabras(p.cuando)}`, {
+  RECORDATORIO_CITA_PERSONA: (p) => {
+    const cuando = p.cuandoLargo ?? enPalabras(p.cuando)
+    const modalidad = p.modalidadLegible ?? String(p.modalidad ?? '').toLowerCase()
+    return armar(`Recordatorio: tu acompañamiento es ${cuando}`, {
       titulo: `Hola ${p.nombre}, tu espacio se acerca`,
       parrafos: [
-        `Te recordamos tu sesión de acompañamiento con <strong>${p.profesional}</strong>: <strong>${enPalabras(p.cuando)}</strong> (${String(p.modalidad ?? '').toLowerCase()}).`,
+        `Te recordamos tu sesión de acompañamiento con <strong>${p.profesional}</strong>: <strong>${cuando}</strong> (${modalidad}).`,
         `${p.profesional} se pondrá en contacto contigo para ese momento. No tienes que hacer nada más.`,
         'Si te surge algo y no puedes, respóndenos por WhatsApp con tiempo y lo movemos. No pasa nada.',
         'Si en este momento estás en peligro o sientes que puedes hacerte daño, no esperes: llama al 123 (emergencias) o al 106 (salud mental). Son gratuitas y atienden a toda hora.',
       ],
-    }),
+    })
+  },
 
   /**
    * A la persona, un par de horas después de agendar, si no firmó.
@@ -378,14 +413,28 @@ export const PLANTILLAS = {
       boton: { texto: 'Ver la tarea en el portal', url: urlDelSitio(p.ruta) },
     }),
 
+  /**
+   * Si el voluntario aceptó o no es un HECHO, y viaja ya redactado.
+   *
+   * Esta plantilla ramificaba aquí con `p.accion === 'ACEPTADO'`. La del portal
+   * no sabe ramificar, así que dejó la cadena del rechazo escrita fija — y como
+   * el portal manda, el correo salía diciendo «ACEPTADO» en el asunto y «❌ No
+   * puede en este momento» en el cuerpo. Coordinación descartaba a quien había
+   * dicho que sí.
+   *
+   * Ahora la frase la calcula quien conoce el estado (`eventos.js`) y llega
+   * como variable, de modo que los dos caminos digan lo mismo. Los `??` son
+   * para las pruebas y los scripts que construyen el correo pasando solo
+   * `accion`.
+   */
   TAREA_RESPUESTA: (p) =>
-    armar(`Respuesta de voluntario: ${p.accion} — ${p.titulo}`, {
+    armar(`Respuesta de voluntario: ${p.accionLegible ?? p.accion} — ${p.titulo}`, {
       titulo: 'Un voluntario respondió a una tarea asignada',
       parrafos: [
         `<strong>${p.nombreVoluntario}</strong> respondió a la tarea <strong>${p.titulo}</strong>.`,
       ],
       datos: [
-        `<strong>Respuesta:</strong> ${p.accion === 'ACEPTADO' ? '✅ Aceptó apoyar' : '❌ No puede en este momento'}`,
+        `<strong>Respuesta:</strong> ${p.respuesta ?? (p.accion === 'ACEPTADO' ? '✅ Aceptó apoyar' : '❌ No puede en este momento')}`,
         p.motivoRechazo ? `<strong>Motivo:</strong> ${p.motivoRechazo}` : null,
       ].filter(Boolean),
       boton: { texto: 'Ver la tarea en el portal', url: urlDelSitio(p.ruta) },

@@ -34,11 +34,18 @@ const CASOS = {
   COORD_SOLICITUD: { ciudad: 'Ibagué' },
   COORD_PACIENTE_ADMITIDO: { prioridad: 'ALTA', ciudad: 'Ibagué', sinRespuesta: false, ruta: '/portal/personas/abc' },
   COORD_TAMIZAJE_ALTA: { ciudad: 'Ibagué', esMenor: true, ruta: '/portal/solicitudes' },
+  /**
+   * Exactamente lo que pasa `propuestaRespondida`, ni un campo más.
+   *
+   * Traía `dias` y `franjas` inventados. Esos campos se quitaron del dominio
+   * cuando la agenda del profesional pasó a ser la única fuente de cuándo
+   * puede, así que la prueba validaba un correo que producción no genera —y
+   * dejaba pasar que el real saliera con dos «sin especificar».
+   */
   COORD_PROPUESTA_ACEPTADA: {
     profesional: 'Ana María Pérez',
-    dias: ['MARTES', 'JUEVES'],
-    franjas: ['TARDE'],
     nota: 'después de las 4 mejor',
+    motivo: null,
     ruta: '/portal/personas/abc',
   },
   COORD_PROPUESTA_RECHAZADA: {
@@ -271,12 +278,22 @@ describe('admisión de quien nunca respondió', () => {
  * semanas sin acompañamiento sin que nadie se dé cuenta.
  */
 describe('avisos de la propuesta', () => {
-  it('cuando acepta, el aviso lleva sus horarios en palabras', () => {
+  /**
+   * Ya no lleva horarios, porque ya no existen.
+   *
+   * Este aviso pedía «Puede: martes, jueves» y «Franjas: tarde», campos que se
+   * quitaron del dominio cuando la agenda del profesional pasó a ser la única
+   * fuente de cuándo puede. Con el fixture arreglado —el que refleja lo que
+   * manda `propuestaRespondida`— salían dos «sin especificar», así que lo que
+   * se comprueba ahora es que no queden esas líneas huecas y que sí llegue lo
+   * único que él escribe con sus palabras: la nota.
+   */
+  it('cuando confirma, el aviso lleva su nota y ningún horario inventado', () => {
     const { asunto, texto } = construir('COORD_PROPUESTA_ACEPTADA', CASOS.COORD_PROPUESTA_ACEPTADA)
-    expect(asunto).toContain('falta cuadrar horario')
-    expect(texto).toContain('Martes')
-    expect(texto).toContain('Tarde')
+    expect(asunto).toContain('confirmó')
     expect(texto).toContain('después de las 4 mejor')
+    expect(texto).not.toMatch(/sin especificar/i)
+    expect(texto).not.toMatch(/Franjas:/i)
   })
 
   it('cuando no puede, el aviso dice qué hacer: proponérselo a otro', () => {
@@ -311,13 +328,25 @@ describe('aviso de asignación vencida', () => {
     expect(html).toContain('volvió a la cola')
   })
 
-  it('dice que fue la persona la que no confirmó, sin nombrarla', () => {
+  /**
+   * En el otro tramo el sistema NO sabe de quién fue el silencio.
+   *
+   * El correo afirmaba «La persona no confirmó horario». Desde que asignar
+   * dejó de pedir permiso, ese reloj arranca al asignar y el aviso al
+   * profesional se manda a mano: el caso puede vencer porque ella no eligió
+   * hora o porque a él nunca le llegó nada. El aviso tiene que dejar las dos
+   * puertas abiertas, porque quien lo lee es quien puede ir a mirar.
+   */
+  it('en el otro tramo dice qué pasó, sin repartir culpas', () => {
     const { html, texto } = construir('COORD_ASIGNACION_VENCIDA', {
       profesional: 'Ana María Pérez',
       tramo: 'persona',
       ruta: '/portal/personas/abc',
     })
-    expect(html).toContain('no confirmó horario')
+    expect(html).toContain('Nadie agendó la sesión')
+    expect(html).toContain('nunca recibiera el aviso')
+    // Lo que ya no puede hacer: dar por hecho que el silencio fue de ella.
+    expect(html).not.toContain('La persona no confirmó')
     // El nombre que sale es el del profesional; la persona va como enlace.
     expect(texto).not.toMatch(/paciente:/i)
   })
