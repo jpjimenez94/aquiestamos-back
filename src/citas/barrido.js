@@ -15,6 +15,8 @@ export const FIRMA_RECORDAR_HORAS = Number(process.env.FIRMA_RECORDAR_HORAS ?? 2
 import { NotificationModel } from '../models/notification.model.js'
 import { construir } from '../notifications/plantillas.js'
 import { avisoSlaAlta } from '../notifications/eventos.js'
+import { SettingsService } from '../services/settings.service.js'
+import { enPalabras } from '../services/timezone.service.js'
 
 /**
  * El barrido de las citas: los dos correos que nadie tiene que acordarse de
@@ -107,9 +109,21 @@ async function encolar({ plantilla, para, nombre, payload, entidad, entidadId, c
 export async function barrerCitas({
   horasAntes = RECORDATORIO_HORAS_ANTES,
   horasDespues = PIDE_REPORTE_HORAS,
-  slaDias = SLA_ALTA_DIAS,
+  slaDias,
   horasParaFirmar = FIRMA_RECORDAR_HORAS,
 } = {}) {
+  /**
+   * El plazo de SLA sale de Parametrización cuando nadie lo fija.
+   *
+   * `SLA_MAXIMO_ALTA_DIAS` es una clave editable con tres consumidores y solo
+   * uno la leía: Métricas. El barrido —que es quien manda la alerta— y la
+   * insignia del tablero usaban la constante de entorno, así que girarla en la
+   * pantalla no adelantaba ni retrasaba ningún aviso.
+   */
+  if (slaDias == null) {
+    slaDias = await SettingsService.getNumero('SLA_MAXIMO_ALTA_DIAS', SLA_ALTA_DIAS)
+  }
+
   if (corriendo) {
     return { recordatorios: 0, reportesPedidos: 0, slaAvisadas: 0, cerradas: 0, firmasRecordadas: 0 }
   }
@@ -154,7 +168,11 @@ export async function barrerCitas({
           payload: {
             nombre: pila(cita.professional?.fullName),
             cuando: comun.cuando,
+            // Ya en palabras y en minúscula: una plantilla del portal no sabe
+            // formatear una fecha ni bajar «VIRTUAL» a «virtual».
+            cuandoLargo: enPalabras(comun.cuando),
             modalidad: cita.modality,
+            modalidadLegible: String(cita.modality ?? '').toLowerCase(),
             ruta: `/portal/caso/${cita.patientId}`,
           },
           entidad: 'cita',
@@ -175,7 +193,9 @@ export async function barrerCitas({
             nombre: pila(cita.patient?.fullName),
             profesional: pila(cita.professional?.fullName),
             cuando: comun.cuando,
+            cuandoLargo: enPalabras(comun.cuando),
             modalidad: cita.modality,
+            modalidadLegible: String(cita.modality ?? '').toLowerCase(),
           },
           entidad: 'cita',
           entidadId: cita.id,

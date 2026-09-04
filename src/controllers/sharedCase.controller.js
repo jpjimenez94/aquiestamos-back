@@ -311,8 +311,17 @@ export async function responderPropuesta(req, res, next) {
       exigirTransicion(asignacion.status, 'ACEPTADA')
     }
 
+    /**
+     * Confirmar no mueve el estado, pero sí tiene que dejar rastro.
+     *
+     * Antes devolvía la asignación intacta: no se escribía nada. Y como el
+     * barrido libera por `respondedAt` —que se puso al asignar—, decir «sí
+     * puedo» no aplazaba nada. El profesional que contestaba a los dos días
+     * perdía el caso al tercero exactamente igual que si no hubiera abierto el
+     * enlace.
+     */
     const actualizada = acepta && asignacion.status === 'ACEPTADA'
-      ? asignacion
+      ? await CaseAssignmentModel.confirmar(asignacion.id, { nota })
       : await CaseAssignmentModel.responder(asignacion.id, { acepta, nota, motivo })
 
     // Al declinar, el caso tiene que volver a verse en «Por asignar». Sin esto

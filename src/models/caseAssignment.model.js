@@ -90,6 +90,29 @@ export const CaseAssignmentModel = {
     })
   },
 
+  /**
+   * Dijo «sí puedo» sobre una asignación que ya nacía aceptada.
+   *
+   * No es una transición —el estado no se mueve— pero sí es una señal de vida,
+   * y el barrido la necesita: libera las ACEPTADA cuyo `respondedAt` pase de
+   * los días de plazo, y ese campo se escribe al ASIGNAR, no al avisar. Sin
+   * refrescarlo aquí, quien confirmaba el día 2 perdía el caso el día 3 igual
+   * que quien no contestó nunca.
+   *
+   * La nota solo se pisa si trae algo: el formulario manda cadena vacía cuando
+   * no se escribió nada, y eso borraría el «después de las 4 mejor» que él
+   * dejó en su momento.
+   */
+  confirmar(id, { nota = null } = {}) {
+    return prisma.caseAssignment.update({
+      where: { id },
+      data: {
+        respondedAt: new Date(),
+        ...(nota && String(nota).trim() ? { availabilityNote: nota } : {}),
+      },
+    })
+  },
+
   /** La persona acompañada eligió horario: el caso arranca de verdad. */
   activar(id) {
     return prisma.caseAssignment.update({

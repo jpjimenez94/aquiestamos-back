@@ -277,6 +277,26 @@ export const AppointmentController = {
         after: { reprogramadaA: nueva.id, inicio: nueva.startsAt },
       })
 
+      /**
+       * Mover una sesión también es agendarla, y también hay que avisar.
+       *
+       * De los tres caminos que crean una cita —crear, confirmar y este—, era
+       * el único que no mandaba nada. El profesional se quedaba con la hora
+       * vieja en el correo y sin el enlace de la sala nueva: para enterarse
+       * dependía de que alguien se acordara de escribirle por WhatsApp desde
+       * una pantalla que, además, el propio modal deja atrás al navegar a la
+       * cita nueva.
+       *
+       * El aviso es el mismo `CITA_AGENDADA` que usan los otros dos y va con
+       * la llave de la cita NUEVA, así que no choca con el que ya salió por la
+       * anterior.
+       */
+      await citaAgendada({
+        cita: nueva,
+        profesional: nueva.professional,
+        cuando: formatearLocal(nueva.startsAt),
+      })
+
       return res
         .status(201)
         .json(created(citaVista(nueva), 'Cita reprogramada. La anterior queda en el historial.'))
@@ -347,8 +367,8 @@ export const AppointmentController = {
    * POST /api/appointments/asignaciones/:id/confirmar
    *
    * La persona acompañada eligió horario: se agenda y el caso arranca. Es el
-   * paso 10 del flujo y, de paso, la primera pantalla del portal que llega a
-   * crear una cita.
+   * paso 4 del acompañamiento —«Elige su hora»— y, de paso, la primera
+   * pantalla del portal que llega a crear una cita.
    */
   async confirmar(req, res, next) {
     try {
@@ -399,6 +419,7 @@ export const AppointmentController = {
       const cancelada = await cancelarAsignacion({
         asignacionId: req.params.id,
         motivo: req.validated.motivo,
+        comoRechazo: req.validated.rechazo,
       })
 
       await registrar({
@@ -406,7 +427,9 @@ export const AppointmentController = {
         action: ACCION.EDITAR,
         entity: 'asignacion',
         entityId: cancelada.id,
-        after: { estado: 'CANCELADA', motivo: req.validated.motivo },
+        // El estado real, no uno fijo: desde que se puede registrar que el
+        // profesional no pudo, esto también escribe RECHAZADA.
+        after: { estado: cancelada.status, motivo: req.validated.motivo },
       })
 
       return res.json(ok({ id: cancelada.id, estado: cancelada.status }))

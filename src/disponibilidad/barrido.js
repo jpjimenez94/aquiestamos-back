@@ -79,7 +79,20 @@ export function detenerBarridoDisponibilidad() {
  * Pregunta a quien lleve demasiado sin confirmar. Se exporta para poder
  * llamarlo a mano desde un script o desde las pruebas, sin esperar al reloj.
  */
-export async function barrerDisponibilidad({ cadaDias = CONFIRMAR_CADA_DIAS } = {}) {
+export async function barrerDisponibilidad({ cadaDias } = {}) {
+  /**
+   * Sin argumento manda Parametrización. Con él, manda quien llama.
+   *
+   * `cadaCuantosDias()` existía y leía la clave del portal — pero su único
+   * llamador era una prueba: el barrido de verdad usaba la constante de
+   * entorno, así que girar «cada cuántos días se confirma la disponibilidad»
+   * en la pantalla no cambiaba nada. Es el mismo fallo que ya denunció el
+   * barrido de asignaciones («girarla no hacía nada, y eso es peor que no
+   * tenerla»), reaparecido en otra clave — y con una prueba en verde encima,
+   * porque probaba el ayudante y no el barrido.
+   */
+  if (cadaDias == null) cadaDias = await cadaCuantosDias()
+
   if (corriendo) return { preguntados: 0, fallidos: 0, revisados: 0 }
   corriendo = true
 

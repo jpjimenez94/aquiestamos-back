@@ -90,6 +90,22 @@ export async function crearCita({
   consentSigned,
   consentSignedDocumentUrl,
   consentSignedAt,
+  /**
+   * El enlace de reunión que alguien escribió a mano, si lo hay.
+   *
+   * `reprogramar`, `confirmarHorario` y el modal de agendar llevaban años
+   * pasándolos aquí, y esta función no los destructuraba ni los escribía: se
+   * caían en silencio. Es la causa de que las citas virtuales quedaran con
+   * `meetingUrl` nulo.
+   *
+   * Ojo con la regla que ya costó salas vacías: NADIE deriva el nombre de una
+   * sala por su cuenta. Esto no lo deriva — guarda el que le dieron, que es
+   * distinto: sirve para pegar un Meet o un Zoom propio cuando hace falta. La
+   * sala de la red se sigue firmando en `meeting.service.js` y no pasa por
+   * aquí.
+   */
+  meetingUrl,
+  meetingProvider,
   actorId,
 }) {
   const [profesional, paciente] = await Promise.all([
@@ -190,11 +206,39 @@ export async function crearCita({
       consentSigned: yaFirmoConsentimiento,
       consentSignedDocumentUrl: urlDocConsentimiento,
       consentSignedAt: fechaFirmaConsentimiento,
+      // El formulario manda cadena vacía cuando el campo se deja en blanco.
+      meetingUrl: meetingUrl?.trim() ? meetingUrl.trim() : null,
+      meetingProvider: meetingProvider?.trim() ? meetingProvider.trim() : null,
       createdById: actorId ?? null,
     })
 
     if (paciente.status === 'NUEVO' || paciente.status === 'EN_ADMISION') {
       await PatientModel.update(patientId, { status: 'EN_ACOMPANAMIENTO' })
+    }
+
+    /**
+     * Si ya hay sesión, el caso está ACTIVO. Lo diga quien lo diga.
+     *
+     * `activar()` se llamaba desde un solo sitio: `confirmarHorario`, que es
+     * por donde entra la persona con su enlace. La otra puerta —«Ya me
+     * confirmó: agendar», cuando ella responde por WhatsApp y coordinación
+     * transcribe la hora— pasa por aquí y no activaba nada. La asignación se
+     * quedaba en ACEPTADA con una cita confirmada colgando.
+     *
+     * No era solo una etiqueta mal puesta. El barrido libera las ACEPTADA
+     * cuyo `respondedAt` pase del plazo, y ese campo se escribe al asignar:
+     * tres días después, el sistema cancelaba la asignación Y su sesión ya
+     * agendada, devolvía a la persona a la cola y le escribía a coordinación
+     * diciendo que nadie había agendado. Alguien había agendado, y desde el
+     * propio portal.
+     *
+     * Solo se activa desde ACEPTADA: reprogramar y las sesiones siguientes
+     * entran con el caso ya ACTIVO, y volver a llamar aquí les movería
+     * `startedAt`, que es cuándo empezó el acompañamiento y no cuándo se
+     * agendó la última cita.
+     */
+    if (asignacion?.status === 'ACEPTADA') {
+      await CaseAssignmentModel.activar(asignacion.id)
     }
 
     return cita
@@ -265,12 +309,17 @@ export async function reprogramar({ citaId, inicio, fin, modalidad, meetingUrl, 
 }
 
 /**
- * Le PROPONE un caso a un profesional.
+ * Le ASIGNA un caso a un profesional.
  *
- * Antes esto creaba la asignación en ACTIVA y ahí terminaba, como si aceptar
- * fuera automático. No lo es: el profesional es voluntario y puede no poder.
- * Ahora nace como PROPUESTA y solo pasa a ACTIVA cuando él acepta y la persona
- * acompañada confirma un horario.
+ * El nombre se quedó de cuando esto proponía de verdad. Nació creando la
+ * asignación en ACTIVA, como si aceptar fuera automático; luego pasó a
+ * PROPUESTA, a esperar un sí — y siete de cada ocho no llegaron. Hoy nace en
+ * ACEPTADA: se le asigna, se le avisa, y si no puede lo dice desde su enlace.
+ * Ver el comentario largo dentro de la función.
+ *
+ * Aquí no sale ningún mensaje. El aviso al profesional lo manda quien coordina
+ * desde la ficha de la persona (paso 3, plantilla WHATSAPP_PROPUESTA_PROFESIONAL),
+ * y es el único sitio por el que le llega el enlace con el que puede declinar.
  */
 export async function proponerCaso({ professionalId, patientId, actorId }) {
   const [profesional, paciente] = await Promise.all([
@@ -293,6 +342,29 @@ export async function proponerCaso({ professionalId, patientId, actorId }) {
     throw new DomainError(
       'SIN_CUPO',
       `${profesional.fullName} ya lleva ${activas} de ${profesional.maxActiveCases} casos.`,
+    )
+  }
+
+  /**
+   * Agenda cargada. La otra mitad de lo que hace justo asignar sin preguntar.
+   *
+   * El comentario de abajo lleva desde el cambio de flujo diciendo que «solo se
+   * asigna a quien tiene agenda cargada y cupo libre — las dos condiciones ya
+   * se comprueban arriba». El cupo sí; la agenda no se comprobaba en ningún
+   * sitio. Y sin agenda no hay nada que asignar: el paso siguiente le manda a
+   * la persona un enlace para que elija hora «entre los espacios que él ya
+   * tiene marcados como libres», y esa pantalla le sale vacía. Nadie está
+   * esperando respuesta, así que el caso se para sin que salte nada.
+   *
+   * Se cuentan las REGLAS, no los huecos: quien tiene la agenda llena las dos
+   * próximas semanas sí está disponible, solo que más tarde. Lo que no puede
+   * pasar es asignarle a quien no ha declarado ni una franja.
+   */
+  const franjas = await prisma.availabilityRule.count({ where: { professionalId } })
+  if (franjas === 0) {
+    throw new DomainError(
+      'SIN_AGENDA',
+      `${profesional.fullName} no tiene franjas de disponibilidad cargadas, así que la persona no tendría dónde elegir hora. Cárgale la agenda antes de asignarle el caso.`,
     )
   }
 
@@ -338,7 +410,47 @@ export async function cerrarCaso({ asignacionId, motivo }) {
     throw new DomainError('TRANSICION_INVALIDA', 'Ese caso ya está cerrado')
   }
 
+  /**
+   * Por la máquina de estados, como todo lo demás.
+   *
+   * Esto hacía un `update` directo y solo miraba que no estuviera ya cerrada.
+   * Por API se podía cerrar desde ACEPTADA, CANCELADA o RECHAZADA —las tres
+   * prohibidas en `TRANSICIONES`— y el único freno era que el botón solo se
+   * pintara sobre casos activos. Es la regla 3 del proyecto: un estado se
+   * cambia con `exigirTransicion()`, nunca con un update a mano.
+   *
+   * El «ya está cerrado» de arriba se queda porque dice algo más útil que un
+   * TRANSICION_INVALIDA genérico, y es el caso que de verdad se repite.
+   */
+  exigirTransicionAsignacion(asignacion.status, 'CERRADA')
+
   const cerrada = await CaseAssignmentModel.cerrar(asignacionId, motivo)
+
+  /**
+   * Y las sesiones que quedaban por delante se cancelan.
+   *
+   * Cancelar una asignación sí lo hacía; cerrarla no, y la diferencia no la
+   * justificaba nada. Una cita confirmada sobrevivía al cierre: seguía
+   * ocupando la agenda del profesional, seguía disparando su recordatorio y su
+   * petición de reporte, y seguía abriendo una sala a la que la persona podía
+   * entrar — mientras su ficha ya decía CERRADO y había salido del tablero.
+   */
+  await prisma.appointment.updateMany({
+    // Persona + profesional, por lo mismo que en `cancelarAsignacion`: una
+    // cita sin `caseAssignmentId` es igual de real que las demás.
+    where: {
+      patientId: asignacion.patientId,
+      professionalId: asignacion.professionalId,
+      status: { in: ['PROGRAMADA', 'CONFIRMADA'] },
+    },
+    data: {
+      status: 'CANCELADA',
+      cancelReason: motivo
+        ? `El acompañamiento se cerró: ${motivo}`
+        : 'El acompañamiento se cerró.',
+    },
+  })
+
   await PatientModel.update(asignacion.patientId, { status: 'CERRADO' })
   return cerrada
 }
@@ -406,19 +518,44 @@ export async function confirmarHorario({
   })
 }
 
-/** Aceptó, pero no hubo forma de cuadrar o se debe reasignar. El caso vuelve a la cola. */
-export async function cancelarAsignacion({ asignacionId, motivo }) {
+/**
+ * El caso vuelve a la cola, por una de dos razones distintas.
+ *
+ * `comoRechazo` escribe RECHAZADA —«este profesional no podía»— en vez de
+ * CANCELADA —«no se pudo cuadrar»—. Solo es legal desde los estados en que él
+ * todavía no ha empezado; con sesión de por medio, la salida es CANCELADA y la
+ * máquina de estados lo impone.
+ */
+export async function cancelarAsignacion({ asignacionId, motivo, comoRechazo = false }) {
   const asignacion = await CaseAssignmentModel.findById(asignacionId)
   if (!asignacion) throw new DomainError('NO_ENCONTRADO', 'La asignación no existe')
 
-  exigirTransicionAsignacion(asignacion.status, 'CANCELADA')
+  const destino = comoRechazo ? 'RECHAZADA' : 'CANCELADA'
+  exigirTransicionAsignacion(asignacion.status, destino)
 
-  const cancelada = await CaseAssignmentModel.cancelar(asignacionId, motivo)
+  // `responder` es el mismo camino que usa el profesional desde su enlace: deja
+  // el motivo en `declineReason`, que es donde se lee «por qué no pudo».
+  const cancelada = comoRechazo
+    ? await CaseAssignmentModel.responder(asignacionId, { acepta: false, motivo })
+    : await CaseAssignmentModel.cancelar(asignacionId, motivo)
 
-  // Si había citas programadas o confirmadas con el profesional anterior, se cancelan.
+  /**
+   * Las sesiones vivas con ese profesional se cancelan. Todas, no solo las
+   * que quedaron enlazadas.
+   *
+   * Esto filtraba por `caseAssignmentId`, y una cita creada cuando no había
+   * asignación abierta lo lleva nulo: sobrevivía a la reasignación con el
+   * profesional anterior, ocupando su agenda, disparando su recordatorio y
+   * abriendo una sala para una pareja que ya no existe.
+   *
+   * Persona + profesional es la condición que de verdad describe «las sesiones
+   * de este acompañamiento», y no depende de que el enlace se escribiera bien
+   * en su momento.
+   */
   await prisma.appointment.updateMany({
     where: {
-      caseAssignmentId: asignacionId,
+      patientId: asignacion.patientId,
+      professionalId: asignacion.professionalId,
       status: { in: ['PROGRAMADA', 'CONFIRMADA'] },
     },
     data: {

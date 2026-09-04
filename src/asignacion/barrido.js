@@ -158,7 +158,12 @@ export async function barrerAsignaciones({ diasPropuesta, diasAceptada } = {}) {
       const motivo =
         tramo === 'profesional'
           ? `Liberada: el profesional no respondió en ${diasPropuesta} días`
-          : `Liberada: la persona no confirmó horario en ${diasAceptada} días`
+          // Neutro a propósito: el reloj arranca al asignar y el aviso al
+          // profesional se manda a mano, así que esto puede ser que ella no
+          // eligiera hora o que él nunca se enterara. El motivo se guarda en
+          // `closeReason` y se lee después; escribir ahí una culpa que no
+          // consta la vuelve permanente.
+          : `Liberada: no se agendó en ${diasAceptada} días`
 
       try {
         await cancelarAsignacion({ asignacionId: asignacion.id, motivo })

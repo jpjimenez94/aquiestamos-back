@@ -28,7 +28,26 @@ export const FINALES = [
 ]
 
 const TRANSICIONES = {
-  PROGRAMADA: [ESTADOS.CONFIRMADA, ESTADOS.CANCELADA, ESTADOS.REPROGRAMADA, ESTADOS.REALIZADA],
+  /**
+   * NO_ASISTIO también sale de aquí, y no salía.
+   *
+   * Una cita puede llegar a su hora sin haber pasado por CONFIRMADA —la
+   * confirmación la da la persona, y no siempre la da— y que aun así no se
+   * presente nadie. Sin esta transición eso no se podía registrar: había que
+   * cancelarla, que dice otra cosa, o confirmarla primero para poder marcar la
+   * ausencia, que es escribir en la base algo que no pasó.
+   *
+   * No es un detalle de etiqueta: «no asistió» es de los pocos datos que dicen
+   * cómo va un acompañamiento, y se estaba perdiendo justo en las citas que
+   * nadie confirmó, que son las que más se caen.
+   */
+  PROGRAMADA: [
+    ESTADOS.CONFIRMADA,
+    ESTADOS.CANCELADA,
+    ESTADOS.REPROGRAMADA,
+    ESTADOS.REALIZADA,
+    ESTADOS.NO_ASISTIO,
+  ],
   CONFIRMADA: [ESTADOS.REALIZADA, ESTADOS.NO_ASISTIO, ESTADOS.CANCELADA, ESTADOS.REPROGRAMADA],
   REALIZADA: [],
   CANCELADA: [],

@@ -93,15 +93,24 @@ export const AgendaPersonaController = {
 
       const { paciente, asignacion } = ctx
 
-      // Sin profesional asignado todavía no hay agenda que mostrar. No es un
-      // error: es que aún no le toca, y decirlo así evita que la persona crea
-      // que el enlace se rompió.
+      /**
+       * Sin profesional no hay agenda. Pero hay dos motivos, y no dicen lo
+       * mismo.
+       *
+       * Esto respondía siempre SIN_PROFESIONAL, y la pantalla lo traduce en
+       * «Todavía estamos buscando quién te acompañe. En cuanto tengamos
+       * profesional para ti, te avisamos por WhatsApp». Con el caso cerrado eso
+       * es falso: nadie está buscando, y la persona se queda esperando un aviso
+       * que no va a llegar. El enlace le sirve para todas sus sesiones, así que
+       * es normal que vuelva a abrirlo meses después.
+       */
       if (!asignacion?.professional) {
+        const cerrado = paciente.status === 'CERRADO'
         return res.json(
           ok({
             persona: primerNombre(paciente.fullName),
             profesional: null,
-            estado: 'SIN_PROFESIONAL',
+            estado: cerrado ? 'ACOMPANAMIENTO_CERRADO' : 'SIN_PROFESIONAL',
             proxima: null,
             huecos: [],
           }),

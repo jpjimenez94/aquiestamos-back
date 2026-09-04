@@ -167,6 +167,19 @@ export const cancelarAsignacionSchema = z.object({
     .trim()
     .min(3, 'Cuéntanos por qué no se pudo cuadrar')
     .max(300),
+  /**
+   * Si el caso se suelta porque EL PROFESIONAL no puede.
+   *
+   * Son dos salidas distintas y el sistema solo sabía escribir una. RECHAZADA
+   * dice «este profesional no podía» y CANCELADA dice «no se pudo cuadrar»,
+   * que suele ser cosa de horarios y no de él; distinguirlas es, según la
+   * propia máquina de estados, lo único que permite saber si se está asignando
+   * mal. Pero a RECHAZADA solo se llegaba desde el enlace del profesional, así
+   * que cuando avisaba por WhatsApp —que es lo que pasa casi siempre—
+   * coordinación no tenía dónde registrarlo y usaba reasignar, que escribe
+   * CANCELADA. La distinción se perdía justo en el camino más frecuente.
+   */
+  rechazo: z.boolean().optional().default(false),
 })
 
 export const convertirAColaboradorSchema = z.object({

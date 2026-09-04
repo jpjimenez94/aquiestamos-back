@@ -95,7 +95,10 @@ export const ETIQUETAS = {
 /** Qué le toca hacer a quien coordina cuando ve este estado. */
 export const SIGUIENTE_PASO = {
   PROPUESTA: 'Esperando que el profesional entre a su enlace y responda.',
-  ACEPTADA: 'Mándale a la persona su enlace de agenda para que elija hora.',
+  // Dos cosas, y en este orden: él tiene que saber que lo tiene antes de que
+  // ella agende sobre su agenda. El aviso al profesional es además el único
+  // sitio por el que le llega su enlace, que es por donde declina si no puede.
+  ACEPTADA: 'Avísale al profesional que tiene el caso y mándale a la persona su enlace de agenda.',
   ACTIVA: 'Ya hay cita. Haz seguimiento cuando pase.',
   RECHAZADA: 'Asígnale otro profesional.',
   CANCELADA: 'Asígnale otro profesional.',

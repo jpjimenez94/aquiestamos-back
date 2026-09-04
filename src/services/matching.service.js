@@ -156,8 +156,28 @@ export async function candidatosPara({ patientId, poblaciones, desde, hasta }) {
 
   const carga = await cargaActual(candidatos.map((c) => c.id))
 
-  // Propuestas que el barrido canceló por silencio, últimos 90 días. El
-  // closeReason es el rastro que dejó la liberación automática.
+  /**
+   * Propuestas que el barrido canceló por silencio, últimos 90 días.
+   *
+   * OJO: esto solo encuentra filas ANTERIORES al cambio de flujo, y se va a
+   * quedar en cero solo. Ese motivo lo escribía el barrido cuando un
+   * profesional dejaba vencer una propuesta sin responder, y desde que asignar
+   * no pide permiso ninguna asignación nace en PROPUESTA: ya no se escribe.
+   * Con la ventana de 90 días corriendo, el castigo se apaga por su cuenta.
+   *
+   * No se le puso un sustituto a propósito, y conviene dejar dicho por qué. El
+   * candidato obvio era contar los RECHAZADA —«no puedo tomarlo»—, pero eso
+   * castigaría exactamente la conducta que el nuevo flujo le pide al
+   * profesional: el mensaje le dice «decirlo pronto ayuda más que un sí que no
+   * llega», y si decir que no le cuesta puesto en la lista, deja de decirlo. El
+   * otro candidato, las liberadas por vencimiento, ya no distingue de quién fue
+   * el silencio —puede ser que ella no eligiera hora o que a él nunca le
+   * llegara el aviso—, así que tampoco sirve para puntuar a nadie.
+   *
+   * Queda como está, recogiendo lo viejo, hasta que exista una señal que de
+   * verdad diga «este profesional no responde». Inventar una a medias sería
+   * peor: ordenaría la lista con un dato falso.
+   */
   const vencidasPorProfesional = await prisma.caseAssignment.groupBy({
     by: ['professionalId'],
     where: {
