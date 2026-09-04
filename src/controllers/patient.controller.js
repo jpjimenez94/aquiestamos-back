@@ -64,6 +64,17 @@ export const PatientController = {
 
       const asignacion = await CaseAssignmentModel.findAbiertaDePaciente(paciente.id)
 
+      /**
+       * Y por quién pasó antes, con el motivo de cada salida.
+       *
+       * La ficha solo leía la asignación viva. Al reasignar, el profesional
+       * anterior, la fecha y el porqué desaparecían de la pantalla: quedaban en
+       * `closeReason` y en la auditoría, que nadie abre sin saber ya qué
+       * buscar. Quien coordina veía un caso «sin nada registrado» en el paso 3
+       * aunque hubiera pasado por tres personas.
+       */
+      const historial = await CaseAssignmentModel.findCerradasDePaciente(paciente.id)
+
       // Lo que haya reportado quien acompaña, aunque la persona haya pasado
       // por más de un profesional: el histórico completo es lo que permite
       // ver si un caso se quedó estancado.
@@ -170,6 +181,22 @@ export const PatientController = {
                 },
               }
             : null,
+          /**
+           * Por quién pasó antes. El detalle completo está en la auditoría; esto
+           * es lo justo para saber que existió y poder ir a mirarlo.
+           */
+          historialAsignaciones: historial.map((h) => ({
+            id: h.id,
+            estado: h.status,
+            estadoLegible: ETIQUETAS_ASIGNACION[h.status] ?? h.status,
+            profesional: h.professional?.fullName ?? null,
+            profesionalId: h.professional?.id ?? null,
+            desde: h.startedAt,
+            hasta: h.endedAt,
+            // Los dos porqués: `declineReason` lo escribe él al declinar,
+            // `closeReason` lo escribe quien cierra o el barrido al liberar.
+            motivo: h.declineReason ?? h.closeReason ?? null,
+          })),
           /**
            * Cada nota dice de qué sesión es, y cada sesión sabe si tiene nota.
            *

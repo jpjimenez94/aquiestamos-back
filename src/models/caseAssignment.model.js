@@ -35,6 +35,25 @@ export const CaseAssignmentModel = {
     })
   },
 
+  /**
+   * Las que ya se cerraron: quién la acompañó antes, y por qué se soltó.
+   *
+   * La ficha solo leía la asignación viva, así que al reasignar desaparecían de
+   * la pantalla el profesional anterior, la fecha y el motivo — y el paso 3 de
+   * la tira pasaba a decir «no hay nada registrado» aunque sí hubo profesional.
+   * El rastro quedaba en la auditoría, que nadie mira sin saber qué buscar.
+   *
+   * De más reciente a más antigua: lo último que pasó es lo que se pregunta.
+   */
+  findCerradasDePaciente(patientId) {
+    if (!esUuid(patientId)) return []
+    return prisma.caseAssignment.findMany({
+      where: { patientId, status: { notIn: VIVOS }, ...vivos },
+      include: { professional: { select: { id: true, fullName: true } } },
+      orderBy: { endedAt: 'desc' },
+    })
+  },
+
   /** Solo la que ya tiene cita: acompañamiento en curso de verdad. */
   findActivaDePaciente(patientId) {
     if (!esUuid(patientId)) return null
