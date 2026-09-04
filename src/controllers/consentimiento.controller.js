@@ -72,9 +72,21 @@ export const ConsentimientoController = {
         return res.json(ok(vista(cita), 'Ya estaba firmado. Todo listo para tu sesión.'))
       }
 
+      /**
+       * Firmar es lo que confirma la cita.
+       *
+       * La hora se aparta en PROGRAMADA cuando ella la elige, para no
+       * perdérsela mientras lee. Confirmarla antes de la firma sería decirle
+       * que todo está listo cuando falta el requisito sin el que la sesión no
+       * puede hacerse.
+       *
+       * Solo desde PROGRAMADA: una cita cancelada o ya realizada no revive
+       * porque alguien abra un enlace viejo y firme.
+       */
       const actualizada = await AppointmentModel.update(cita.id, {
         consentSigned: true,
         consentSignedAt: new Date(),
+        ...(cita.status === 'PROGRAMADA' ? { status: 'CONFIRMADA' } : {}),
       })
 
       /**

@@ -12,7 +12,7 @@ import {
   modalidadDeAgenda,
   modalidadDeSesion,
 } from '../services/scheduling.service.js'
-import { crearCita, confirmarHorario } from '../services/appointment.service.js'
+import { crearCita, confirmarHorario, cambiarEstado } from '../services/appointment.service.js'
 import { crearEnlaceConsentimiento } from '../auth/enlaceConsentimiento.js'
 import { enPalabras } from '../services/timezone.service.js'
 import { citaAgendada } from '../notifications/eventos.js'
@@ -285,6 +285,21 @@ export const AgendaPersonaController = {
         asignacion.professional.modality,
       )
 
+      /**
+       * Nace APARTADA, no confirmada. La confirma la firma.
+       *
+       * Nacía en CONFIRMADA y la pantalla le decía «tu sesión quedó agendada»
+       * — y justo debajo le pedía el consentimiento. Si cerraba sin firmar, la
+       * cita quedaba en pie y confirmada: el profesional recibía su aviso, el
+       * espacio quedaba ocupado y la sesión no podía hacerse, porque sin
+       * consentimiento firmado no se empieza. Le habíamos dicho que estaba
+       * lista una cosa que no lo estaba.
+       *
+       * PROGRAMADA le guarda la hora mientras lee y firma —perder el espacio
+       * por leer sería peor— y CONFIRMADA llega con la firma. Si ya había
+       * firmado antes, `crearCita` hereda el consentimiento y se confirma sola
+       * aquí mismo: a nadie se le pide firmar dos veces.
+       */
       const cita =
         asignacion.status === 'ACEPTADA'
           ? (await confirmarHorario({
@@ -292,6 +307,7 @@ export const AgendaPersonaController = {
               inicio,
               fin,
               modalidad,
+              estado: 'PROGRAMADA',
               actorId: null,
             })).cita
           : await crearCita({
@@ -300,11 +316,15 @@ export const AgendaPersonaController = {
               inicio,
               fin,
               modalidad,
-              // Sesion posterior, mismo enlace, misma verdad: la hora la
-              // escogio ella. Nace confirmada, igual que la primera.
-              estado: 'CONFIRMADA',
+              estado: 'PROGRAMADA',
               actorId: null,
             })
+
+      // Segunda sesión, o consentimiento ya firmado en su día: no hay nada que
+      // esperar, así que la hora queda confirmada sin más trámite.
+      if (cita.consentSigned) {
+        await cambiarEstado({ citaId: cita.id, nuevoEstado: 'CONFIRMADA', actorId: null })
+      }
 
       /**
        * Avisarle al profesional. Sin esto, la persona agenda y él no se entera.

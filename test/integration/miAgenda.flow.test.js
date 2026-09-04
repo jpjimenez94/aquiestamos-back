@@ -3,6 +3,7 @@ import request from 'supertest'
 import { createApp } from '../../src/app.js'
 import { prisma } from '../../src/config/database.js'
 import { crearEnlaceAgenda } from '../../src/auth/enlaceAgenda.js'
+import { crearEnlaceConsentimiento } from '../../src/auth/enlaceConsentimiento.js'
 
 const app = createApp()
 const MARCA = `miagenda-${Date.now()}`
@@ -129,19 +130,55 @@ describe('mi agenda', () => {
   })
 
   /**
-   * Nace CONFIRMADA. La eligio ella; no queda nadie a quien preguntarle.
+   * Nace APARTADA. La confirma la firma del consentimiento.
    *
-   * Nacia PROGRAMADA, igual que una hora que propone la coordinacion a
-   * ciegas, y el portal ofrecia entonces un boton «Confirmar Cita» sobre la
-   * hora que la persona misma acababa de escoger. El camino con la prueba mas
-   * fuerte producia el estado mas debil.
+   * Ha ido cambiando dos veces, y las dos por el mismo motivo: que el estado
+   * diga la verdad. Nacía PROGRAMADA como una hora propuesta a ciegas, y el
+   * portal ofrecía un botón «Confirmar Cita» sobre la hora que ella misma
+   * acababa de escoger; se pasó a CONFIRMADA porque no quedaba nadie a quien
+   * preguntar.
+   *
+   * Pero sí quedaba algo: el consentimiento. La pantalla le decía «tu sesión
+   * quedó agendada» y justo debajo se lo pedía. Si cerraba sin firmar, la cita
+   * seguía en pie y confirmada, el profesional ya tenía su aviso, el espacio
+   * estaba ocupado — y la sesión no podía hacerse, porque sin consentimiento
+   * no se empieza. Estaba confirmada todo menos de verdad.
+   *
+   * PROGRAMADA le guarda la hora mientras lee: perder el espacio por leer
+   * sería peor. Firmar es lo que confirma.
    */
-  it('la hora que elige ella nace confirmada, no a la espera de confirmacion', async () => {
+  it('la hora que elige ella queda apartada, y la confirma la firma', async () => {
     const cita = await prisma.appointment.findFirst({
       where: { patientId: pacienteId },
       orderBy: { createdAt: 'desc' },
     })
-    expect(cita.status).toBe('CONFIRMADA')
+    expect(cita.status).toBe('PROGRAMADA')
+    expect(cita.consentSigned).toBe(false)
+  })
+
+  /**
+   * Y firmar es lo que la confirma. Ese es el otro lado del cambio.
+   *
+   * Sin esto, «apartada» se quedaría en apartada para siempre y habría que
+   * confirmarla a mano desde el portal — que es justo el botón que se quitó
+   * cuando la hora pasó a elegirla ella.
+   */
+  it('al firmar el consentimiento, la cita queda confirmada', async () => {
+    const antes = await prisma.appointment.findFirst({
+      where: { patientId: pacienteId },
+      orderBy: { createdAt: 'desc' },
+    })
+    expect(antes.status).toBe('PROGRAMADA')
+
+    const res = await request(app)
+      .post(`/api/consentimiento/${crearEnlaceConsentimiento(antes.id)}`)
+      .send({ acepta: true, nombreFirma: 'Ana Ruiz', version: '1.0' })
+
+    expect(res.status).toBe(200)
+
+    const despues = await prisma.appointment.findUnique({ where: { id: antes.id } })
+    expect(despues.consentSigned).toBe(true)
+    expect(despues.status).toBe('CONFIRMADA')
   })
 
   it('esa hora deja de ofrecerse', async () => {
