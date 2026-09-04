@@ -158,6 +158,19 @@ export const PatientController = {
                 siguientePaso: SIGUIENTE_PASO[asignacion.status] ?? null,
                 desde: asignacion.startedAt,
                 respondioEn: asignacion.respondedAt,
+                /**
+                 * Si el profesional ya dijo que puede, y quién lo dio por dicho.
+                 *
+                 * El paso 4 —mandarle a la persona su enlace de agenda— espera
+                 * a esto: ella elige de la agenda de él, y ofrecérsela antes de
+                 * que él confirme que sigue vigente es exponerla a reservar un
+                 * espacio que ya no existe.
+                 *
+                 * `confirmadoPor` con valor significa que lo desbloqueó
+                 * coordinación porque él respondió por otro medio.
+                 */
+                confirmadoEn: asignacion.professionalConfirmedAt,
+                confirmadoPor: asignacion.confirmedByEmail,
                 // Lo que el profesional puso él mismo desde su enlace.
                 nota: asignacion.availabilityNote,
                 motivoRechazo: asignacion.declineReason,

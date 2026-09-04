@@ -122,11 +122,24 @@ export const CaseAssignmentModel = {
    * no se escribió nada, y eso borraría el «después de las 4 mejor» que él
    * dejó en su momento.
    */
-  confirmar(id, { nota = null } = {}) {
+  confirmar(id, { nota = null, porEmail = null } = {}) {
     return prisma.caseAssignment.update({
       where: { id },
       data: {
         respondedAt: new Date(),
+        /**
+         * Y queda constancia de que lo confirmó ÉL, no de que se lo asignamos.
+         *
+         * `respondedAt` no distingue las dos cosas —se escribe al crear la
+         * asignación—, así que sin este campo no había forma de saber si el
+         * profesional llegó a mirar el caso. Es lo que deja al paso 4 esperar
+         * antes de mandarle a la persona un enlace para reservar sobre una
+         * agenda que quizá ya no vale.
+         */
+        professionalConfirmedAt: new Date(),
+        // Nulo cuando confirma desde su enlace; con correo cuando coordinación
+        // lo desbloquea porque respondió por otro medio.
+        confirmedByEmail: porEmail,
         ...(nota && String(nota).trim() ? { availabilityNote: nota } : {}),
       },
     })

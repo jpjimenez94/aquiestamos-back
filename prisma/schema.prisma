@@ -696,6 +696,22 @@ model CaseAssignment {
 
   /// Cuándo respondió el profesional, sea que aceptara o no.
   respondedAt        DateTime? @map("responded_at") @db.Timestamptz(3)
+  /// Cuándo el profesional confirmó ÉL MISMO que puede tomarlo.
+  ///
+  /// No sirve `respondedAt` para esto: desde que asignar dejó de pedir permiso
+  /// se escribe al CREAR la asignación, así que vale lo mismo para «me
+  /// avisaron» que para «dije que sí». Sin un campo aparte no había forma de
+  /// saber si el profesional llegó a mirar el caso.
+  ///
+  /// Importa porque la persona elige la hora de SU agenda: mandarle el enlace
+  /// antes de que él confirme que esa agenda sigue vigente es exponerla a
+  /// reservar un espacio que ya no existe. Con esto, el paso 4 espera —y quien
+  /// coordina puede saltárselo a mano si él confirmó por teléfono, que queda
+  /// registrado en `confirmedByEmail`.
+  professionalConfirmedAt DateTime? @map("professional_confirmed_at") @db.Timestamptz(3)
+  /// Quién dio por confirmado el caso, cuando no fue el profesional desde su
+  /// enlace. Nulo = lo confirmó él. Con valor = lo desbloqueó coordinación.
+  confirmedByEmail   String?   @map("confirmed_by_email") @db.VarChar(160)
   /// Aquí vivían `acceptedDays` y `acceptedSlots`: los días y franjas que el
   /// profesional escribía al aceptar un caso. Se fueron porque le pedían por
   /// segunda vez algo que ya nos había dado —su disponibilidad está cargada

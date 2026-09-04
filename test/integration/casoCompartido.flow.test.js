@@ -19,6 +19,8 @@ const marca = `caso-${process.pid}`
 const CORREO = `ana.maria.${marca}@ejemplo.com`
 
 const ids = {}
+/** Token del profesional asignado, pedido una sola vez. Ver el `beforeAll`. */
+let tokenValido
 
 beforeAll(async () => {
   const profesional = await prisma.professional.create({
@@ -57,6 +59,19 @@ beforeAll(async () => {
     paciente: paciente.id,
     asignacion: asignacion.id,
   })
+
+  /**
+   * Un token pedido antes que nada, para los bloques del final.
+   *
+   * El límite de intentos es de diez por ventana y cuenta para todo el fichero;
+   * las pruebas de autenticación de aquí abajo gastan varios a propósito
+   * —correo ajeno, caso inventado, token manipulado—. Quien pida el suyo al
+   * final se lo encuentra agotado y falla por el motivo equivocado.
+   */
+  const auth = await request(app)
+    .post(`/api/shared-cases/${paciente.id}/auth`)
+    .send({ email: CORREO })
+  tokenValido = auth.body?.data?.token
 })
 
 afterAll(async () => {
@@ -110,6 +125,9 @@ describe('caso compartido', () => {
          * a esta pantalla se entra con un enlace y un correo, no con una cuenta.
          */
         'agenda',
+        // Las mismas franjas en crudo: `agenda` es lo que se lee, esto lo que
+        // se corrige desde su enlace.
+        'franjas',
         'appointments',
         'availableDays',
         'availableSlots',
@@ -199,22 +217,21 @@ describe('caso compartido', () => {
 })
 
 describe('el profesional responde qué pasó', () => {
-  // Un solo token para todo el bloque. Es lo que pasa de verdad —el
-  // profesional confirma su correo una vez y de ahí en adelante usa el
-  // enlace— y evita chocar con el límite de intentos, que es de diez.
-  let t
-
-  beforeAll(async () => {
-    const res = await request(app)
-      .post(`/api/shared-cases/${ids.paciente}/auth`)
-      .send({ email: CORREO })
-    t = res.body.data.token
-  })
+  /**
+   * El token del `beforeAll` de arriba, pedido una sola vez.
+   *
+   * Es lo que pasa de verdad —el profesional confirma su correo una vez y de
+   * ahí en adelante usa el enlace— y quita la fragilidad: el límite de intentos
+   * es de diez para todo el fichero, así que cada bloque que pedía el suyo
+   * acercaba al siguiente al borde. Añadir una prueba de autenticación arriba
+   * rompía un bloque del final por un motivo que no tenía nada que ver.
+   */
+  const t = () => tokenValido
 
   it('registra lo que pasó y lo devuelve en el propio enlace', async () => {
     const enviado = await request(app)
       .post(`/api/shared-cases/${ids.paciente}/reporte`)
-      .set('x-shared-case-token', t)
+      .set('x-shared-case-token', t())
       .send({
         outcome: 'NO_CONTESTA',
         contactDifficulties: 'La llamé tres veces y entra a buzón.',
@@ -223,7 +240,7 @@ describe('el profesional responde qué pasó', () => {
 
     const caso = await request(app)
       .get(`/api/shared-cases/${ids.paciente}`)
-      .set('x-shared-case-token', t)
+      .set('x-shared-case-token', t())
 
     expect(caso.body.data.reportes).toHaveLength(1)
     expect(caso.body.data.reportes[0].outcome).toBe('NO_CONTESTA')
@@ -234,7 +251,7 @@ describe('el profesional responde qué pasó', () => {
   it('una cita acordada necesita modalidad y fecha', async () => {
     const incompleto = await request(app)
       .post(`/api/shared-cases/${ids.paciente}/reporte`)
-      .set('x-shared-case-token', t)
+      .set('x-shared-case-token', t())
       .send({ outcome: 'CITA_ACORDADA' })
 
     // 422: la petición está bien formada pero rompe una regla del formulario.
@@ -244,7 +261,7 @@ describe('el profesional responde qué pasó', () => {
 
     const completo = await request(app)
       .post(`/api/shared-cases/${ids.paciente}/reporte`)
-      .set('x-shared-case-token', t)
+      .set('x-shared-case-token', t())
       .send({
         outcome: 'CITA_ACORDADA',
         modality: 'PRESENCIAL',
@@ -278,7 +295,7 @@ describe('el profesional responde qué pasó', () => {
 
     const res = await request(app)
       .post(`/api/shared-cases/${ids.paciente}/reporte`)
-      .set('x-shared-case-token', t)
+      .set('x-shared-case-token', t())
       .send({ outcome: 'NO_CONTESTA' })
     expect(res.status).toBe(403)
 
@@ -298,11 +315,69 @@ describe('el profesional responde qué pasó', () => {
     // Por eso ahora se comprueba: si vuelve a romperse, que lo diga.
     const res = await request(app)
       .post(`/api/shared-cases/${ids.paciente}/reporte`)
-      .set('x-shared-case-token', t)
+      .set('x-shared-case-token', t())
       .send({ outcome: 'YA_ATENDIDA', modality: 'VIRTUAL', followUp: 'SUFICIENTE' })
     expect(res.status).toBe(201)
 
     const despues = await prisma.caseReport.count({ where: { assignmentId: ids.asignacion } })
     expect(despues).toBe(antes + 1)
+  })
+})
+
+/**
+ * Corregir su propia agenda desde el enlace.
+ *
+ * Le pedimos confirmar que sus espacios «siguen vigentes» y, si cambiaron, que
+ * nos lo diga — y no tenía dónde: la ruta del portal exige una cuenta que él no
+ * tiene a propósito. La petición se quedaba en un «escríbenos» sin destinatario.
+ *
+ * Lo que hay que cuidar aquí es de quién es la agenda que se toca. El enlace no
+ * es una credencial para moverse por el sistema: es una llave para una puerta.
+ */
+describe('el profesional corrige su agenda desde su enlace', () => {
+  // El del `beforeAll` de arriba: pedir uno aquí choca con el límite de
+  // intentos, que ya han gastado las pruebas de autenticación.
+  const t = () => tokenValido
+
+  it('sin token no se puede tocar nada', async () => {
+    const res = await request(app)
+      .put(`/api/shared-cases/${ids.paciente}/disponibilidad`)
+      .send({ franjas: [] })
+
+    expect(res.status).toBe(401)
+  })
+
+  it('con su token, reemplaza sus franjas y eso confirma el caso', async () => {
+    const res = await request(app)
+      .put(`/api/shared-cases/${ids.paciente}/disponibilidad`)
+      .set('x-shared-case-token', t())
+      .send({
+        franjas: [
+          { weekday: 'MIERCOLES', startMinute: 14 * 60, endMinute: 18 * 60, modality: 'VIRTUAL' },
+        ],
+      })
+
+    expect(res.status).toBe(200)
+
+    const reglas = await prisma.availabilityRule.findMany({
+      where: { professionalId: ids.profesional },
+    })
+    expect(reglas).toHaveLength(1)
+    expect(reglas[0].weekday).toBe('MIERCOLES')
+
+    /**
+     * Y dejarla al día vale como confirmación del caso.
+     *
+     * El paso 4 espera a que él diga que su disponibilidad sigue vigente.
+     * Corregirla lo dice más fuerte que pulsar un botón; pedirle además el clic
+     * sería pedirle dos veces lo mismo.
+     */
+    const asignacion = await prisma.caseAssignment.findFirst({
+      where: { patientId: ids.paciente, professionalId: ids.profesional },
+      orderBy: { startedAt: 'desc' },
+    })
+    expect(asignacion.professionalConfirmedAt).not.toBeNull()
+    // Nulo = lo confirmó él, no coordinación desbloqueándolo.
+    expect(asignacion.confirmedByEmail).toBeNull()
   })
 })

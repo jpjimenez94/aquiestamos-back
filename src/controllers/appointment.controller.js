@@ -1,5 +1,6 @@
 import { AppointmentModel } from '../models/appointment.model.js'
 import { ProfessionalModel } from '../models/professional.model.js'
+import { CaseAssignmentModel } from '../models/caseAssignment.model.js'
 import {
   crearCita,
   cambiarEstado,
@@ -408,6 +409,46 @@ export const AppointmentController = {
       })
 
       return res.status(201).json(created(citaVista(cita), 'Cita agendada. El caso queda activo.'))
+    } catch (error) {
+      next(error)
+    }
+  },
+
+  /**
+   * POST /api/appointments/asignaciones/:id/confirmar-profesional
+   *
+   * La escapatoria del paso 4: el profesional confirmó, pero no desde su
+   * enlace.
+   *
+   * El enlace de agenda de la persona espera a que él diga que su
+   * disponibilidad sigue vigente — si no, ella puede reservar un espacio que ya
+   * no existe. Pero en la práctica muchos contestan por WhatsApp o por
+   * teléfono, y sin esta puerta el caso se quedaría parado esperando un clic
+   * que ya ocurrió de otra forma. Sería volver a esperar permiso, que es lo que
+   * este flujo vino a quitar.
+   *
+   * Queda con nombre y apellido en `confirmedByEmail` y en la auditoría: quien
+   * lo desbloquea está diciendo «hablé con él», y eso tiene que poder
+   * contrastarse.
+   */
+  async confirmarProfesional(req, res, next) {
+    try {
+      const asignacion = await CaseAssignmentModel.findById(req.params.id)
+      if (!asignacion) return res.status(404).json(failure('La asignación no existe'))
+
+      const actualizada = await CaseAssignmentModel.confirmar(asignacion.id, {
+        porEmail: req.usuario.email,
+      })
+
+      await registrar({
+        req,
+        action: ACCION.EDITAR,
+        entity: 'asignacion',
+        entityId: asignacion.id,
+        after: { confirmadoPor: req.usuario.email },
+      })
+
+      return res.json(ok({ id: actualizada.id, confirmadoEn: actualizada.professionalConfirmedAt }))
     } catch (error) {
       next(error)
     }

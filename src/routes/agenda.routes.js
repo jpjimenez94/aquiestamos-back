@@ -171,6 +171,15 @@ appointmentRoutes.post(
   AppointmentController.cancelar,
 )
 
+// La escapatoria del paso 4: el profesional confirmó por WhatsApp o por
+// teléfono y quien coordina lo deja constar. Va con el permiso de asignar
+// porque es parte de asignar, no de cerrar.
+appointmentRoutes.post(
+  '/asignaciones/:id/confirmar-profesional',
+  authorize('asignacion:crear'),
+  AppointmentController.confirmarProfesional,
+)
+
 appointmentRoutes.post(
   '/asignaciones/:id/cerrar',
   authorize('asignacion:cerrar'),

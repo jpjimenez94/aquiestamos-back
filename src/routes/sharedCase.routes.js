@@ -1,11 +1,13 @@
 import { Router } from 'express'
 import rateLimit from 'express-rate-limit'
 import {
+  actualizarDisponibilidad,
   authorizeSharedCase,
   getSharedCase,
   reportarCaso,
   responderPropuesta,
 } from '../controllers/sharedCase.controller.js'
+import { reemplazarFranjasSchema } from '../validators/agenda.schema.js'
 import { validarParamsUuid } from '../middlewares/validarUuid.js'
 import { validateBody } from '../middlewares/validate.js'
 import { caseReportCreateSchema } from '../validators/caseReport.schema.js'
@@ -33,6 +35,21 @@ const limiteIntentos = rateLimit({
 // El acceso no lo da la sesion del portal, sino el enlace mas el correo.
 sharedCaseRoutes.post('/:id/auth', limiteIntentos, validarParamsUuid, authorizeSharedCase)
 sharedCaseRoutes.get('/:id', validarParamsUuid, getSharedCase)
+
+/**
+ * Corregir su propia agenda desde el enlace.
+ *
+ * Le pedimos confirmar que sus espacios siguen vigentes y, si cambiaron,
+ * decírnoslo — y no tenía dónde. La ruta del portal exige cuenta, que él no
+ * tiene a propósito. El token decide de quién es la agenda que se toca: nunca
+ * se lee un identificador de profesional de la URL.
+ */
+sharedCaseRoutes.put(
+  '/:id/disponibilidad',
+  validarParamsUuid,
+  validateBody(reemplazarFranjasSchema),
+  actualizarDisponibilidad,
+)
 
 // Aceptar o rechazar el caso que le proponen, y decir cuándo puede.
 sharedCaseRoutes.post(

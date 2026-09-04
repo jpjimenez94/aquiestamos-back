@@ -2,6 +2,8 @@ import { cerrarSesionesConPrueba } from '../citas/cierre.js'
 import { devolverALaCola } from '../services/appointment.service.js'
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import { CaseAssignmentModel } from '../models/caseAssignment.model.js'
+import { AvailabilityModel } from '../models/availability.model.js'
+import { ProfessionalModel } from '../models/professional.model.js'
 import { PatientModel } from '../models/patient.model.js'
 import { AppointmentModel } from '../models/appointment.model.js'
 import { CaseReportModel } from '../models/caseReport.model.js'
@@ -207,6 +209,20 @@ export async function getSharedCase(req, res, next) {
          * esperando el día de la sesión.
          */
         agenda: await franjasEnPalabras(asignacion.professionalId),
+        /**
+         * Las mismas franjas, en crudo, para poder editarlas.
+         *
+         * `agenda` es la frase que se lee; esto es lo que se corrige. Van las
+         * dos porque el texto en palabras lo arma el backend con las etiquetas
+         * de días y las horas legibles, y rehacerlo en la pantalla sería tener
+         * dos versiones de lo mismo esperando a separarse.
+         */
+        franjas: (await AvailabilityModel.reglasDe(asignacion.professionalId)).map((r) => ({
+          weekday: r.weekday,
+          startMinute: r.startMinute,
+          endMinute: r.endMinute,
+          modality: r.modality,
+        })),
         ...casoCompartido(paciente, citas),
         reportes: reporteListaParaProfesional(reportes),
       }),
@@ -277,6 +293,73 @@ export async function reportarCaso(req, res, next) {
     return res.status(201).json(
       created(reporteParaProfesional(creado), 'Gracias. Quedó registrado.'),
     )
+  } catch (error) {
+    return next(error)
+  }
+}
+
+/**
+ * PUT /api/shared-cases/:id/disponibilidad
+ *
+ * El profesional corrige su propia agenda desde su enlace.
+ *
+ * Le pedimos confirmar que sus espacios «siguen vigentes» y, si cambiaron, que
+ * nos lo diga — pero no tenía dónde decirlo ni cómo cambiarlo. La única ruta
+ * para editar disponibilidad exige cuenta de portal (`disponibilidad:editar:propia`)
+ * y él no tiene: el correo de aprobación le dice, a propósito, que no necesita
+ * contraseña. Así que la petición se quedaba en un «escríbenos» sin destinatario.
+ *
+ * El token manda sobre el parámetro: se edita la agenda del profesional que
+ * lleva ESE caso, nunca la del identificador que venga en la URL. Es la misma
+ * regla que el resto de esta pantalla — el enlace no es una credencial para
+ * moverse por el sistema, es una llave para una puerta concreta.
+ */
+export async function actualizarDisponibilidad(req, res, next) {
+  try {
+    const { id } = req.params
+
+    const datos = leerToken(req.headers['x-shared-case-token'], id)
+    if (!datos) {
+      return res.status(401).json(failure('El acceso venció. Vuelve a ingresar tu correo.'))
+    }
+
+    const asignacion = await CaseAssignmentModel.findAbiertaDePaciente(id)
+    if (!asignacion || asignacion.professionalId !== datos.profesional) {
+      return res.status(403).json(failure('Este caso ya no está a tu cargo.'))
+    }
+
+    const anteriores = await AvailabilityModel.reglasDe(asignacion.professionalId)
+    await AvailabilityModel.reemplazarReglas(asignacion.professionalId, req.validated.franjas)
+    const nuevas = await AvailabilityModel.reglasDe(asignacion.professionalId)
+
+    // Tocar la agenda ES confirmarla, aquí y en el portal: si no contara, el
+    // barrido seguiría preguntándole cada mes a quien acaba de actualizarla.
+    await ProfessionalModel.update(asignacion.professionalId, {
+      availabilityConfirmedAt: new Date(),
+    })
+
+    /**
+     * Y corregirla también es confirmar el caso.
+     *
+     * El paso 4 espera a que él diga que su disponibilidad sigue vigente.
+     * Dejarla al día es una forma más fuerte de decirlo que pulsar un botón:
+     * si tuviéramos que pedirle además el clic, le estaríamos pidiendo dos
+     * veces lo mismo, que es el error que ya se cometió al pedirle sus días
+     * teniendo su agenda.
+     */
+    await CaseAssignmentModel.confirmar(asignacion.id)
+
+    await registrar({
+      req,
+      action: ACCION.EDITAR,
+      entity: 'disponibilidad',
+      entityId: asignacion.professionalId,
+      actorEmail: datos.email ?? null,
+      before: { franjas: anteriores.length },
+      after: { franjas: nuevas.length, desde: 'enlace del caso' },
+    })
+
+    return res.json(ok({ franjas: nuevas.length }))
   } catch (error) {
     return next(error)
   }
