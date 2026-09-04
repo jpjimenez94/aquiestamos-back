@@ -265,9 +265,10 @@ export async function pacienteAdmitido(paciente, { sinRespuesta = false } = {}) 
  */
 export async function citaAgendada({ cita, profesional, cuando }) {
   const esVirtual = cita.modality === 'VIRTUAL' || Boolean(cita.meetingUrl)
-  const sala = esVirtual
-    ? `${env.sitioUrl.replace(/\/$/, '')}/sala/${generarTokenSala(cita.id, 'PROFESIONAL')}`
-    : null
+  const raiz = env.sitioUrl.replace(/\/$/, '')
+  const sala = esVirtual ? `${raiz}/sala/${generarTokenSala(cita.id, 'PROFESIONAL')}` : null
+  const modalidad = String(cita.modality ?? '').toLowerCase()
+
   await encolar({
     plantilla: 'CITA_AGENDADA',
     para: profesional.email,
@@ -278,7 +279,7 @@ export async function citaAgendada({ cita, profesional, cuando }) {
       // En minúscula desde el payload: la plantilla del código lo hacía al
       // pintar y la del portal no puede, así que el mismo correo salía
       // «VIRTUAL» por un camino y «virtual» por el otro.
-      modalidad: String(cita.modality ?? '').toLowerCase(),
+      modalidad,
       sala,
       ruta: `/portal/caso/${cita.patientId}`,
     },
@@ -286,6 +287,46 @@ export async function citaAgendada({ cita, profesional, cuando }) {
     entidadId: cita.id,
     clave: `cita-agendada:${cita.id}`,
   })
+
+  /**
+   * Y a ELLA, que era la que no recibía nada.
+   *
+   * El profesional tenía su correo desde el primer día; la persona, ninguno.
+   * Elegía su hora, la pantalla le decía «te escribimos por WhatsApp con el
+   * enlace para conectarte», y no salía nada hasta el recordatorio del día de
+   * la sesión. Entre medias podían pasar dos semanas en las que su cita no
+   * existía en ningún sitio suyo: ni un correo que buscar, ni una hora que
+   * mirar, ni el enlace para entrar.
+   *
+   * Su sala va con SU llave, no con la del profesional: son dos enlaces
+   * firmados distintos y cruzarlos metería a cada uno en la sala con el rol
+   * del otro.
+   *
+   * Solo si dejó correo: darlo es opcional en la solicitud y mucha gente no
+   * lo hace. Para esas, la confirmación sigue siendo el WhatsApp que manda
+   * coordinación — y el portal lo pide en la ficha de la cita en vez de decir
+   * «nada pendiente».
+   */
+  const persona = cita.patient
+  if (persona?.email) {
+    await encolar({
+      plantilla: 'CITA_AGENDADA_PERSONA',
+      para: persona.email,
+      nombre: persona.fullName,
+      payload: {
+        nombre: primerNombre(persona.fullName),
+        profesional: profesional.fullName,
+        cuando,
+        cuandoLargo: cuando,
+        modalidad,
+        modalidadLegible: modalidad,
+        sala: esVirtual ? `${raiz}/sala/${generarTokenSala(cita.id, 'PACIENTE')}` : null,
+      },
+      entidad: 'cita',
+      entidadId: cita.id,
+      clave: `cita-agendada-persona:${cita.id}`,
+    })
+  }
 }
 
 /**

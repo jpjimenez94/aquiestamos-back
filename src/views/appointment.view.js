@@ -117,6 +117,16 @@ export function cita(c) {
           telefono: c.patient.phone,
           esMenor: c.patient.isMinor,
           canalPreferido: c.patient.preferredContact ?? null,
+          /**
+           * Si tiene correo, no cuál: la ficha necesita saber si el sistema
+           * pudo avisarle solo, y para eso no hace falta su dirección.
+           *
+           * Dar correo es opcional en la solicitud. Quien no lo dio no recibe
+           * la confirmación de su sesión, así que a esa alguien tiene que
+           * escribirle por WhatsApp — y sin este dato la ficha no podía
+           * distinguirla y decía «nada pendiente» a las dos.
+           */
+          tieneCorreo: Boolean(c.patient.email),
         }
       : { id: c.patientId },
   }

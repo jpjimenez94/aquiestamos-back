@@ -23,6 +23,13 @@ const CASOS = {
     modalidad: 'VIRTUAL',
     ruta: '/portal/caso/abc',
   },
+  CITA_AGENDADA_PERSONA: {
+    nombre: 'Angie',
+    profesional: 'Beatriz Elena López',
+    cuandoLargo: 'el martes 3 de septiembre a las 3:00 p. m.',
+    modalidadLegible: 'virtual',
+    sala: 'https://redaquiestamos.org/sala/abc',
+  },
   REPORTE_RECIBIDO: {
     profesional: 'Ana María Pérez',
     resultado: 'NO_CONTESTA',

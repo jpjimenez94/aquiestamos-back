@@ -468,6 +468,29 @@ Nos comunicamos contigo reconociendo tu valioso liderazgo en *{territorio}* y qu
     }),
   },
   {
+    key: 'CORREO_CITA_AGENDADA_PERSONA',
+    category: 'PLANTILLA_CORREO',
+    name: 'Correo · Confirmación de sesión a la persona',
+    description:
+      'A la persona en cuanto queda agendada su sesión, con la hora y su enlace de entrada. Antes no recibía nada hasta el recordatorio del día.',
+    dataType: 'JSON',
+    variables: ['nombre', 'profesional', 'cuandoLargo', 'modalidadLegible', 'sala'],
+    defaultValue: JSON.stringify({
+          "asunto": "Tu sesión quedó agendada: {cuandoLargo}",
+          "titulo": "Listo, {nombre}: tu sesión quedó agendada",
+          "parrafos": [
+                "Te acompaña <strong>{profesional}</strong>. Guarda este correo: aquí tienes todo lo que necesitas.",
+                "Si te surge algo y no puedes, respóndenos por WhatsApp con tiempo y lo movemos. No pasa nada.",
+                "Si en este momento estás en peligro o sientes que puedes hacerte daño, no esperes: llama al 123 (emergencias) o al 106 (salud mental). Son gratuitas y atienden a toda hora."
+          ],
+          "datos": [
+                "<strong>Cuándo:</strong> {cuandoLargo}",
+                "<strong>Modalidad:</strong> {modalidadLegible}",
+                "<strong>Tu enlace para entrar:</strong> <a href=\"{sala}\">{sala}</a>"
+          ]
+    }),
+  },
+  {
     key: 'CORREO_REPORTE_RECIBIDO',
     category: 'PLANTILLA_CORREO',
     name: 'Correo · Reporte Post-Sesión a Coordinación',

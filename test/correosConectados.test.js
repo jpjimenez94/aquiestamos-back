@@ -138,9 +138,13 @@ describe('los correos del portal salen igual que los del código', () => {
    * Quedan fuera solo `COORD_ERROR`, que es una alerta técnica de servidor y no
    * un mensaje a una persona: no tiene sentido que coordinación reescriba el
    * informe de un fallo.
+   *
+   * El número sube cuando se añade un correo, y subirlo a ciegas es saltarse
+   * la comprobación: al añadir uno hay que dejarlo editable en Parametrización
+   * en el mismo commit, que es lo que este número protege.
    */
   it('todas menos la alerta técnica tienen su equivalente en Parametrización', () => {
-    expect(PAREJAS).toHaveLength(26)
+    expect(PAREJAS).toHaveLength(27)
     for (const [, claveDelPortal] of PAREJAS) {
       expect(DEFAULT_SETTINGS.find((d) => d.key === claveDelPortal)).toBeDefined()
     }

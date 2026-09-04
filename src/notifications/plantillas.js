@@ -108,6 +108,39 @@ export const PLANTILLAS = {
       boton: { texto: 'Ver el caso', url: urlDelSitio(p.ruta) },
     }),
 
+  /**
+   * A la PERSONA cuando queda agendada su sesión.
+   *
+   * No existía. El profesional recibía su correo al instante y ella no recibía
+   * nada: elegía su hora, la pantalla le decía «te escribimos por WhatsApp con
+   * el enlace para conectarte», y no salía nada hasta el recordatorio del día
+   * de la sesión —que además solo sale si tiene correo—. Entre agendar y ese
+   * día podían pasar dos semanas sin ningún rastro de su cita en ninguna parte
+   * suya: ni un correo que buscar, ni una hora que mirar.
+   *
+   * Lleva la sala para no depender de que alguien se acuerde de mandársela,
+   * que es lo mismo que ya se arregló del lado del profesional. Y lleva las
+   * líneas de crisis, como el recordatorio: puede ser el primer correo que la
+   * red le manda, y quien lo abre está pidiendo ayuda.
+   */
+  CITA_AGENDADA_PERSONA: (p) => {
+    const cuando = p.cuandoLargo ?? enPalabras(p.cuando)
+    const modalidad = p.modalidadLegible ?? String(p.modalidad ?? '').toLowerCase()
+    return armar(`Tu sesión quedó agendada: ${cuando}`, {
+      titulo: `Listo, ${p.nombre}: tu sesión quedó agendada`,
+      parrafos: [
+        `Te acompaña <strong>${p.profesional}</strong>. Guarda este correo: aquí tienes todo lo que necesitas.`,
+        'Si te surge algo y no puedes, respóndenos por WhatsApp con tiempo y lo movemos. No pasa nada.',
+        'Si en este momento estás en peligro o sientes que puedes hacerte daño, no esperes: llama al 123 (emergencias) o al 106 (salud mental). Son gratuitas y atienden a toda hora.',
+      ],
+      datos: [
+        `<strong>Cuándo:</strong> ${cuando}`,
+        `<strong>Modalidad:</strong> ${modalidad}`,
+        p.sala ? `<strong>Tu enlace para entrar:</strong> <a href="${p.sala}">${p.sala}</a>` : null,
+      ].filter(Boolean),
+    })
+  },
+
   /** Al agendador que hizo la asignación, cuando el profesional responde. */
   REPORTE_RECIBIDO: (p) =>
     armar(`Respuesta sobre un caso: ${ETIQUETAS_RESULTADO[p.resultado] ?? p.resultado}`, {
