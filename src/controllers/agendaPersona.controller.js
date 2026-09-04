@@ -12,8 +12,9 @@ import {
   modalidadDeAgenda,
   modalidadDeSesion,
 } from '../services/scheduling.service.js'
-import { crearCita, confirmarHorario, cambiarEstado } from '../services/appointment.service.js'
-import { crearEnlaceConsentimiento } from '../auth/enlaceConsentimiento.js'
+import { crearCita, confirmarHorario } from '../services/appointment.service.js'
+import { firmarConsentimientoSchema } from '../validators/consentimiento.schema.js'
+import { prisma } from '../config/database.js'
 import { enPalabras } from '../services/timezone.service.js'
 import { citaAgendada } from '../notifications/eventos.js'
 import { registrar, ACCION } from '../services/audit.service.js'
@@ -71,6 +72,21 @@ function seCruzaConAlgoSuyo(citas, inicio, fin) {
       const cf = new Date(c.endsAt).getTime()
       return a < cf && b > ci
     })
+}
+
+/**
+ * Si esta persona ya firmó el consentimiento en alguna sesión.
+ *
+ * Es la misma pregunta que se hace `crearCita` para heredar la firma, hecha
+ * aquí ANTES de crear nada: de ella depende si hay que pedírsela o no, y
+ * pedirla dos veces a quien ya firmó es tan malo como no pedirla nunca.
+ */
+async function yaFirmoAlgunaVez(patientId) {
+  const previa = await prisma.appointment.findFirst({
+    where: { patientId, consentSigned: true },
+    select: { id: true },
+  })
+  return previa !== null
 }
 
 /** Respuesta idéntica para un token inventado y para una persona borrada. */
@@ -185,6 +201,17 @@ export const AgendaPersonaController = {
           profesional: asignacion.professional.fullName,
           modalidad: paciente.preferredModality ?? null,
           estado: asignacion.status,
+          /**
+           * Si le va a tocar firmar al elegir su hora.
+           *
+           * La pantalla lo necesita ANTES de que elija, no después: el
+           * consentimiento se le enseña junto a la hora, en la misma decisión.
+           * Quien ya firmó en una sesión anterior no lo vuelve a ver.
+           */
+          consentimiento: { firmado: await yaFirmoAlgunaVez(paciente.id) },
+          // Quien firma por un menor es su madre, su padre o su acudiente, y el
+          // texto de la casilla tiene que decirlo antes de que la marque.
+          esMenor: paciente.isMinor ?? false,
           proxima: proxima
             ? { inicio: proxima.startsAt, cuando: enPalabras(proxima.startsAt) }
             : null,
@@ -205,9 +232,21 @@ export const AgendaPersonaController = {
   /**
    * POST /api/mi-agenda/:token
    *
-   * La persona elige una hora. Dos caminos según dónde esté el acompañamiento:
-   * si el profesional aceptó y falta cuadrar, esto ACTIVA la asignación; si ya
-   * está en curso, es simplemente la sesión siguiente.
+   * La persona elige una hora Y acepta el consentimiento, en un solo acto.
+   *
+   * Eran dos: se creaba la cita APARTADA y la pantalla le pedía la firma
+   * después. Quien cerraba ahí dejaba una hora ocupada que no servía para
+   * nada —sin firma no se empieza la sesión—, y coordinación tenía que
+   * perseguir una firma o soltar el espacio a mano. La hora bloqueada era
+   * real; la sesión, no.
+   *
+   * Sin firma no se crea nada. La cita nace CONFIRMADA porque ya no le falta
+   * nada: la persona eligió la hora y aceptó el consentimiento en el mismo
+   * momento. Quien ya firmó en una sesión anterior no lo vuelve a ver.
+   *
+   * Dos caminos según dónde esté el acompañamiento: si el profesional aceptó
+   * y falta cuadrar, esto ACTIVA la asignación; si ya está en curso, es
+   * simplemente la sesión siguiente.
    */
   async agendar(req, res, next) {
     try {
@@ -229,6 +268,7 @@ export const AgendaPersonaController = {
       if (Number.isNaN(inicio.getTime())) {
         return res.status(422).json(failure('Esa hora no es válida.'))
       }
+
       if (inicio <= new Date()) {
         return res.status(422).json(failure('Esa hora ya pasó. Elige otra.'))
       }
@@ -280,26 +320,56 @@ export const AgendaPersonaController = {
           )
       }
 
+      /**
+       * La firma, después de la hora y antes de crear nada.
+       *
+       * Después de la hora porque los mensajes se estorban: a quien elige una
+       * hora que acaban de tomar hay que decirle eso, no que acepte un
+       * consentimiento que no va a servirle para esa hora.
+       *
+       * Antes de crear porque es toda la diferencia con el flujo viejo: si
+       * falta la firma, no queda ninguna hora ocupada esperando por ella.
+       *
+       * Se valida con el mismo esquema que la pantalla del consentimiento —el
+       * nombre tecleado es la firma, la versión dice qué texto aceptó—: dos
+       * reglas para lo mismo acaban aceptando en una puerta lo que la otra
+       * rechaza.
+       */
+      let firma = null
+      if (!(await yaFirmoAlgunaVez(paciente.id))) {
+        const leido = firmarConsentimientoSchema.safeParse(req.body?.consentimiento ?? {})
+        if (!leido.success) {
+          return res
+            .status(422)
+            .json(
+              failure(
+                leido.error.issues[0]?.message ??
+                  'Para agendar tu sesión necesitamos que aceptes el consentimiento.',
+              ),
+            )
+        }
+        firma = leido.data
+      }
+
       const modalidad = modalidadDeSesion(
         paciente.preferredModality,
         asignacion.professional.modality,
       )
 
       /**
-       * Nace APARTADA, no confirmada. La confirma la firma.
+       * Nace CONFIRMADA porque ya no le falta nada.
        *
-       * Nacía en CONFIRMADA y la pantalla le decía «tu sesión quedó agendada»
-       * — y justo debajo le pedía el consentimiento. Si cerraba sin firmar, la
-       * cita quedaba en pie y confirmada: el profesional recibía su aviso, el
-       * espacio quedaba ocupado y la sesión no podía hacerse, porque sin
-       * consentimiento firmado no se empieza. Le habíamos dicho que estaba
-       * lista una cosa que no lo estaba.
+       * Antes nacía APARTADA y se confirmaba con una firma posterior, en otra
+       * pantalla. Ahora la firma viene en esta misma petición —o ya estaba de
+       * una sesión anterior—, así que no queda ningún trámite en el aire que
+       * justifique un estado intermedio.
        *
-       * PROGRAMADA le guarda la hora mientras lee y firma —perder el espacio
-       * por leer sería peor— y CONFIRMADA llega con la firma. Si ya había
-       * firmado antes, `crearCita` hereda el consentimiento y se confirma sola
-       * aquí mismo: a nadie se le pide firmar dos veces.
+       * Si firma ahora, se escribe aquí: es la primera sesión y no hay de
+       * dónde heredarla. Si ya había firmado, `crearCita` la hereda sola y
+       * `firma` es null.
        */
+      const conFirma = firma ? { consentSigned: true, consentSignedAt: new Date() } : {}
+
       const cita =
         asignacion.status === 'ACEPTADA'
           ? (await confirmarHorario({
@@ -307,7 +377,8 @@ export const AgendaPersonaController = {
               inicio,
               fin,
               modalidad,
-              estado: 'PROGRAMADA',
+              estado: 'CONFIRMADA',
+              ...conFirma,
               actorId: null,
             })).cita
           : await crearCita({
@@ -316,14 +387,31 @@ export const AgendaPersonaController = {
               inicio,
               fin,
               modalidad,
-              estado: 'PROGRAMADA',
+              estado: 'CONFIRMADA',
+              ...conFirma,
               actorId: null,
             })
 
-      // Segunda sesión, o consentimiento ya firmado en su día: no hay nada que
-      // esperar, así que la hora queda confirmada sin más trámite.
-      if (cita.consentSigned) {
-        await cambiarEstado({ citaId: cita.id, nuevoEstado: 'CONFIRMADA', actorId: null })
+      /**
+       * Quién firmó queda en la auditoría, no en la cita: el nombre que teclea
+       * la persona es su firma, y una firma es un hecho que se registra, no un
+       * dato que se edita. Mismo rastro que deja la pantalla del
+       * consentimiento, para que las dos puertas se lean igual.
+       */
+      if (firma) {
+        await registrar({
+          req,
+          action: ACCION.EDITAR,
+          entity: 'cita_consentimiento',
+          entityId: cita.id,
+          actorEmail: paciente.email || `${paciente.fullName} (persona)`,
+          after: {
+            consentSigned: true,
+            firma: firma.nombreFirma,
+            version: firma.version,
+            alAgendar: true,
+          },
+        })
       }
 
       /**
@@ -360,19 +448,8 @@ export const AgendaPersonaController = {
             inicio: cita.startsAt,
             cuando: enPalabras(cita.startsAt),
             profesional: asignacion.professional.fullName,
-            /**
-             * El consentimiento, en la misma pantalla.
-             *
-             * Era otro enlace y otro mensaje: la persona elegía su hora, y
-             * después alguien tenía que mandarle por WhatsApp el enlace para
-             * firmar. Dos toques humanos para una firma que puede darse ahí
-             * mismo, con la sesión recién acordada y la persona delante de la
-             * pantalla. Si ya lo firmó en una sesión anterior, no se le vuelve
-             * a pedir: la cita hereda la firma y aquí llega firmada.
-             */
-            consentimiento: cita.consentSigned
-              ? { firmado: true, token: null }
-              : { firmado: false, token: crearEnlaceConsentimiento(cita.id) },
+            // Siempre firmada: sin firma no se llega hasta aquí.
+            consentimiento: { firmado: cita.consentSigned === true },
             esMenor: paciente.isMinor ?? false,
           },
           'Listo, tu sesión quedó agendada.',

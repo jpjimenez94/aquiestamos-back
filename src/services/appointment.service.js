@@ -474,6 +474,16 @@ export async function confirmarHorario({
   meetingProvider,
   actorId,
   estado = ESTADOS.CONFIRMADA,
+  /**
+   * La firma del consentimiento, cuando se da en el mismo acto de agendar.
+   *
+   * Sin destructurarla se caería en silencio —el mismo fallo que tuvo
+   * `meetingUrl` durante meses— y la persona firmaría al elegir su hora para
+   * que la cita naciera sin firma. `crearCita` ya sabe heredarla de una
+   * sesión anterior; esto es para la primera, que no tiene de dónde.
+   */
+  consentSigned,
+  consentSignedAt,
 }) {
   const asignacion = await CaseAssignmentModel.findById(asignacionId)
   if (!asignacion) throw new DomainError('NO_ENCONTRADO', 'La asignación no existe')
@@ -508,6 +518,8 @@ export async function confirmarHorario({
       permitirFueraDeFranja: fueraDeFranja,
       meetingUrl,
       meetingProvider,
+      consentSigned,
+      consentSignedAt,
       actorId,
     })
 

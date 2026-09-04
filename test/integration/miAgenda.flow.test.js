@@ -3,10 +3,18 @@ import request from 'supertest'
 import { createApp } from '../../src/app.js'
 import { prisma } from '../../src/config/database.js'
 import { crearEnlaceAgenda } from '../../src/auth/enlaceAgenda.js'
-import { crearEnlaceConsentimiento } from '../../src/auth/enlaceConsentimiento.js'
 
 const app = createApp()
 const MARCA = `miagenda-${Date.now()}`
+
+/**
+ * La firma que viaja con la hora.
+ *
+ * Elegir hora y aceptar el consentimiento son un solo acto: sin firma no se
+ * crea nada. El nombre tecleado ES la firma, y la versión dice qué texto
+ * exacto aceptó.
+ */
+const FIRMA = { acepta: true, nombreFirma: 'Ana Ruiz Prueba', version: 'sesion-2026-08-2' }
 
 /**
  * La persona agenda su propia sesión.
@@ -115,11 +123,58 @@ describe('mi agenda', () => {
     expect(JSON.stringify(res.body.data.persona)).not.toContain(MARCA)
   })
 
-  it('la persona reserva una hora y queda agendada', async () => {
+  /**
+   * Sin consentimiento no se crea NADA. Va antes de la reserva a propósito:
+   * después ya habría firmado, y esto solo se puede probar sin firmar.
+   *
+   * Es el corazón del cambio. Antes se creaba la cita APARTADA y se le pedía
+   * la firma en la pantalla siguiente: quien cerraba ahí dejaba ocupada una
+   * hora que no servía para nada —sin consentimiento no se empieza la sesión—
+   * y coordinación tenía que perseguir la firma o soltar el espacio a mano.
+   * La hora bloqueada era real; la sesión, no.
+   */
+  it('sin consentimiento no se agenda, y no queda ninguna hora ocupada', async () => {
     const antes = await request(app).get(`/api/mi-agenda/${token}`)
     const hueco = antes.body.data.huecos[0]
 
     const res = await request(app).post(`/api/mi-agenda/${token}`).send({ inicio: hueco.inicio })
+    expect(res.status).toBe(422)
+
+    const cita = await prisma.appointment.findFirst({
+      where: { patientId: pacienteId, startsAt: new Date(hueco.inicio) },
+    })
+    expect(cita).toBeNull()
+
+    // Y la hora sigue ofreciéndose: no se quedó apartada por nadie.
+    const despues = await request(app).get(`/api/mi-agenda/${token}`)
+    expect(despues.body.data.huecos.some((h) => h.inicio === hueco.inicio)).toBe(true)
+  })
+
+  /** Aceptar sin escribir el nombre tampoco: el nombre ES la firma. */
+  it('marcar la casilla sin firmar con el nombre no agenda', async () => {
+    const antes = await request(app).get(`/api/mi-agenda/${token}`)
+    const hueco = antes.body.data.huecos[0]
+
+    const res = await request(app)
+      .post(`/api/mi-agenda/${token}`)
+      .send({ inicio: hueco.inicio, consentimiento: { acepta: true, version: 'sesion-2026-08-2' } })
+    expect(res.status).toBe(422)
+    expect(await prisma.appointment.count({ where: { patientId: pacienteId } })).toBe(0)
+  })
+
+  /** Y la pantalla sabe antes de elegir si le va a tocar firmar. */
+  it('la agenda avisa si todavía no ha firmado', async () => {
+    const res = await request(app).get(`/api/mi-agenda/${token}`)
+    expect(res.body.data.consentimiento).toEqual({ firmado: false })
+  })
+
+  it('la persona reserva una hora y queda agendada', async () => {
+    const antes = await request(app).get(`/api/mi-agenda/${token}`)
+    const hueco = antes.body.data.huecos[0]
+
+    const res = await request(app)
+      .post(`/api/mi-agenda/${token}`)
+      .send({ inicio: hueco.inicio, consentimiento: FIRMA })
     expect(res.status).toBe(201)
 
     const cita = await prisma.appointment.findFirst({
@@ -130,55 +185,43 @@ describe('mi agenda', () => {
   })
 
   /**
-   * Nace APARTADA. La confirma la firma del consentimiento.
+   * Nace CONFIRMADA y firmada, porque ya no le falta nada.
    *
-   * Ha ido cambiando dos veces, y las dos por el mismo motivo: que el estado
-   * diga la verdad. Nacía PROGRAMADA como una hora propuesta a ciegas, y el
-   * portal ofrecía un botón «Confirmar Cita» sobre la hora que ella misma
-   * acababa de escoger; se pasó a CONFIRMADA porque no quedaba nadie a quien
-   * preguntar.
+   * Ha cambiado tres veces, y las tres por el mismo motivo: que el estado diga
+   * la verdad. Nacía PROGRAMADA como una hora propuesta a ciegas, y el portal
+   * ofrecía «Confirmar Cita» sobre la hora que ella misma acababa de escoger;
+   * pasó a CONFIRMADA porque no quedaba nadie a quien preguntar; volvió a
+   * PROGRAMADA porque sí quedaba algo —el consentimiento— y decirle «quedó
+   * agendada» mientras se lo pedíamos era una promesa a medias.
    *
-   * Pero sí quedaba algo: el consentimiento. La pantalla le decía «tu sesión
-   * quedó agendada» y justo debajo se lo pedía. Si cerraba sin firmar, la cita
-   * seguía en pie y confirmada, el profesional ya tenía su aviso, el espacio
-   * estaba ocupado — y la sesión no podía hacerse, porque sin consentimiento
-   * no se empieza. Estaba confirmada todo menos de verdad.
-   *
-   * PROGRAMADA le guarda la hora mientras lee: perder el espacio por leer
-   * sería peor. Firmar es lo que confirma.
+   * Ahora la firma viene en el mismo acto de elegir la hora, así que no queda
+   * ningún trámite en el aire y el estado intermedio ya no representa nada.
    */
-  it('la hora que elige ella queda apartada, y la confirma la firma', async () => {
+  it('la hora que elige ella nace confirmada y firmada', async () => {
     const cita = await prisma.appointment.findFirst({
       where: { patientId: pacienteId },
       orderBy: { createdAt: 'desc' },
     })
-    expect(cita.status).toBe('PROGRAMADA')
-    expect(cita.consentSigned).toBe(false)
+    expect(cita.status).toBe('CONFIRMADA')
+    expect(cita.consentSigned).toBe(true)
+    expect(cita.consentSignedAt).not.toBeNull()
   })
 
-  /**
-   * Y firmar es lo que la confirma. Ese es el otro lado del cambio.
-   *
-   * Sin esto, «apartada» se quedaría en apartada para siempre y habría que
-   * confirmarla a mano desde el portal — que es justo el botón que se quitó
-   * cuando la hora pasó a elegirla ella.
-   */
-  it('al firmar el consentimiento, la cita queda confirmada', async () => {
-    const antes = await prisma.appointment.findFirst({
-      where: { patientId: pacienteId },
+  /** Quién firmó y qué versión aceptó queda en la auditoría, no en la cita. */
+  it('la firma deja rastro con su versión', async () => {
+    const rastro = await prisma.auditLog.findFirst({
+      where: { entity: 'cita_consentimiento' },
       orderBy: { createdAt: 'desc' },
     })
-    expect(antes.status).toBe('PROGRAMADA')
+    expect(rastro).not.toBeNull()
+    expect(rastro.after.firma).toBe(FIRMA.nombreFirma)
+    expect(rastro.after.version).toBe(FIRMA.version)
+  })
 
-    const res = await request(app)
-      .post(`/api/consentimiento/${crearEnlaceConsentimiento(antes.id)}`)
-      .send({ acepta: true, nombreFirma: 'Ana Ruiz', version: '1.0' })
-
-    expect(res.status).toBe(200)
-
-    const despues = await prisma.appointment.findUnique({ where: { id: antes.id } })
-    expect(despues.consentSigned).toBe(true)
-    expect(despues.status).toBe('CONFIRMADA')
+  /** Y a quien ya firmó no se le vuelve a pedir. */
+  it('después de firmar, la agenda deja de pedir el consentimiento', async () => {
+    const res = await request(app).get(`/api/mi-agenda/${token}`)
+    expect(res.body.data.consentimiento).toEqual({ firmado: true })
   })
 
   it('esa hora deja de ofrecerse', async () => {
@@ -240,19 +283,19 @@ describe('mi agenda', () => {
       const hueco = antes.body.data.huecos[0]
       const res = await request(app)
         .post(`/api/mi-agenda/${tokenIndiferente}`)
-        .send({ inicio: hueco.inicio })
+        .send({
+          inicio: hueco.inicio,
+          consentimiento: { ...FIRMA, nombreFirma: 'Indiferente Prueba' },
+        })
       expect(res.status).toBe(201)
 
       /**
-       * El consentimiento viene en la misma respuesta, para firmarlo en la
-       * misma pantalla. Era otro enlace y otro mensaje por WhatsApp: dos
-       * toques humanos para una firma que puede darse ahí mismo.
+       * Y sale firmada de una vez. Antes la respuesta traía un token para
+       * firmar en la pantalla siguiente: eso era mejor que el enlace por
+       * WhatsApp que hubo antes, pero seguía siendo un segundo paso que se
+       * podía no dar.
        */
-      expect(res.body.data.consentimiento).toEqual({ firmado: false, token: expect.any(String) })
-      const firma = await request(app)
-        .post(`/api/consentimiento/${res.body.data.consentimiento.token}`)
-        .send({ acepta: true, nombreFirma: 'Indiferente Prueba', version: 'sesion-2026-08-2' })
-      expect(firma.status).toBe(200)
+      expect(res.body.data.consentimiento).toEqual({ firmado: true })
       const firmada = await prisma.appointment.findFirst({ where: { patientId: indiferente.id } })
       expect(firmada.consentSigned).toBe(true)
 
@@ -346,12 +389,18 @@ describe('mi agenda', () => {
     expect(despues.body.data.huecos.length).toBeGreaterThan(0)
   })
 
+  /**
+   * Y sin volver a firmar: la firma es de la persona, no de la cita ni del
+   * profesional. Pedírsela otra vez porque le cambiaron de profesional sería
+   * cobrarle a ella un movimiento nuestro.
+   */
   it('y agenda con el profesional nuevo, no con el anterior', async () => {
     const estado = await request(app).get(`/api/mi-agenda/${token}`)
     const hueco = estado.body.data.huecos[0]
 
     const res = await request(app).post(`/api/mi-agenda/${token}`).send({ inicio: hueco.inicio })
     expect(res.status).toBe(201)
+    expect(res.body.data.consentimiento).toEqual({ firmado: true })
 
     const cita = await prisma.appointment.findFirst({
       where: { patientId: pacienteId, startsAt: new Date(hueco.inicio) },

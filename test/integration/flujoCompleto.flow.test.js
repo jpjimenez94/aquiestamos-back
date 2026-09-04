@@ -229,18 +229,43 @@ describe('el camino completo de una persona', () => {
     expect(vista.body.data.profesional).toBe('Beatriz Elena López')
     expect(vista.body.data.huecos.length).toBeGreaterThan(0)
 
+    // La pantalla ya sabe, antes de que elija, que le va a tocar firmar.
+    expect(vista.body.data.consentimiento).toEqual({ firmado: false })
+
     const elegido = vista.body.data.huecos[0]
-    const res = await request(app).post(`/api/mi-agenda/${token}`).send({ inicio: elegido.inicio })
+
+    // Sin el consentimiento no se crea nada: ni cita, ni hora ocupada.
+    const sinFirma = await request(app)
+      .post(`/api/mi-agenda/${token}`)
+      .send({ inicio: elegido.inicio })
+    expect(sinFirma.status).toBe(422)
+
+    const res = await request(app)
+      .post(`/api/mi-agenda/${token}`)
+      .send({
+        inicio: elegido.inicio,
+        consentimiento: {
+          acepta: true,
+          nombreFirma: 'Angie Paola Restrepo',
+          version: 'sesion-2026-08-2',
+        },
+      })
     expect(res.status).toBe(201)
+    expect(res.body.data.consentimiento).toEqual({ firmado: true })
 
     paso(
-      'Elige su hora · sin que nadie intervenga',
+      'Elige su hora y acepta el consentimiento · sin que nadie intervenga',
       [
         `Ve ${vista.body.data.huecos.length} horas libres de Beatriz y toca una.`,
-        `Queda agendada: ${res.body.data.cuando}`,
+        'En la misma pantalla lee el consentimiento y lo acepta con su nombre.',
+        `Queda agendada y firmada: ${res.body.data.cuando}`,
+        '',
+        '── Sin la firma no se agenda nada. Antes se apartaba la hora y se le',
+        '   pedía firmar después: quien cerraba ahí dejaba ocupado un espacio',
+        '   que no servía para nada, porque sin consentimiento no se empieza.',
         '',
         'La asignación pasa sola de ACEPTADA a ACTIVA.',
-        'En la auditoría queda que agendó ELLA, no coordinación.',
+        'En la auditoría queda que agendó ELLA, no coordinación, y qué versión firmó.',
       ].join('\n'),
     )
 
@@ -267,6 +292,9 @@ describe('el camino completo de una persona', () => {
 
     // La pantalla le avisa que ya tiene una y que esto sería adicional.
     expect(vista.body.data.proxima).not.toBeNull()
+
+    // Y ya no le pide firmar: la firma es de la persona, no de cada cita.
+    expect(vista.body.data.consentimiento).toEqual({ firmado: true })
 
     const otro = vista.body.data.huecos[0]
     const res = await request(app).post(`/api/mi-agenda/${token}`).send({ inicio: otro.inicio })
