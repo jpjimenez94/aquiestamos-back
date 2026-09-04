@@ -119,9 +119,21 @@ describe('la respuesta del profesional', () => {
     expect(r.data.nota).toBe('Después de las 4 mejor')
   })
 
-  /** Saber por qué no puede distingue un problema del caso de uno de la red. */
-  it('no deja rechazar sin decir por qué', () => {
-    expect(respuestaPropuestaSchema.safeParse({ acepta: false }).success).toBe(false)
+  /**
+   * Decir que no no cuesta una explicación.
+   *
+   * El motivo era obligatorio, y contradecía al mensaje que le trae hasta aquí:
+   * «no pasa nada, es voluntario, decirlo pronto ayuda más que un sí que no
+   * llega». Cobrarle una justificación es poner el peaje justo delante de la
+   * conducta que le pedimos — y quien no quiere explicarse no escribe «no puedo
+   * y ya»: cierra la pestaña, y nos quedamos sin motivo Y sin respuesta.
+   *
+   * El campo se queda porque saber por qué distingue un problema del caso de
+   * uno de la red. Lo que se va es la exigencia.
+   */
+  it('deja rechazar sin decir por qué, y acepta el motivo si lo da', () => {
+    expect(respuestaPropuestaSchema.safeParse({ acepta: false }).success).toBe(true)
+    expect(respuestaPropuestaSchema.safeParse({ acepta: false, motivo: '' }).success).toBe(true)
     expect(
       respuestaPropuestaSchema.safeParse({ acepta: false, motivo: 'Me queda muy lejos' }).success,
     ).toBe(true)

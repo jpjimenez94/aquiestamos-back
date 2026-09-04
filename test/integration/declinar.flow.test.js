@@ -156,17 +156,28 @@ describe('declinar un caso ya asignado', () => {
     expect(p.status).toBe('EN_ADMISION')
   })
 
-  it('no deja declinar sin decir por qué', async () => {
-    // Saber si fue por ciudad, por carga o por perfil distingue un problema de
-    // este caso de un problema de cómo se está asignando.
+  /**
+   * Y se puede declinar sin dar explicaciones.
+   *
+   * El motivo era obligatorio: sin él, 422. Pero el mensaje que le trae aquí le
+   * dice «no pasa nada: es voluntario, y decirlo pronto ayuda más que un sí que
+   * no llega», y luego la pantalla le cobraba una justificación por hacer
+   * exactamente eso. Quien no quiere explicarse no escribe «no puedo y ya»:
+   * cierra la pestaña — y entonces el caso se queda parado hasta que lo libere
+   * el barrido, que es el silencio que todo esto vino a quitar.
+   */
+  it('deja declinar sin decir por qué', async () => {
     const res = await request(app)
       .post(`/api/shared-cases/${ids.paciente}/propuesta`)
       .set('x-shared-case-token', await token())
       .send({ acepta: false })
 
-    // 422: la petición se entiende, pero le falta lo que la hace útil.
-    expect(res.status).toBe(422)
-    expect(await estadoActual()).toBe('ACEPTADA')
+    expect(res.status).toBe(200)
+    expect(await estadoActual()).toBe('RECHAZADA')
+
+    // Y la persona vuelve a la cola igual que si hubiera dado el motivo.
+    const p = await prisma.patient.findUnique({ where: { id: ids.paciente } })
+    expect(p.status).toBe('EN_ADMISION')
   })
 
   /**
