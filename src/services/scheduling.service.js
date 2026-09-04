@@ -305,15 +305,24 @@ function horaLegible(minutos) {
  * las franjas" sin decirle cuáles son las franjas la obliga a irse a otra
  * pantalla a averiguar lo que el sistema ya sabía.
  */
-export async function franjasEnPalabras(professionalId) {
+export async function franjasEnPalabras(professionalId, { separador } = {}) {
   const reglas = await prisma.availabilityRule.findMany({
     where: { professionalId, active: true },
   })
-  return describirFranjas(reglas)
+  return describirFranjas(reglas, { separador })
 }
 
 /** La parte pura, para poder probarla sin base de datos. */
-export function describirFranjas(reglas) {
+/**
+ * `separador` decide si sale una frase o una lista.
+ *
+ * Con comas cabe dentro de un mensaje de error —«declaró: lunes de…, martes
+ * de…»—, que es para lo que nació. Pero puesta así en un WhatsApp con siete
+ * días se vuelve ilegible: a partir del tercero hay que buscar con el dedo qué
+ * hora es de qué día, y es justo lo que se le pide comprobar antes de aceptar
+ * un caso. Ahí va una línea por día.
+ */
+export function describirFranjas(reglas, { separador = ', ' } = {}) {
   if (!reglas?.length) return null
 
   // En el orden de la semana, no en el del enum de la base.
@@ -322,7 +331,7 @@ export function describirFranjas(reglas) {
     .slice()
     .sort((a, b) => ORDEN.indexOf(a.weekday) - ORDEN.indexOf(b.weekday) || a.startMinute - b.startMinute)
     .map((r) => `${DIA_LARGO[r.weekday] ?? r.weekday} de ${horaLegible(r.startMinute)} a ${horaLegible(r.endMinute)}`)
-    .join(', ')
+    .join(separador)
 }
 
 const FRANJA_LARGA = { MANANA: 'en la mañana', TARDE: 'en la tarde', NOCHE: 'en la noche' }

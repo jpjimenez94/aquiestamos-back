@@ -190,7 +190,11 @@ export const PatientController = {
                    * disponibilidad que no puede ver es pedirle una firma a
                    * ciegas — y es de donde salen las cancelaciones tardías.
                    */
-                  agenda: await franjasEnPalabras(asignacion.professional.id),
+                  // Una línea por día: en el WhatsApp, siete días separados por
+                  // comas dejan de leerse a partir del tercero.
+                  agenda: await franjasEnPalabras(asignacion.professional.id, {
+                    separador: '\n· ',
+                  }),
                 },
               }
             : null,
