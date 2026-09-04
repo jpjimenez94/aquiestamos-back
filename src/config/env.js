@@ -62,17 +62,24 @@ export const env = {
   jitsiDomain: process.env.JITSI_DOMAIN ?? 'meet.jit.si',
 
   /**
-   * ¿Se acepta todavía un UUID de cita crudo como llave de la sala?
+   * ¿Se acepta todavía un UUID de cita crudo como llave de la sala? Ya no.
    *
-   * Hoy vale `true` porque no queda más remedio: todos los enlaces que ya
-   * circulan por WhatsApp son de la forma `/sala/<uuid-de-la-cita>`, y
-   * apagarlo de golpe deja tirada a gente con la cita ya confirmada.
+   * Valió `true` durante la transición, y no quedaba más remedio: los enlaces
+   * que circulaban por WhatsApp eran `/sala/<uuid-de-la-cita>` y apagarlo de
+   * golpe dejaba tirada a gente con la cita confirmada. Con la puerta abierta,
+   * quien conociera el UUID de una cita entraba a la sala.
    *
-   * Pero es una puerta abierta: quien conozca el UUID de una cita entra a la
-   * sala. Los enlaces nuevos ya salen firmados. En cuanto pasen las citas
-   * agendadas antes del cambio, poner `SALA_ACEPTA_UUID=false` y cerrarla.
+   * La transición terminó —producción lo tiene en `false` desde el 30 de
+   * agosto— y por eso el DEFECTO cambia. Que fuera `true` cuando la variable
+   * falta significaba que la puerta se abría sola en cualquier entorno donde
+   * nadie se acordara de ponerla: un despliegue nuevo, un staging, o correr en
+   * local. Un fallo de seguridad no debería depender de que alguien recuerde
+   * una variable.
+   *
+   * Para reabrirla hay que pedirlo a mano con `SALA_ACEPTA_UUID=true`, y
+   * entonces es una decisión, no un olvido.
    */
-  salaAceptaUuid: (process.env.SALA_ACEPTA_UUID ?? 'true').toLowerCase() !== 'false',
+  salaAceptaUuid: (process.env.SALA_ACEPTA_UUID ?? 'false').toLowerCase() === 'true',
 
   // Cuanto dura el enlace del tamizaje. Es mucho mas largo que el del caso a
   // proposito: quien esta en crisis no responde un formulario en el momento en

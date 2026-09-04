@@ -86,14 +86,26 @@ describe('los enlaces que ya circulan', () => {
     expect(leido?.rol).toBe(rol)
   })
 
-  /** Y la deuda más vieja: el uuid pelado, mientras SALA_ACEPTA_UUID lo permita. */
-  it('el uuid crudo se distingue de una llave firmada', () => {
-    const leido = verificarTokenSala(ID)
-    if (env.salaAceptaUuid) {
-      expect(leido?.esUuidCrudo).toBe(true)
-    } else {
-      expect(leido).toBeNull()
-    }
+  /**
+   * La deuda más vieja, ya saldada: el uuid pelado no abre nada.
+   *
+   * Durante la transición se aceptaba, porque los enlaces que circulaban por
+   * WhatsApp eran `/sala/<uuid-de-la-cita>` y apagarlo de golpe dejaba tirada a
+   * gente con la cita confirmada. Con esa puerta abierta, quien conociera el
+   * UUID de una cita entraba a la sala.
+   *
+   * Esta prueba se RAMIFICABA según el flag, así que pasaba tanto si la puerta
+   * estaba abierta como si no: no fijaba nada. Una prueba que se adapta a la
+   * configuración no protege de que la configuración cambie — que es justo de
+   * lo que había que protegerse aquí.
+   *
+   * Ahora afirma el defecto: cerrado. Reabrirlo exige `SALA_ACEPTA_UUID=true`
+   * a mano, y entonces esta prueba se pone roja, que es lo que tiene que pasar
+   * cuando alguien vuelve a abrir una puerta que se cerró a propósito.
+   */
+  it('el uuid crudo NO abre la sala', () => {
+    expect(env.salaAceptaUuid).toBe(false)
+    expect(verificarTokenSala(ID)).toBeNull()
   })
 
   it('cualquier otra cosa no abre', () => {

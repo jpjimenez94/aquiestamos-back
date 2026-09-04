@@ -119,10 +119,17 @@ enlace con `?rol=profesional`.
 Comprobado: el rol viaja sellado, un token manipulado se rechaza, y un token forjado con
 el secreto que está publicado en GitHub **ya no vale**.
 
-**Puerta que sigue abierta a propósito:** `SALA_ACEPTA_UUID=true`. Los enlaces que ya
-circulan por WhatsApp son `/sala/<uuid>` y apagarlo de golpe deja tirada a gente con la
-cita confirmada. Mientras siga en `true`, quien conozca el UUID de una cita entra a su
-sala. **Ponerlo en `false` cuando pasen las citas agendadas antes del cambio.**
+**Puerta cerrada (4-sep-2026).** Estuvo abierta a propósito durante la transición:
+los enlaces que circulaban por WhatsApp eran `/sala/<uuid>` y apagarlo de golpe dejaba
+tirada a gente con la cita confirmada. Mientras estuvo en `true`, quien conociera el UUID
+de una cita entraba a su sala.
+
+Producción lo tiene en `false` desde el 30 de agosto, y ahora **el defecto del código
+también es `false`**: valía `true` cuando la variable faltaba, así que la puerta se abría
+sola en cualquier entorno donde nadie se acordara de ponerla —un despliegue nuevo, un
+staging, correr en local—. Un fallo de seguridad no debería depender de que alguien
+recuerde una variable. Reabrirla exige `SALA_ACEPTA_UUID=true` a mano, y entonces
+`test/enlaceDeSala.test.js` se pone rojo, que es lo que tiene que pasar.
 
 ### 5. (Encontrado al arreglar el 4) El profesional entraba a una sala vacía
 
@@ -161,9 +168,10 @@ Backend y frontend en `main`, CI verde en ambos, producción verificada. `MEETIN
 está puesta en Railway. Las migraciones responden *«19 migrations found · Database schema
 is up to date»*.
 
-**Lo único con fecha:** poner `SALA_ACEPTA_UUID=false` a partir del **30 de agosto**. La
-última cita agendada antes del cambio a enlaces firmados es el 29 a las 8 p. m.; desde el
-30, esa puerta ya no protege a nadie y solo deja entrar a quien adivine un UUID.
+**Lo único con fecha, ya hecho:** `SALA_ACEPTA_UUID=false` desde el **30 de agosto**. La
+última cita agendada antes del cambio a enlaces firmados era el 29 a las 8 p. m.; desde el
+30, esa puerta ya no protegía a nadie y solo dejaba entrar a quien adivinara un UUID.
+El 4 de septiembre se cerró también el defecto del código, que seguía siendo abierto.
 
 ---
 
@@ -483,7 +491,7 @@ informe de un fallo.
 | `DATABASE_URL` | ✔ | Apunta a producción en local; el arranque lo avisa a gritos. Las pruebas usan `.env.test` |
 | `SHARED_CASE_SECRET` | ✔ | Sin esto el backend **no arranca** (a propósito) |
 | `MEETING_SECRET` | ✔ | Firma los enlaces de sala. Sin esto **no arranca**. Distinta de la anterior |
-| `SALA_ACEPTA_UUID` | | `true`. Ponlo en `false` para cerrar los enlaces de sala sin firma |
+| `SALA_ACEPTA_UUID` | | `false`. Ponlo en `true` solo para reabrir los enlaces de sala sin firma |
 | `CORS_ORIGINS` | | Coma-separado. Por defecto `http://localhost:3000` |
 | `SESSION_TTL_HOURS` | | 12 |
 | `SHARED_CASE_TTL_HOURS` | | 12 |
