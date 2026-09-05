@@ -2,6 +2,8 @@ import { prisma } from '../config/database.js'
 import { DomainError } from '../errors/DomainError.js'
 import { SettingsService } from './settings.service.js'
 import { huboSesion } from './appointmentState.service.js'
+import { crearEnlaceCuidado } from '../auth/enlaceCuidado.js'
+import { env } from '../config/env.js'
 
 /**
  * SERVICIO: cuidado del equipo.
@@ -11,7 +13,8 @@ import { huboSesion } from './appointmentState.service.js'
  *
  *   1. El check-in. A partir de cierto número de sesiones hechas —en toda la
  *      red, con cualquier persona, porque es la carga acumulada la que quema—
- *      el profesional puede decir cómo está desde su mismo enlace del caso.
+ *      el profesional puede decir cómo está desde su propio enlace, que apunta
+ *      a él y no a ninguno de sus casos.
  *   2. El supervisor. Quién puede facilitar sesiones grupales ya se sabe por
  *      el formulario de voluntarios: coordinación se lo pregunta por WhatsApp
  *      y lo marca desde su ficha. No se le pregunta desde el enlace del caso.
@@ -164,25 +167,19 @@ export function supervisoresDisponibles() {
 /**
  * A quién puede coordinación ofrecerle el espacio hoy.
  *
- * El bloque «¿Cómo estás tú?» vive al final del enlace del caso, y el
- * profesional solo lo ve si entra. Sin esta lista, el módulo esperaba a que
- * alguien se acordara solo de pedir ayuda —justo lo que no hace quien está
- * cargado—, y coordinación no tenía forma de saber a quién ofrecérselo.
+ * El profesional solo ve «¿Cómo estás tú?» si abre su enlace. Sin esta lista,
+ * el módulo esperaba a que alguien se acordara solo de pedir ayuda —justo lo
+ * que no hace quien está cargado—, y coordinación no tenía forma de saber a
+ * quién ofrecérselo.
  *
- * Son los que ya cruzaron el umbral y no tienen una petición sin atender. Hace
- * falta además un caso abierto suyo: el enlace del bloque es el de un caso, y
- * sin ninguno vivo no hay puerta por la que mandarlo.
+ * Son los que ya cruzaron el umbral y no tienen una petición sin atender. Ya
+ * no hace falta que tengan un caso abierto: el enlace es suyo, no de un caso.
+ * Cada uno se lleva el suyo recién firmado, así que nunca se manda uno vencido.
  */
 export async function profesionalesParaOfrecerles(umbral, cuenta) {
-  const asignaciones = await prisma.caseAssignment.findMany({
-    where: { status: { in: ['ACEPTADA', 'ACTIVA'] }, deletedAt: null, patient: { deletedAt: null } },
-    select: {
-      patientId: true,
-      professional: {
-        select: { id: true, fullName: true, phone: true, status: true, deletedAt: true },
-      },
-    },
-    orderBy: { startedAt: 'desc' },
+  const profesionales = await prisma.professional.findMany({
+    where: { status: 'ACTIVO', deletedAt: null },
+    select: { id: true, fullName: true, phone: true },
   })
 
   const pendientes = await prisma.professionalCheckIn.findMany({
@@ -198,24 +195,17 @@ export async function profesionalesParaOfrecerles(umbral, cuenta) {
   const ultimaVez = new Map()
   for (const c of ultimos) if (!ultimaVez.has(c.professionalId)) ultimaVez.set(c.professionalId, c.createdAt)
 
-  const vistos = new Map()
-  for (const a of asignaciones) {
-    const p = a.professional
-    if (!p || p.deletedAt || p.status !== 'ACTIVO') continue
-    if (yaPidieron.has(p.id) || vistos.has(p.id)) continue
-    const sesiones = cuenta(p.id)
-    if (sesiones < umbral) continue
-    vistos.set(p.id, {
+  return profesionales
+    .filter((p) => !yaPidieron.has(p.id) && cuenta(p.id) >= umbral)
+    .map((p) => ({
       id: p.id,
       nombre: p.fullName,
       telefono: p.phone,
-      sesiones,
-      // Uno de sus casos abiertos: por ahí entra al bloque.
-      pacienteId: a.patientId,
+      sesiones: cuenta(p.id),
+      enlace: `${env.sitioUrl.replace(/\/$/, '')}/cuidado/${crearEnlaceCuidado(p.id)}`,
       ultimaVez: ultimaVez.get(p.id) ?? null,
-    })
-  }
-  return [...vistos.values()].sort((a, b) => b.sesiones - a.sesiones)
+    }))
+    .sort((a, b) => b.sesiones - a.sesiones)
 }
 
 /** Lo que ve coordinación al abrir el módulo. */

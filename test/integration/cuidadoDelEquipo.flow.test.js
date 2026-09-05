@@ -3,6 +3,7 @@ import request from 'supertest'
 import { createApp } from '../../src/app.js'
 import { prisma } from '../../src/config/database.js'
 import { hashearClave } from '../../src/auth/password.js'
+import { crearEnlaceCuidado } from '../../src/auth/enlaceCuidado.js'
 
 const app = createApp()
 const MARCA = `cuidado-${Date.now()}`
@@ -13,8 +14,9 @@ const hace = (h) => new Date(Date.now() - h * 3600000)
  * CUIDADO DEL EQUIPO, de punta a punta.
  *
  * Quien acompaña también se carga. Lo que se prueba aquí es el camino
- * completo y sus dos puertas: la del profesional —desde su enlace del caso,
- * con el token de siempre— y la de coordinación —con sesión y permiso—.
+ * completo y sus dos puertas: la del profesional —su propio enlace firmado,
+ * que apunta a él y no a ninguno de sus casos— y la de coordinación —con
+ * sesión y permiso—.
  *
  *   1. Antes del umbral no se abre el espacio, y la puerta lo vuelve a
  *      comprobar aunque la pantalla no enseñe el botón.
@@ -31,6 +33,7 @@ const hace = (h) => new Date(Date.now() - h * 3600000)
 
 const ids = {}
 let tokenCaso
+let tokenCuidado
 let tokenAdmin
 let tokenLectura
 
@@ -128,6 +131,7 @@ beforeAll(async () => {
 
   const auth = await request(app).post(`/api/shared-cases/${persona.id}/auth`).send({ email: acompana.email })
   tokenCaso = auth.body.data.token
+  tokenCuidado = crearEnlaceCuidado(acompana.id)
   tokenAdmin = await login(admin.email)
   tokenLectura = await login(lectura.email)
 })
@@ -146,17 +150,34 @@ afterAll(async () => {
   await prisma.user.deleteMany({ where: { id: { in: ids.usuarios } } })
 })
 
-const desdeElEnlace = (metodo, ruta) =>
-  request(app)[metodo](`/api/shared-cases/${ids.persona}${ruta}`).set('x-shared-case-token', tokenCaso)
+/** Su propio enlace: apunta al profesional, no a un caso. */
+const suEnlace = (metodo, ruta = '') =>
+  request(app)[metodo](`/api/cuidado-profesional/${tokenCuidado}${ruta}`)
 
-describe('desde el enlace del caso', () => {
-  it('sin token no hay puerta', async () => {
-    const r = await request(app).get(`/api/shared-cases/${ids.persona}/cuidado`)
-    expect(r.status).toBe(401)
+describe('desde su propio enlace', () => {
+  it('un enlace inventado no abre nada', async () => {
+    expect((await request(app).get('/api/cuidado-profesional/esto-no-es-un-token')).status).toBe(404)
+  })
+
+  /**
+   * La puerta que existió un día y se cerró: el espacio salió del enlace del
+   * caso. Colgado de ahí ataba el espacio de quien acompaña a una persona
+   * acompañada, y mezclaba dos conversaciones en la misma pantalla.
+   */
+  it('ya no cuelga del enlace del caso', async () => {
+    const ver = await request(app)
+      .get(`/api/shared-cases/${ids.persona}/cuidado`)
+      .set('x-shared-case-token', tokenCaso)
+    expect(ver.status).toBe(404)
+    const pedir = await request(app)
+      .post(`/api/shared-cases/${ids.persona}/cuidado/check-in`)
+      .set('x-shared-case-token', tokenCaso)
+      .send({ need: 'DESCARGARME' })
+    expect(pedir.status).toBe(404)
   })
 
   it('cuenta sus sesiones y dice desde cuándo se abre el espacio', async () => {
-    const r = await desdeElEnlace('get', '/cuidado')
+    const r = await suEnlace('get')
     expect(r.status).toBe(200)
     expect(r.body.data.sesiones).toBe(2)
     expect(r.body.data.umbral).toBe(3)
@@ -167,7 +188,7 @@ describe('desde el enlace del caso', () => {
 
   /** La pantalla no enseña el botón antes del umbral; la puerta lo vuelve a comprobar. */
   it('antes del umbral, la puerta no acepta el check-in', async () => {
-    const r = await desdeElEnlace('post', '/cuidado/check-in').send({ need: 'DESCARGARME' })
+    const r = await suEnlace('post').send({ need: 'DESCARGARME' })
     expect(r.status).toBe(409)
     expect(r.body.message).toContain('a partir de 3')
     expect(await prisma.professionalCheckIn.count({ where: { professionalId: ids.acompana } })).toBe(0)
@@ -175,16 +196,16 @@ describe('desde el enlace del caso', () => {
 
   it('con la tercera sesión hecha, el espacio se abre', async () => {
     await sesionHecha(ids.acompana, ids.persona, ids.asignacion, 24)
-    const r = await desdeElEnlace('get', '/cuidado')
+    const r = await suEnlace('get')
     expect(r.body.data.sesiones).toBe(3)
     expect(r.body.data.habilitado).toBe(true)
   })
 
   it('el check-in entra con la carga con la que llegó, y sin necesidad no entra', async () => {
-    const sinNecesidad = await desdeElEnlace('post', '/cuidado/check-in').send({ notes: 'ando cansada' })
+    const sinNecesidad = await suEnlace('post').send({ notes: 'ando cansada' })
     expect(sinNecesidad.status).toBe(422)
 
-    const r = await desdeElEnlace('post', '/cuidado/check-in').send({
+    const r = await suEnlace('post').send({
       need: 'AYUDA_CON_UN_CASO',
       notes: 'Hay un caso que me está pesando.',
       questionForGroup: 'Cómo poner límites cuando la persona escribe fuera de la sesión',
@@ -198,10 +219,10 @@ describe('desde el enlace del caso', () => {
     ids.checkIn = guardado.id
   })
 
-  /** La puerta que existió un día y se cerró: desde el enlace no se supervisa. */
-  it('desde el enlace no hay forma de ofrecerse como supervisor', async () => {
-    const r = await desdeElEnlace('put', '/cuidado/supervisor').send({ disponible: true })
-    expect(r.status).toBe(404)
+  /** Supervisar tampoco se pregunta aquí: lo marca coordinación desde la ficha. */
+  it('su enlace no dice nada de supervisar', async () => {
+    const r = await suEnlace('get')
+    expect(r.body.data.esSupervisor).toBeUndefined()
     const p = await prisma.professional.findUnique({ where: { id: ids.acompana } })
     expect(p.supervisorVolunteer).toBe(false)
   })
@@ -231,6 +252,19 @@ describe('desde el portal', () => {
     expect(r.body.data.supervisores.map((s) => s.id)).toContain(ids.facilita)
     // Quien no fue marcado no está.
     expect(r.body.data.supervisores.map((s) => s.id)).not.toContain(ids.acompana)
+  })
+
+  /**
+   * El puente que faltaba: sin esta lista, el módulo esperaba a que alguien
+   * cargado se acordara solo de pedir ayuda.
+   */
+  it('lista a quién ofrecerle el espacio, con su enlace firmado', async () => {
+    const r = await comoAdmin('get', '')
+    const suyo = r.body.data.paraOfrecer.find((p) => p.id === ids.facilita)
+    expect(suyo).toBeUndefined() // no llega al umbral
+
+    // El que sí llegó ya pidió el espacio, así que sale de la lista.
+    expect(r.body.data.paraOfrecer.map((p) => p.id)).not.toContain(ids.acompana)
   })
 
   it('solo lectura ve, pero no convoca', async () => {
@@ -302,7 +336,7 @@ describe('desde el portal', () => {
   })
 
   it('el profesional ve desde su enlace que ya tiene sesión convocada', async () => {
-    const r = await desdeElEnlace('get', '/cuidado')
+    const r = await suEnlace('get')
     const mio = r.body.data.checkIns.find((c) => c.id === ids.checkIn)
     expect(mio.sesionGrupal?.id).toBe(ids.sesion)
     expect(mio.sesionGrupal?.estado).toBe('PROGRAMADA')

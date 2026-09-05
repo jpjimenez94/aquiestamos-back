@@ -252,7 +252,7 @@ Cada uno es un token HMAC firmado con `SHARED_CASE_SECRET`, diferenciados por el
 
 ---
 
-**Cuidado del equipo desde el enlace del caso** (`/portal/caso/[id]`, al final, con el mismo token): `GET /shared-cases/:id/cuidado` (sesiones hechas, umbral, si se abre el espacio, si se ofreció), y `POST …/cuidado/check-in` («¿Cómo estás tú?»: apoyo para mí · ayuda con un caso · descargarme, más notas y la pregunta para la sesión grupal). El profesional lo decide el token, nunca la URL. Ofrecerse como supervisor NO se pregunta aquí: se sabe por el formulario de voluntarios, se cuadra por WhatsApp y lo marca coordinación desde la ficha (`PATCH /cuidado/supervisores/:id`). Se abre a partir de `SESIONES_PARA_CHECKIN` sesiones hechas en toda la red (`huboSesion`, la misma regla de las métricas).
+**«¿Cómo estás tú?»** (`/cuidado/[token]`, enlace propio del PROFESIONAL, 90 días): `GET /cuidado-profesional/:token` (sesiones hechas, umbral, si se abre el espacio) y `POST` el mismo (apoyo para mí · ayuda con un caso · descargarme, más notas y la pregunta para la sesión grupal). Apunta a él y no a un caso: le sirve aunque los cierre todos, y no mezcla su espacio con el seguimiento de una persona acompañada. Ofrecerse como supervisor NO se pregunta aquí: se sabe por el formulario de voluntarios, se cuadra por WhatsApp y lo marca coordinación desde la ficha (`PATCH /cuidado/supervisores/:id`).
 
 ## 🖥️ Portal interno — página por página
 

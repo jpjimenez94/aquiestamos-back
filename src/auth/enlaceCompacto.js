@@ -45,6 +45,13 @@ export const CODIGO = {
    */
   salaPaciente: 7,
   salaProfesional: 8,
+
+  /**
+   * «¿Cómo estás tú?»: el espacio de quien acompaña. Apunta al PROFESIONAL,
+   * como `documentos`, y no a un caso: el espacio es suyo, no de la persona
+   * a la que acompaña.
+   */
+  cuidado: 9,
 }
 
 const LARGO_CUERPO = 21
