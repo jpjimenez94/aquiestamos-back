@@ -226,7 +226,7 @@ export const PatientController = {
            * distintas.
            */
           reportes: reportes.map((r) => {
-            const suya = citas.find((c) => reporteDeLaCita(c, reportes)?.id === r.id)
+            const suya = citas.find((c) => reporteDeLaCita(c, reportes, citas)?.id === r.id)
             return {
               ...reporte(r),
               profesional: r.assignment?.professional?.fullName ?? null,
@@ -252,7 +252,7 @@ export const PatientController = {
           })),
           enlaceFeedback,
           enlaceAgenda,
-          citas: citas.map((c) => ({ ...cita(c), reporteId: reporteDeLaCita(c, reportes)?.id ?? null })),
+          citas: citas.map((c) => ({ ...cita(c), reporteId: reporteDeLaCita(c, reportes, citas)?.id ?? null })),
           encuesta,
         }),
       )

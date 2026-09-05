@@ -122,14 +122,41 @@ export const REPORTE_NIEGA = 'NO_ASISTIO'
  * después de que empezara. Con dos sesiones en el mismo caso, a cada una le
  * toca el suyo.
  */
-export function reporteDeLaCita(cita, reportes) {
-  if (!cita.caseAssignmentId || !reportes?.length) return null
+export function reporteDeLaCita(cita, reportes, citasDelCaso = []) {
+  if (!cita?.caseAssignmentId || !reportes?.length) return null
   const empezo = new Date(cita.startsAt).getTime()
+
+  /**
+   * Dónde termina «esta sesión»: cuando empieza la siguiente del mismo caso.
+   *
+   * Sin esto, un reporte tardío se lo quedaban TODAS las sesiones anteriores
+   * a la vez. Pasó en producción: Estivalys escribió el 2 de septiembre a las
+   * 7:56 p. m. «se reprograma la cita de hoy», y el portal se lo colgó
+   * también a la sesión del 29 de agosto —que quedó dada por cerrada con un
+   * reporte de otra fecha, sin contar como sesión y sin salir en «Lo que
+   * está esperando»—.
+   *
+   * Un reporte cierra la sesión más reciente que ya había empezado cuando se
+   * escribió, y solo esa.
+   *
+   * Sin `citasDelCaso` no hay forma de saber si hubo una sesión después, así
+   * que se trata como si esta fuera la última: es lo mismo que hacía antes.
+   * Quien llame debe pasar las citas que tenga a mano —se filtran aquí por
+   * asignación, así que vale de sobra pasar todas—.
+   */
+  let siguiente = Infinity
+  for (const c of citasDelCaso) {
+    if (c.caseAssignmentId !== cita.caseAssignmentId) continue
+    const cuando = new Date(c.startsAt).getTime()
+    if (cuando > empezo && cuando < siguiente) siguiente = cuando
+  }
+
   const suyos = reportes
-    .filter(
-      (r) =>
-        r.assignmentId === cita.caseAssignmentId && new Date(r.createdAt).getTime() >= empezo,
-    )
+    .filter((r) => {
+      if (r.assignmentId !== cita.caseAssignmentId) return false
+      const cuando = new Date(r.createdAt).getTime()
+      return cuando >= empezo && cuando < siguiente
+    })
     .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
   return suyos[0] ?? null
 }
@@ -153,10 +180,10 @@ export function reporteDeLaCita(cita, reportes) {
  * informe decía «0 sesiones» con la telemetría enseñando doce llamadas al
  * lado.
  */
-export function huboSesion(cita, reportes = []) {
+export function huboSesion(cita, reportes = [], citasDelCaso = []) {
   if (!cita) return false
 
-  const dijoElProfesional = reporteDeLaCita(cita, reportes)?.outcome ?? null
+  const dijoElProfesional = reporteDeLaCita(cita, reportes, citasDelCaso)?.outcome ?? null
   if (dijoElProfesional === REPORTE_CONFIRMA) return true
   if (dijoElProfesional === REPORTE_NIEGA) return false
 
@@ -174,11 +201,11 @@ export function huboSesion(cita, reportes = []) {
  * aparte, que es lo único honesto, y de paso le dice a quien coordina cuántos
  * cierres tiene pendientes.
  */
-export function esperandoCierre(cita, reportes = [], ahora = Date.now()) {
+export function esperandoCierre(cita, reportes = [], ahora = Date.now(), citasDelCaso = []) {
   if (!cita) return false
   if (esFinal(cita.status)) return false
-  if (reporteDeLaCita(cita, reportes)) return false
-  if (huboSesion(cita, reportes)) return false
+  if (reporteDeLaCita(cita, reportes, citasDelCaso)) return false
+  if (huboSesion(cita, reportes, citasDelCaso)) return false
   return new Date(cita.startsAt).getTime() <= ahora
 }
 

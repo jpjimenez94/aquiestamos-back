@@ -62,7 +62,7 @@ export async function sesionesHechasPor(professionalId) {
       select: { id: true, assignmentId: true, outcome: true, createdAt: true },
     }),
   ])
-  return citas.filter((c) => huboSesion(c, reportes)).length
+  return citas.filter((c) => huboSesion(c, reportes, citas)).length
 }
 
 /** Lo que el enlace del caso necesita saber para pintar el bloque. */
@@ -402,7 +402,7 @@ export async function sesionesHechasPorTodos() {
   ])
   const porProfesional = new Map()
   for (const c of citas) {
-    if (!huboSesion(c, reportes)) continue
+    if (!huboSesion(c, reportes, citas)) continue
     porProfesional.set(c.professionalId, (porProfesional.get(c.professionalId) ?? 0) + 1)
   }
   return (professionalId) => porProfesional.get(professionalId) ?? 0

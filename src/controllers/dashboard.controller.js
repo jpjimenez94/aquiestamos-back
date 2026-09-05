@@ -405,7 +405,12 @@ export const DashboardController = {
          * propósito: dos reglas para lo mismo es como acabaron diciendo cosas
          * distintas.
          */
-        const reporteDeLaSesion = ultimaCita ? reporteDeLaCita(ultimaCita, asignacion?.reports ?? []) : null
+        // `p.appointments` trae solo la última: no hay ninguna después, así
+        // que el emparejamiento ya era correcto aquí. Se pasa igual para que
+        // siga siéndolo si algún día se traen más.
+        const reporteDeLaSesion = ultimaCita
+          ? reporteDeLaCita(ultimaCita, asignacion?.reports ?? [], p.appointments ?? [])
+          : null
 
         return {
           id: p.id,
@@ -744,7 +749,7 @@ export const DashboardController = {
       // La misma regla del embudo, para que las dos cifras del informe no
       // puedan volver a decir cosas distintas sobre lo mismo.
       const conPruebaDeSesion = citasParaAsistencia.filter((c) =>
-        huboSesion(c, reportesDeCasos),
+        huboSesion(c, reportesDeCasos, citasParaAsistencia),
       ).length
 
       /**
@@ -754,7 +759,7 @@ export const DashboardController = {
        */
       const ausenciasReportadas = citasParaAsistencia.filter((c) => {
         if (c.status === 'NO_ASISTIO') return true
-        if (huboSesion(c, reportesDeCasos)) return false
+        if (huboSesion(c, reportesDeCasos, citasParaAsistencia)) return false
         return reportesDeCasos.some(
           (r) =>
             r.assignmentId === c.caseAssignmentId &&
@@ -943,7 +948,8 @@ export const DashboardController = {
 
       const conSesion = admitidas.filter((s) => {
         const reportes = reportesDe(s)
-        return personaDe(s).appointments.some((c) => huboSesion(c, reportes))
+        const citas = personaDe(s).appointments
+        return citas.some((c) => huboSesion(c, reportes, citas))
       })
 
       /**
@@ -969,7 +975,7 @@ export const DashboardController = {
       const conSesionPorDelante = admitidas.filter((s) => {
         const reportes = reportesDe(s)
         const citas = personaDe(s).appointments
-        if (citas.some((c) => huboSesion(c, reportes))) return false
+        if (citas.some((c) => huboSesion(c, reportes, citas))) return false
         return citas.some(
           (c) =>
             new Date(c.startsAt).getTime() > Date.now() &&
@@ -979,7 +985,8 @@ export const DashboardController = {
 
       const esperandoCierreTotal = admitidas.reduce((suma, s) => {
         const reportes = reportesDe(s)
-        return suma + personaDe(s).appointments.filter((c) => esperandoCierre(c, reportes)).length
+        const citas = personaDe(s).appointments
+        return suma + citas.filter((c) => esperandoCierre(c, reportes, Date.now(), citas)).length
       }, 0)
 
       /** Días entre pedir ayuda y sentarse por primera vez con alguien. */
@@ -988,8 +995,9 @@ export const DashboardController = {
           // La misma regla que el embudo: si allí cuenta como sesión, aquí
           // también. Filtrando por REALIZADA se medía sobre otro conjunto.
           const reportes = reportesDe(s)
-          const realizadas = personaDe(s)
-            .appointments.filter((c) => huboSesion(c, reportes))
+          const citas = personaDe(s).appointments
+          const realizadas = citas
+            .filter((c) => huboSesion(c, reportes, citas))
             .map((c) => new Date(c.startsAt).getTime())
           if (realizadas.length === 0) return null
           return (Math.min(...realizadas) - new Date(s.createdAt).getTime()) / DIA
@@ -1089,8 +1097,9 @@ export const DashboardController = {
 
       const sinCerrarSesion = admitidas.flatMap((s) => {
         const reportes = reportesDe(s)
-        return personaDe(s)
-          .appointments.filter((c) => esperandoCierre(c, reportes))
+        const citas = personaDe(s).appointments
+        return citas
+          .filter((c) => esperandoCierre(c, reportes, Date.now(), citas))
           .map((c) => horasDesde(c.startsAt))
       })
 

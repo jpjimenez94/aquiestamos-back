@@ -113,3 +113,54 @@ describe('cierres pendientes', () => {
     expect(esperandoCierre(cita({ startsAt: new Date(ahora + 5 * HORA) }), [], ahora)).toBe(false)
   })
 })
+
+/**
+ * UN REPORTE CIERRA UNA SESIÓN, NO TODAS LAS ANTERIORES.
+ *
+ * El caso real: Estivalys escribió el 2 de septiembre a las 7:56 p. m. «se
+ * reprograma la cita de hoy». El portal se lo colgó también a la sesión del
+ * 29 de agosto, que quedó en un limbo: sin contar como sesión, y sin salir en
+ * «Lo que está esperando» porque el sistema la creía cerrada con un reporte
+ * que hablaba de otra fecha.
+ *
+ * La regla es que un reporte cierra la sesión más reciente que ya había
+ * empezado cuando se escribió. Para saberlo hay que pasar las citas del caso:
+ * sin ellas se trata como si esta fuera la última, que es lo que hacía antes.
+ */
+describe('un reporte no se lo quedan dos sesiones', () => {
+  const primera = cita({ startsAt: new Date(ahora - 96 * HORA) })
+  const segunda = cita({ startsAt: new Date(ahora - 2 * HORA) })
+  const citas = [primera, segunda]
+  // Escrito una hora después de la SEGUNDA: es de esa.
+  const tardio = { outcome: REPORTE_CONFIRMA, assignmentId: CASO, createdAt: new Date(ahora - HORA) }
+
+  it('el reporte tardío cierra la última, no la vieja', () => {
+    expect(huboSesion(segunda, [tardio], citas)).toBe(true)
+    expect(huboSesion(primera, [tardio], citas)).toBe(false)
+  })
+
+  it('y la vieja vuelve a salir como pendiente de cerrar', () => {
+    // Sin las hermanas se la creía cerrada: ese era el limbo.
+    expect(esperandoCierre(primera, [tardio], ahora)).toBe(false)
+    expect(esperandoCierre(primera, [tardio], ahora, citas)).toBe(true)
+  })
+
+  it('cada sesión con su reporte cuando hay uno para cada una', () => {
+    const deLaPrimera = {
+      outcome: REPORTE_NIEGA,
+      assignmentId: CASO,
+      createdAt: new Date(ahora - 95 * HORA),
+    }
+    expect(huboSesion(primera, [deLaPrimera, tardio], citas)).toBe(false)
+    expect(huboSesion(segunda, [deLaPrimera, tardio], citas)).toBe(true)
+  })
+
+  it('con una sola sesión, el reporte es suyo aunque llegue tarde', () => {
+    expect(huboSesion(segunda, [tardio], [segunda])).toBe(true)
+  })
+
+  it('una sesión de otro caso no le quita el reporte a esta', () => {
+    const deOtroCaso = cita({ startsAt: new Date(ahora - HORA), caseAssignmentId: 'otro-caso' })
+    expect(huboSesion(segunda, [tardio], [...citas, deOtroCaso])).toBe(true)
+  })
+})

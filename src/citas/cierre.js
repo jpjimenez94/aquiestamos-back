@@ -54,17 +54,32 @@ export async function cerrarSesionesConPrueba({ patientId, ahora = Date.now() } 
       })
     : []
 
+  /**
+   * Todas las citas de esos casos, no solo las abiertas.
+   *
+   * El emparejamiento necesita saber si hubo una sesión DESPUÉS de la que se
+   * está mirando, y la siguiente puede estar ya cerrada. Con solo las
+   * abiertas, un reporte escrito después de una sesión posterior se le
+   * colgaría a una vieja y el barrido la cerraría con prueba ajena.
+   */
+  const citasDelCaso = asignaciones.length
+    ? await prisma.appointment.findMany({
+        where: { caseAssignmentId: { in: asignaciones } },
+        select: { startsAt: true, caseAssignmentId: true },
+      })
+    : []
+
   const resumen = { realizadas: 0, ausencias: 0, revisadas: abiertas.length }
 
   for (const cita of abiertas) {
-    const dijo = reporteDeLaCita(cita, reportes)?.outcome ?? null
+    const dijo = reporteDeLaCita(cita, reportes, citasDelCaso)?.outcome ?? null
     let nuevo = null
     let prueba = null
 
     if (dijo === REPORTE_NIEGA) {
       nuevo = ESTADOS.NO_ASISTIO
       prueba = 'el profesional reportó que no se presentó'
-    } else if (huboSesion(cita, reportes)) {
+    } else if (huboSesion(cita, reportes, citasDelCaso)) {
       nuevo = ESTADOS.REALIZADA
       prueba = dijo ? 'el profesional reportó la sesión' : 'las dos personas entraron a la sala'
     }
