@@ -29,6 +29,10 @@ export function profesionalBase(p) {
     status: p.status,
     estadoLegible: ETIQUETAS_ESTADO_PROFESIONAL[p.status] ?? p.status,
     maxActiveCases: p.maxActiveCases,
+    // Cuidado del equipo: si se ofreció a facilitar sesiones grupales. La
+    // ficha lo enseña y, con permiso, lo cambia.
+    supervisorVolunteer: p.supervisorVolunteer === true,
+    supervisorVolunteerAt: p.supervisorVolunteerAt ?? null,
     tieneCuenta: Boolean(p.userId),
     createdAt: p.createdAt,
   }
