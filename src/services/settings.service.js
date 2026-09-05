@@ -518,6 +518,26 @@ Nos comunicamos contigo reconociendo tu valioso liderazgo en *{territorio}* y qu
     ].join('\n'),
   },
   {
+    key: 'WHATSAPP_CUIDADO_SUPERVISOR',
+    category: 'MENSAJE_WHATSAPP',
+    name: 'Cuidado del equipo · Avisarle a quien queda marcado como supervisor',
+    description:
+      'Lo manda coordinación desde Cuidado del equipo, después de marcarlo en su ficha. Es el momento en que se le pregunta: el portal no le pregunta nada por su cuenta, y estar marcado no lo compromete con ninguna sesión.',
+    dataType: 'TEXTO',
+    variables: ['profesional'],
+    defaultValue: [
+      'Hola {profesional} 👋',
+      '',
+      'Te apuntamos como *supervisor de sesiones grupales* de la red: eres de quienes pueden acompañar a otros psicólogos cuando piden apoyo, quieren pensar un caso difícil con alguien, o solo necesitan descargarse.',
+      '',
+      'Estar apuntado no te compromete a nada. Cada sesión te la proponemos con su fecha y su hora, y nos dices si puedes o no.',
+      '',
+      'Llegarías con la agenda ya armada: lo que quieren hablar lo dejan escrito quienes piden el espacio.',
+      '',
+      '¿Te parece? Y si prefieres que te quitemos de la lista, dínoslo sin problema.',
+    ].join('\n'),
+  },
+  {
     key: 'CORREO_CHECKIN_RECIBIDO',
     category: 'PLANTILLA_CORREO',
     name: 'Correo · Un profesional pidió el espacio «¿Cómo estás tú?»',
@@ -698,7 +718,7 @@ Nos comunicamos contigo reconociendo tu valioso liderazgo en *{territorio}* y qu
     category: 'PARAMETRO_GENERAL',
     name: 'Sesiones para abrir el espacio «¿Cómo estás tú?» al profesional',
     description:
-      'A partir de cuántas sesiones hechas en la red —con cualquier persona— se le abre al profesional, desde su enlace del caso, el formulario para pedir apoyo, ayuda con un caso o descargarse. Es la carga acumulada la que quema.',
+      'A partir de cuántas sesiones hechas en la red —con cualquier persona— se le abre al profesional, en su propio enlace, el formulario para pedir apoyo, ayuda con un caso o descargarse. Es la carga acumulada la que quema.',
     dataType: 'NUMERO',
     variables: [],
     defaultValue: '3',

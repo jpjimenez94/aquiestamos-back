@@ -160,7 +160,17 @@ export function supervisoresDisponibles() {
       professionalCardVerified: true,
     },
     orderBy: { supervisorVolunteerAt: 'asc' },
-    select: { id: true, fullName: true, city: true, modality: true, supervisorVolunteerAt: true },
+    // El teléfono va porque marcarlo y avisarle son el mismo momento: el
+    // portal no le pregunta nada por su cuenta, se lo pregunta coordinación
+    // por WhatsApp desde el panel.
+    select: {
+      id: true,
+      fullName: true,
+      city: true,
+      modality: true,
+      phone: true,
+      supervisorVolunteerAt: true,
+    },
   })
 }
 
