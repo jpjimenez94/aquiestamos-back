@@ -487,12 +487,7 @@ export async function responderPropuesta(req, res, next) {
 // Los imports van aquí abajo a propósito: en un módulo ES se izan, y así el
 // bloque nuevo queda entero en un solo sitio.
 
-import {
-  estadoDeCuidado,
-  crearCheckIn,
-  marcarSupervisor,
-  ETIQUETAS_NECESIDAD,
-} from '../services/cuidado.service.js'
+import { estadoDeCuidado, crearCheckIn, ETIQUETAS_NECESIDAD } from '../services/cuidado.service.js'
 import { checkInRecibido } from '../notifications/eventos.js'
 
 /** El token válido y el caso a su cargo, o la respuesta que corresponde. */
@@ -551,36 +546,6 @@ export async function registrarCheckIn(req, res, next) {
       .json(created({ id: checkIn.id }, 'Gracias por decirlo. Coordinación te va a escribir para cuadrar el espacio.'))
   } catch (error) {
     if (error?.codigo) return res.status(409).json(failure(error.message, error.detalles))
-    return next(error)
-  }
-}
-
-/** PUT /api/shared-cases/:id/cuidado/supervisor — ofrecerse a facilitar, o dejar de hacerlo. */
-export async function ofrecerseComoSupervisor(req, res, next) {
-  try {
-    const professionalId = await profesionalDelToken(req, res)
-    if (!professionalId) return
-
-    const p = await marcarSupervisor(professionalId, req.validated.disponible)
-
-    await registrar({
-      req,
-      action: ACCION.EDITAR,
-      entity: 'profesional',
-      entityId: p.id,
-      actorEmail: `profesional:${p.id}`,
-      after: { supervisorVolunteer: p.supervisorVolunteer, desdeEnlace: true },
-    })
-
-    return res.json(
-      ok(
-        { esSupervisor: p.supervisorVolunteer },
-        p.supervisorVolunteer
-          ? 'Gracias. Cuando coordinación convoque una sesión grupal, te puede proponer facilitarla.'
-          : 'Listo, ya no apareces como supervisor.',
-      ),
-    )
-  } catch (error) {
     return next(error)
   }
 }

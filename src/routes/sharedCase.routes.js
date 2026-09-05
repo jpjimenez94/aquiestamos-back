@@ -67,8 +67,10 @@ sharedCaseRoutes.post(
   reportarCaso,
 )
 
-// Cuidado del equipo, con el mismo token del enlace: cómo va, «¿cómo estás
-// tú?», y ofrecerse como supervisor. Ver el bloque al final del controlador.
+// Cuidado del equipo, con el mismo token del enlace: cómo va y «¿cómo estás
+// tú?». Ver el bloque al final del controlador. Ofrecerse como supervisor NO
+// se pregunta aquí: quién puede facilitar ya se sabe por el formulario de
+// voluntarios, se cuadra por WhatsApp y lo marca coordinación desde la ficha.
 sharedCaseRoutes.get('/:id/cuidado', validarParamsUuid, cuidadoDelProfesional)
 sharedCaseRoutes.post(
   '/:id/cuidado/check-in',
@@ -76,18 +78,8 @@ sharedCaseRoutes.post(
   validateBody(checkInSchema),
   registrarCheckIn,
 )
-sharedCaseRoutes.put(
-  '/:id/cuidado/supervisor',
-  validarParamsUuid,
-  validateBody(supervisorSchema),
-  ofrecerseComoSupervisor,
-)
 
 export default sharedCaseRoutes
 
-import {
-  cuidadoDelProfesional,
-  registrarCheckIn,
-  ofrecerseComoSupervisor,
-} from '../controllers/sharedCase.controller.js'
-import { checkInSchema, supervisorSchema } from '../validators/cuidado.schema.js'
+import { cuidadoDelProfesional, registrarCheckIn } from '../controllers/sharedCase.controller.js'
+import { checkInSchema } from '../validators/cuidado.schema.js'

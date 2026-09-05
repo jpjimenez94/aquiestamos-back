@@ -19,7 +19,9 @@ const hace = (h) => new Date(Date.now() - h * 3600000)
  *   1. Antes del umbral no se abre el espacio, y la puerta lo vuelve a
  *      comprobar aunque la pantalla no enseñe el botón.
  *   2. A partir del umbral, el check-in entra con la carga con la que llegó.
- *   3. Ofrecerse como supervisor no lo hace nada más que candidato.
+ *   3. Supervisor lo marca coordinación desde la ficha: al profesional no
+ *      se le pregunta desde su enlace —quién puede facilitar se sabe por el
+ *      formulario de voluntarios—.
  *   4. Coordinación convoca: la agenda se arma sola con las preguntas, los
  *      check-ins quedan apuntando a la sesión, y a todos les sale el correo.
  *   5. Un rol de solo lectura ve y no toca.
@@ -159,7 +161,8 @@ describe('desde el enlace del caso', () => {
     expect(r.body.data.sesiones).toBe(2)
     expect(r.body.data.umbral).toBe(3)
     expect(r.body.data.habilitado).toBe(false)
-    expect(r.body.data.esSupervisor).toBe(false)
+    // Y no dice nada de supervisar: eso no se le pregunta aquí.
+    expect(r.body.data.esSupervisor).toBeUndefined()
   })
 
   /** La pantalla no enseña el botón antes del umbral; la puerta lo vuelve a comprobar. */
@@ -195,17 +198,12 @@ describe('desde el enlace del caso', () => {
     ids.checkIn = guardado.id
   })
 
-  it('ofrecerse como supervisor lo deja como candidato, y se puede retirar', async () => {
-    const si = await desdeElEnlace('put', '/cuidado/supervisor').send({ disponible: true })
-    expect(si.status).toBe(200)
-    expect(si.body.data.esSupervisor).toBe(true)
+  /** La puerta que existió un día y se cerró: desde el enlace no se supervisa. */
+  it('desde el enlace no hay forma de ofrecerse como supervisor', async () => {
+    const r = await desdeElEnlace('put', '/cuidado/supervisor').send({ disponible: true })
+    expect(r.status).toBe(404)
     const p = await prisma.professional.findUnique({ where: { id: ids.acompana } })
-    expect(p.supervisorVolunteer).toBe(true)
-    expect(p.supervisorVolunteerAt).not.toBeNull()
-
-    const no = await desdeElEnlace('put', '/cuidado/supervisor').send({ disponible: false })
-    expect(no.body.data.esSupervisor).toBe(false)
-    // Y el ID que manda es el del token: aquí nunca viaja un profesional en la URL.
+    expect(p.supervisorVolunteer).toBe(false)
   })
 })
 
@@ -219,16 +217,19 @@ describe('desde el portal', () => {
   })
 
   it('el resumen trae el check-in pendiente y a quien se ofreció', async () => {
-    // El que facilita se ofrece desde su ficha (coordinación) — la otra puerta.
+    // El que facilita lo marca coordinación desde su ficha: la única puerta.
     const ofrecer = await comoAdmin('patch', `/supervisores/${ids.facilita}`).send({ disponible: true })
     expect(ofrecer.status).toBe(200)
+    const marcado = await prisma.professional.findUnique({ where: { id: ids.facilita } })
+    expect(marcado.supervisorVolunteer).toBe(true)
+    expect(marcado.supervisorVolunteerAt).not.toBeNull()
 
     const r = await comoAdmin('get', '')
     expect(r.status).toBe(200)
     expect(r.body.data.umbral).toBe(3)
     expect(r.body.data.checkInsPendientes.map((c) => c.id)).toContain(ids.checkIn)
     expect(r.body.data.supervisores.map((s) => s.id)).toContain(ids.facilita)
-    // El que se retiró no está.
+    // Quien no fue marcado no está.
     expect(r.body.data.supervisores.map((s) => s.id)).not.toContain(ids.acompana)
   })
 

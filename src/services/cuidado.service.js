@@ -12,8 +12,9 @@ import { huboSesion } from './appointmentState.service.js'
  *   1. El check-in. A partir de cierto número de sesiones hechas —en toda la
  *      red, con cualquier persona, porque es la carga acumulada la que quema—
  *      el profesional puede decir cómo está desde su mismo enlace del caso.
- *   2. El supervisor. Un psicólogo de la red se ofrece a facilitar sesiones
- *      grupales de seguimiento. Ofrecerse no lo compromete a nada.
+ *   2. El supervisor. Quién puede facilitar sesiones grupales ya se sabe por
+ *      el formulario de voluntarios: coordinación se lo pregunta por WhatsApp
+ *      y lo marca desde su ficha. No se le pregunta desde el enlace del caso.
  *   3. La sesión grupal. Coordinación la convoca eligiendo facilitador, hora,
  *      enlace e invitados; llega con las preguntas que dejaron los invitados
  *      al pedir el espacio, para no empezar de cero.
@@ -66,13 +67,9 @@ export async function sesionesHechasPor(professionalId) {
 
 /** Lo que el enlace del caso necesita saber para pintar el bloque. */
 export async function estadoDeCuidado(professionalId) {
-  const [sesiones, umbral, profesional, checkIns] = await Promise.all([
+  const [sesiones, umbral, checkIns] = await Promise.all([
     sesionesHechasPor(professionalId),
     umbralDeCheckIn(),
-    prisma.professional.findUnique({
-      where: { id: professionalId },
-      select: { supervisorVolunteer: true, supervisorVolunteerAt: true },
-    }),
     prisma.professionalCheckIn.findMany({
       where: { professionalId },
       orderBy: { createdAt: 'desc' },
@@ -90,7 +87,6 @@ export async function estadoDeCuidado(professionalId) {
     sesiones,
     umbral,
     habilitado: sesiones >= umbral,
-    esSupervisor: profesional?.supervisorVolunteer === true,
     checkIns: checkIns.map((c) => ({
       id: c.id,
       necesidad: c.need,
@@ -130,7 +126,12 @@ export async function crearCheckIn({ professionalId, need, notes, questionForGro
   })
 }
 
-/** Ofrecerse, o dejar de ofrecerse. Se registra cuándo, para saber desde cuándo cuenta. */
+/**
+ * Marcar a alguien como supervisor, o quitarlo. Lo hace coordinación desde
+ * la ficha: quién puede facilitar ya se sabe por el formulario de
+ * voluntarios y se cuadra por WhatsApp. Se registra cuándo, para saber desde
+ * cuándo cuenta.
+ */
 export async function marcarSupervisor(professionalId, disponible) {
   return prisma.professional.update({
     where: { id: professionalId },

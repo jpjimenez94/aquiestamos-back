@@ -98,8 +98,9 @@ export const CuidadoController = {
 
   /**
    * PATCH /api/cuidado/supervisores/:id — coordinación marca (o desmarca) a
-   * alguien como supervisor desde su ficha. El profesional puede hacerlo él
-   * mismo desde su enlace; esto es para cuando lo dijo por WhatsApp.
+   * alguien como supervisor desde su ficha. Es la única puerta: quién puede
+   * facilitar se sabe por el formulario de voluntarios y se cuadra por
+   * WhatsApp; al profesional no se le pregunta desde el enlace del caso.
    */
   async supervisor(req, res, next) {
     try {
