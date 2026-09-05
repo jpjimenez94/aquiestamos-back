@@ -30,6 +30,9 @@ export const PERMISOS = {
 
   // Voluntario digital general: recibe lo que llega, lo aprueba y lo agenda.
   AGENDADOR: [
+    // Cuidado del equipo: ver quién pidió el espacio y convocar la sesión grupal.
+    'cuidado:leer',
+    'cuidado:gestionar',
     'postulacion:leer',
     'solicitud:leer',
     'colaborador:leer',
@@ -70,6 +73,8 @@ export const PERMISOS = {
 
   // Gestión de Casos y Agenda: solo gestiona el tablero de agenda, citas y personas acompañadas.
   COORDINADOR_CASOS: [
+    'cuidado:leer',
+    'cuidado:gestionar',
     'paciente:leer',
     'paciente:editar',
     'profesional:leer',
@@ -100,6 +105,7 @@ export const PERMISOS = {
   // terminan en :leer a propósito; si alguna vez aparece aquí uno de escribir,
   // el rol dejó de ser lo que su nombre promete.
   LECTURA: [
+    'cuidado:leer',
     'postulacion:leer',
     'solicitud:leer',
     'colaborador:leer',

@@ -91,6 +91,11 @@ const PAYLOAD = {
   avisoSinRespuesta: null,
   prioridadLegible: 'Media',
   agenda: 'lunes de 8:00 a. m. a 12:00 p. m.',
+  // Cuidado del equipo: el check-in y la sesión grupal.
+  necesidad: 'necesita ayuda con un caso',
+  sesiones: 4,
+  pregunta: 'Cómo poner límites cuando la persona escribe fuera de la sesión',
+  facilitador: 'Beatriz Elena López',
   desdeCuando: 'lunes, 3 de marzo, 9:00 a. m.',
   completionUrl: 'https://x.test/entrega/abc',
   completionNote: 'Quedó todo listo',
@@ -144,7 +149,7 @@ describe('los correos del portal salen igual que los del código', () => {
    * en el mismo commit, que es lo que este número protege.
    */
   it('todas menos la alerta técnica tienen su equivalente en Parametrización', () => {
-    expect(PAREJAS).toHaveLength(27)
+    expect(PAREJAS).toHaveLength(29)
     for (const [, claveDelPortal] of PAREJAS) {
       expect(DEFAULT_SETTINGS.find((d) => d.key === claveDelPortal)).toBeDefined()
     }

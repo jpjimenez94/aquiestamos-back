@@ -491,6 +491,47 @@ Nos comunicamos contigo reconociendo tu valioso liderazgo en *{territorio}* y qu
     }),
   },
   {
+    key: 'CORREO_CHECKIN_RECIBIDO',
+    category: 'PLANTILLA_CORREO',
+    name: 'Correo · Un profesional pidió el espacio «¿Cómo estás tú?»',
+    description: 'A coordinación, cuando un profesional dice que quiere apoyo, ayuda con un caso o descargarse. Es el aviso para convocar la sesión grupal.',
+    dataType: 'JSON',
+    variables: ['profesional', 'necesidad', 'sesiones', 'pregunta', 'ruta'],
+    defaultValue: JSON.stringify({
+          "asunto": "{profesional} pidió el espacio: {necesidad}",
+          "titulo": "Alguien del equipo pidió apoyo",
+          "parrafos": [
+                "<strong>{profesional}</strong> llenó «¿Cómo estás tú?» desde su enlace: {necesidad}. Lleva {sesiones} sesiones en la red.",
+                "Lo que le gustaría que se hablara en la sesión grupal: {pregunta}",
+                "Desde Cuidado del equipo se convoca la sesión con un supervisor; la agenda se arma sola con lo que dejaron quienes pidieron el espacio."
+          ],
+          "datos": [],
+          "botonTexto": "Abrir Cuidado del equipo"
+    }),
+  },
+  {
+    key: 'CORREO_SESION_GRUPAL',
+    category: 'PLANTILLA_CORREO',
+    name: 'Correo · Convocatoria a la sesión grupal de seguimiento',
+    description: 'A cada invitado y al facilitador cuando coordinación convoca una sesión grupal: hora, enlace y las preguntas con las que llega.',
+    dataType: 'JSON',
+    variables: ['nombre', 'facilitador', 'cuandoLargo', 'enlace', 'agenda'],
+    defaultValue: JSON.stringify({
+          "asunto": "Sesión grupal de seguimiento: {cuandoLargo}",
+          "titulo": "Hola {nombre}, tenemos un espacio para el equipo",
+          "parrafos": [
+                "Es una sesión grupal de seguimiento para quienes acompañan, facilitada por <strong>{facilitador}</strong>. No es evaluación de nadie: es un espacio para descargarse, pensar juntos los casos que pesan y cuidarse.",
+                "Llega con estas preguntas, que salieron de quienes pidieron el espacio: {agenda}",
+                "Si no puedes, avísanos por WhatsApp y te contamos de la siguiente."
+          ],
+          "datos": [
+                "<strong>Cuándo:</strong> {cuandoLargo}",
+                "<strong>Facilita:</strong> {facilitador}",
+                "<strong>Enlace para entrar:</strong> <a href=\"{enlace}\">{enlace}</a>"
+          ]
+    }),
+  },
+  {
     key: 'CORREO_REPORTE_RECIBIDO',
     category: 'PLANTILLA_CORREO',
     name: 'Correo · Reporte Post-Sesión a Coordinación',
@@ -621,6 +662,16 @@ Nos comunicamos contigo reconociendo tu valioso liderazgo en *{territorio}* y qu
     name: 'Días para cuadrar el horario antes de liberar el caso (días)',
     description:
       'Es el «se libera en N días si no hay respuesta» del tablero. Cuenta desde que el profesional acepta; si al cabo de ese plazo no se ha cuadrado la hora, el caso vuelve a la cola para que no se quede quieto.',
+    dataType: 'NUMERO',
+    variables: [],
+    defaultValue: '3',
+  },
+  {
+    key: 'SESIONES_PARA_CHECKIN',
+    category: 'PARAMETRO_GENERAL',
+    name: 'Sesiones para abrir el espacio «¿Cómo estás tú?» al profesional',
+    description:
+      'A partir de cuántas sesiones hechas en la red —con cualquier persona— se le abre al profesional, desde su enlace del caso, el formulario para pedir apoyo, ayuda con un caso o descargarse. Es la carga acumulada la que quema.',
     dataType: 'NUMERO',
     variables: [],
     defaultValue: '3',

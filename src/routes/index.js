@@ -9,6 +9,7 @@ import { supportRequestRoutes } from './supportRequest.routes.js'
 import { collaboratorRoutes } from './collaborator.routes.js'
 import { resourceRoutes } from './resource.routes.js'
 import sharedCaseRoutes from './sharedCase.routes.js'
+import cuidadoRoutes from './cuidado.routes.js'
 import { triageRoutes } from './triage.routes.js'
 import { consentimientoRoutes } from './consentimiento.routes.js'
 import { encuestaRoutes } from './encuesta.routes.js'
@@ -91,3 +92,5 @@ apiRoutes.use('/meetings', meetingTelemetryRoutes)
 
 // --- Parametrización y Configuración del Sistema ---
 apiRoutes.use('/settings', settingsRoutes)
+// Cuidado del equipo: quién pidió el espacio, supervisores y sesiones grupales.
+apiRoutes.use('/cuidado', cuidadoRoutes)

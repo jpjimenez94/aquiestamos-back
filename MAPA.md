@@ -194,6 +194,8 @@ que el fallo se viera como un conteo raro en vez de como un 422.
 
 ## 🔐 Autenticación y permisos
 
+`cuidado:leer` (ADMIN, AGENDADOR, COORDINADOR_CASOS, LECTURA) y `cuidado:gestionar` (ADMIN, AGENDADOR, COORDINADOR_CASOS): el módulo de cuidado del equipo. Declarados en `permissions.js`, como todo.
+
 **Flujo:** navegador → cookie httpOnly `ae_sesion` (primera parte) → Next reenvía como
 `Authorization: Bearer` → backend valida. El token nunca es visible para JavaScript.
 
@@ -250,6 +252,8 @@ Cada uno es un token HMAC firmado con `SHARED_CASE_SECRET`, diferenciados por el
 
 ---
 
+**Cuidado del equipo desde el enlace del caso** (`/portal/caso/[id]`, al final, con el mismo token): `GET /shared-cases/:id/cuidado` (sesiones hechas, umbral, si se abre el espacio, si se ofreció), `POST …/cuidado/check-in` («¿Cómo estás tú?»: apoyo para mí · ayuda con un caso · descargarme, más notas y la pregunta para la sesión grupal) y `PUT …/cuidado/supervisor` (ofrecerse a facilitar). El profesional lo decide el token, nunca la URL. Se abre a partir de `SESIONES_PARA_CHECKIN` sesiones hechas en toda la red (`huboSesion`, la misma regla de las métricas).
+
 ## 🖥️ Portal interno — página por página
 
 Menú definido en `front/app/portal/(interno)/LateralPortal.tsx`.
@@ -264,6 +268,7 @@ Menú definido en `front/app/portal/(interno)/LateralPortal.tsx`.
 | **Colaboradores** `/portal/colaboradores` | `TablaColaboradores.tsx` (817) · `FiltrosDirectorio` | `GET /collaborators?all=true` | `colaborador:leer` |
 | **Tareas** `/portal/tareas` | `TableroKanbanCliente.tsx` · `[id]/PanelDetalleTarea.tsx` (850) · `nueva/FormularioTarea.tsx` (632) · `tipos.ts` | `GET/POST /tasks` · `PATCH /tasks/:id/status` · `POST /tasks/:id/assign` | `tarea:leer` |
 | **Verificaciones** `/portal/verificaciones` | `TarjetaPendiente` · `ModalMoverColaborador` · `ModalRechazarVerificacion` · `BotonPedirDocumentos` | `POST /professionals/:id/tarjeta-profesional`<br>`/solicitar-documentos-email` · `/convertir-colaborador` · `/rechazar` | `profesional:verificar-tarjeta` |
+| **Cuidado del equipo** `/portal/cuidado` | `ConvocarSesion` · `AccionesSesion` | `GET /cuidado` · `POST /cuidado/sesiones` · `PATCH /cuidado/sesiones/:id/estado` · `/asistencia` · `PATCH /cuidado/supervisores/:id` | `cuidado:leer` · `cuidado:gestionar` |
 
 ### Personas
 
@@ -336,6 +341,8 @@ routes/ → middlewares (authenticate → authorize → validate) → controller
 
 ### Servicios (la lógica que importa)
 
+- `cuidado.service.js` — **Cuidado del equipo**: cuenta sesiones por profesional con `huboSesion`, abre el check-in a partir del umbral de Parametrización, marca supervisores (activos y con tarjeta verificada), convoca sesiones grupales —la agenda se arma sola con las preguntas de los invitados y los check-ins quedan apuntando a la sesión— y lleva una máquina de estados chica (`PROGRAMADA → REALIZADA | CANCELADA`) con `exigirTransicionGrupal`. No toca citas, asignaciones ni reportes: los lee para contar. La sala es un enlace externo a propósito: el módulo de salas es por cita y de dos personas.
+
 | Servicio | Qué decide |
 |---|---|
 | `appointmentState.service.js` | Máquina de estados de la **cita**. `PROGRAMADA → CONFIRMADA → REALIZADA / NO_ASISTIO / CANCELADA / REPROGRAMADA` |
@@ -380,7 +387,9 @@ URL firmada de **60 s**. Endpoints: `POST /api/documentos` ·
 
 ---
 
-## 🗄️ Modelo de datos — `back/prisma/schema.prisma` (1303 líneas)
+## 🗄️ Modelo de datos — `back/prisma/schema.prisma`
+
+Cuidado del equipo (migración `20260905013420_cuidado_del_equipo`): `Professional.supervisorVolunteer(+At)`, `ProfessionalCheckIn` (necesidad, notas, pregunta para el grupo, sesiones al pedirlo, y a qué sesión se le invitó), `SupportGroupSession` (facilitador, hora, enlace externo, agenda, estado) y `SupportGroupInvitation` (sesión × profesional, asistió). Enums `CheckInNeed` y `GroupSessionStatus`.
 
 **Identidad y trazabilidad:** `User` · `Session` · `AuditLog`
 
@@ -402,7 +411,9 @@ URL firmada de **60 s**. Endpoints: `POST /api/documentos` ·
 
 ---
 
-## 🎛️ Parametrización — 55 claves (`/portal/parametrizacion`)
+## 🎛️ Parametrización — 58 claves (`/portal/parametrizacion`)
+
+Cuidado del equipo: `SESIONES_PARA_CHECKIN` (NUMERO, 3) y los correos `CORREO_CHECKIN_RECIBIDO` (a coordinación) y `CORREO_SESION_GRUPAL` (a invitados y facilitador).
 
 **18 mensajes de WhatsApp.** Los pasos son los de `front/lib/pasosDelCaso.ts`, que
 son siete. Esta lista llevaba los del manual viejo de diez —«paso 1», «2b», «3/8»,

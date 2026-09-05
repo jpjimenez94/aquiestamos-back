@@ -477,3 +477,110 @@ export async function responderPropuesta(req, res, next) {
     return next(error)
   }
 }
+
+// ---------------------------------------------------------------------------
+// Cuidado del equipo, desde el enlace del caso.
+//
+// Las tres puertas van con el mismo token del enlace y la misma comprobación
+// que el resto: el token decide de quién es la agenda —y aquí, de quién es el
+// check-in—; nunca se lee un identificador de profesional de la URL.
+// Los imports van aquí abajo a propósito: en un módulo ES se izan, y así el
+// bloque nuevo queda entero en un solo sitio.
+
+import {
+  estadoDeCuidado,
+  crearCheckIn,
+  marcarSupervisor,
+  ETIQUETAS_NECESIDAD,
+} from '../services/cuidado.service.js'
+import { checkInRecibido } from '../notifications/eventos.js'
+
+/** El token válido y el caso a su cargo, o la respuesta que corresponde. */
+async function profesionalDelToken(req, res) {
+  const { id } = req.params
+  const datos = leerToken(req.headers['x-shared-case-token'], id)
+  if (!datos) {
+    res.status(401).json(failure('El acceso venció. Vuelve a ingresar tu correo.'))
+    return null
+  }
+  const asignacion = await CaseAssignmentModel.findAbiertaDePaciente(id)
+  if (!asignacion || asignacion.professionalId !== datos.profesional) {
+    res.status(403).json(failure('Este caso ya no está a tu cargo.'))
+    return null
+  }
+  return asignacion.professionalId
+}
+
+/** GET /api/shared-cases/:id/cuidado — cuántas sesiones lleva y si se le abre el espacio. */
+export async function cuidadoDelProfesional(req, res, next) {
+  try {
+    const professionalId = await profesionalDelToken(req, res)
+    if (!professionalId) return
+    return res.json(ok(await estadoDeCuidado(professionalId)))
+  } catch (error) {
+    return next(error)
+  }
+}
+
+/** POST /api/shared-cases/:id/cuidado/check-in — «¿Cómo estás tú?». */
+export async function registrarCheckIn(req, res, next) {
+  try {
+    const professionalId = await profesionalDelToken(req, res)
+    if (!professionalId) return
+
+    const checkIn = await crearCheckIn({ professionalId, ...req.validated })
+
+    await registrar({
+      req,
+      action: ACCION.CREAR,
+      entity: 'check_in',
+      entityId: checkIn.id,
+      actorEmail: checkIn.professional?.email ?? `profesional:${professionalId}`,
+      after: { necesidad: checkIn.need, sesiones: checkIn.sessionsAtCheckIn },
+    })
+
+    // Sin este aviso el check-in se queda en una tabla que nadie abre.
+    await checkInRecibido({
+      checkIn,
+      sesiones: checkIn.sessionsAtCheckIn,
+      necesidadLegible: ETIQUETAS_NECESIDAD[checkIn.need] ?? checkIn.need,
+    })
+
+    return res
+      .status(201)
+      .json(created({ id: checkIn.id }, 'Gracias por decirlo. Coordinación te va a escribir para cuadrar el espacio.'))
+  } catch (error) {
+    if (error?.codigo) return res.status(409).json(failure(error.message, error.detalles))
+    return next(error)
+  }
+}
+
+/** PUT /api/shared-cases/:id/cuidado/supervisor — ofrecerse a facilitar, o dejar de hacerlo. */
+export async function ofrecerseComoSupervisor(req, res, next) {
+  try {
+    const professionalId = await profesionalDelToken(req, res)
+    if (!professionalId) return
+
+    const p = await marcarSupervisor(professionalId, req.validated.disponible)
+
+    await registrar({
+      req,
+      action: ACCION.EDITAR,
+      entity: 'profesional',
+      entityId: p.id,
+      actorEmail: `profesional:${p.id}`,
+      after: { supervisorVolunteer: p.supervisorVolunteer, desdeEnlace: true },
+    })
+
+    return res.json(
+      ok(
+        { esSupervisor: p.supervisorVolunteer },
+        p.supervisorVolunteer
+          ? 'Gracias. Cuando coordinación convoque una sesión grupal, te puede proponer facilitarla.'
+          : 'Listo, ya no apareces como supervisor.',
+      ),
+    )
+  } catch (error) {
+    return next(error)
+  }
+}

@@ -668,3 +668,63 @@ export async function pedirConfirmacionDeDisponibilidad({ profesional, agenda, d
     clave: `confirmar-disponibilidad:${profesional.id}:${mes}`,
   })
 }
+
+// ---------------------------------------------------------------------------
+// Cuidado del equipo
+
+/**
+ * Un profesional pidió el espacio. Va a coordinación, que es quien convoca:
+ * sin este aviso, el check-in se queda en una tabla que nadie abre.
+ */
+export async function checkInRecibido({ checkIn, sesiones, necesidadLegible }) {
+  return avisarACoordinacion({
+    plantilla: 'CHECKIN_RECIBIDO',
+    payload: {
+      profesional: checkIn.professional?.fullName ?? 'Alguien del equipo',
+      necesidad: necesidadLegible,
+      sesiones,
+      // Si no dejó pregunta, la plantilla del portal quita la línea sola.
+      pregunta: checkIn.questionForGroup || null,
+      ruta: '/portal/cuidado',
+    },
+    entidad: 'check_in',
+    entidadId: checkIn.id,
+    clave: `checkin-recibido:${checkIn.id}`,
+  })
+}
+
+/**
+ * Coordinación convocó la sesión grupal: a cada invitado y al facilitador,
+ * con la hora, el enlace y la agenda. Avisar es parte de convocar.
+ */
+export async function sesionGrupalConvocada({ sesion, facilitador, invitados }) {
+  const cuando = enPalabras(sesion.startsAt)
+  const destinatarios = [
+    ...invitados.map((p) => ({ ...p, rol: 'invitado' })),
+    { ...facilitador, rol: 'facilitador' },
+  ]
+  let encolados = 0
+  for (const p of destinatarios) {
+    const creado = await encolar({
+      plantilla: 'SESION_GRUPAL',
+      para: p.email,
+      nombre: p.fullName,
+      payload: {
+        nombre: nombreDePila(p.fullName),
+        facilitador: facilitador.fullName,
+        cuando: sesion.startsAt,
+        cuandoLargo: cuando,
+        enlace: sesion.meetingUrl,
+        agenda: sesion.agenda || null,
+      },
+      entidad: 'sesion_grupal',
+      entidadId: sesion.id,
+      clave: `sesion-grupal:${sesion.id}:${p.id}`,
+    })
+    if (creado != null) encolados += 1
+  }
+  return encolados
+}
+
+// El aviso de la sesión grupal pone la hora en palabras, como los demás.
+import { enPalabras } from '../services/timezone.service.js'

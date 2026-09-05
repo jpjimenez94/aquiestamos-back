@@ -23,6 +23,20 @@ const CASOS = {
     modalidad: 'VIRTUAL',
     ruta: '/portal/caso/abc',
   },
+  CHECKIN_RECIBIDO: {
+    profesional: 'Mariana Restrepo',
+    necesidad: 'necesita ayuda con un caso',
+    sesiones: 4,
+    pregunta: 'Cómo poner límites cuando la persona escribe fuera de la sesión',
+    ruta: '/portal/cuidado',
+  },
+  SESION_GRUPAL: {
+    nombre: 'Camilo',
+    facilitador: 'Beatriz Elena López',
+    cuandoLargo: 'el jueves 18 de septiembre a las 7:00 p. m.',
+    enlace: 'https://meet.google.com/abc-defg-hij',
+    agenda: '— Mariana (necesita ayuda con un caso): cómo poner límites',
+  },
   CITA_AGENDADA_PERSONA: {
     nombre: 'Angie',
     profesional: 'Beatriz Elena López',

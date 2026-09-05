@@ -580,6 +580,17 @@ model Professional {
   /// registró, que es cuando la cargó.
   availabilityConfirmedAt DateTime? @map("availability_confirmed_at") @db.Timestamptz(3)
 
+  /// Se ofreció a acompañar a otros profesionales: facilita las sesiones
+  /// grupales de seguimiento del módulo «Cuidado del equipo». Lo marca él
+  /// desde su enlace o coordinación desde su ficha; no lo convierte en nada
+  /// más que candidato a facilitar.
+  supervisorVolunteer   Boolean   @default(false) @map("supervisor_volunteer")
+  supervisorVolunteerAt DateTime? @map("supervisor_volunteer_at") @db.Timestamptz(3)
+
+  checkIns          ProfessionalCheckIn[]
+  sesionesFacilitadas SupportGroupSession[]
+  invitaciones      SupportGroupInvitation[]
+
   /// Documento de identidad, subido por el propio profesional desde su
   /// enlace. Mismo bucket privado que la tarjeta; solo lo ve el equipo.
   identityDocumentUrl String? @map("identity_document_url") @db.VarChar(500)
@@ -1333,4 +1344,97 @@ model SystemSetting {
   @@index([category])
   @@index([key])
   @@map("system_settings")
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// CUIDADO DEL EQUIPO
+//
+// Quien acompaña también se carga. Después de cierto número de sesiones
+// (Parametrización: SESIONES_PARA_CHECKIN) se le abre un espacio para decir
+// cómo está; un psicólogo voluntario puede ofrecerse a facilitar sesiones
+// grupales de seguimiento, y coordinación las convoca con las preguntas que
+// dejaron los que pidieron el espacio. No toca ninguna tabla del acompañamiento.
+// ───────────────────────────────────────────────────────────────────────────
+
+/// Por qué pide el espacio quien acompaña. Tres, y en su idioma.
+enum CheckInNeed {
+  /// Quiero apoyo para mí.
+  APOYO_PARA_MI
+  /// Necesito ayuda de otros psicólogos con un caso.
+  AYUDA_CON_UN_CASO
+  /// Solo quiero descargarme.
+  DESCARGARME
+}
+
+enum GroupSessionStatus {
+  PROGRAMADA
+  REALIZADA
+  CANCELADA
+}
+
+/// «¿Cómo estás tú?»: lo que responde un profesional cuando pide el espacio.
+model ProfessionalCheckIn {
+  id             String       @id @default(uuid()) @db.Uuid
+  professionalId String       @map("professional_id") @db.Uuid
+  professional   Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+
+  need             CheckInNeed
+  /// En qué anda, en sus palabras. No es contenido clínico de nadie.
+  notes            String? @db.VarChar(1000)
+  /// Qué le gustaría que se hablara en la sesión grupal. Es lo que arma la agenda.
+  questionForGroup String? @map("question_for_group") @db.VarChar(600)
+  /// Cuántas sesiones llevaba al pedirlo: la carga con la que llegó.
+  sessionsAtCheckIn Int @map("sessions_at_check_in")
+
+  /// La sesión grupal a la que se le invitó por este check-in, si ya hubo.
+  groupSessionId String?              @map("group_session_id") @db.Uuid
+  groupSession   SupportGroupSession? @relation(fields: [groupSessionId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([professionalId, createdAt])
+  @@index([groupSessionId])
+  @@map("professional_check_ins")
+}
+
+/// Una sesión grupal de seguimiento: la facilita un supervisor voluntario y
+/// la convoca coordinación. La sala es un enlace externo a propósito: el
+/// módulo de salas es por cita y de dos personas, y no se toca.
+model SupportGroupSession {
+  id            String       @id @default(uuid()) @db.Uuid
+  facilitatorId String       @map("facilitator_id") @db.Uuid
+  facilitator   Professional @relation(fields: [facilitatorId], references: [id], onDelete: Restrict)
+
+  startsAt   DateTime @map("starts_at") @db.Timestamptz(3)
+  endsAt     DateTime @map("ends_at") @db.Timestamptz(3)
+  meetingUrl String   @map("meeting_url") @db.VarChar(500)
+  /// Las preguntas con las que llega la sesión: se arma sola de los check-ins y se puede editar.
+  agenda     String?  @db.VarChar(4000)
+
+  status GroupSessionStatus @default(PROGRAMADA)
+
+  createdByEmail String?  @map("created_by_email") @db.VarChar(160)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  invitations SupportGroupInvitation[]
+  checkIns    ProfessionalCheckIn[]
+
+  @@index([startsAt])
+  @@map("support_group_sessions")
+}
+
+model SupportGroupInvitation {
+  id             String              @id @default(uuid()) @db.Uuid
+  sessionId      String              @map("session_id") @db.Uuid
+  session        SupportGroupSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  professionalId String              @map("professional_id") @db.Uuid
+  professional   Professional        @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+
+  /// Nulo hasta que alguien lo marque después de la sesión.
+  attended  Boolean?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@unique([sessionId, professionalId])
+  @@map("support_group_invitations")
 }

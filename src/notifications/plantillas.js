@@ -86,6 +86,38 @@ export const PLANTILLAS = {
       boton: { texto: 'Cargar mis documentos', url: urlDelSitio(p.ruta) },
     }),
 
+  // ------------------------------------------------------ cuidado del equipo
+
+  /** A coordinación: un profesional pidió el espacio «¿Cómo estás tú?». */
+  CHECKIN_RECIBIDO: (p) =>
+    armar(`${p.profesional} pidió el espacio: ${p.necesidad}`, {
+      titulo: 'Alguien del equipo pidió apoyo',
+      parrafos: [
+        `<strong>${p.profesional}</strong> llenó «¿Cómo estás tú?» desde su enlace: ${p.necesidad}. Lleva ${p.sesiones} sesiones en la red.`,
+        p.pregunta ? `Lo que le gustaría que se hablara en la sesión grupal: ${p.pregunta}` : null,
+        'Desde Cuidado del equipo se convoca la sesión con un supervisor; la agenda se arma sola con lo que dejaron quienes pidieron el espacio.',
+      ].filter(Boolean),
+      boton: { texto: 'Abrir Cuidado del equipo', url: urlDelSitio(p.ruta) },
+    }),
+
+  /** A cada invitado y al facilitador: la sesión grupal quedó convocada. */
+  SESION_GRUPAL: (p) => {
+    const cuando = p.cuandoLargo ?? enPalabras(p.cuando)
+    return armar(`Sesión grupal de seguimiento: ${cuando}`, {
+      titulo: `Hola ${p.nombre}, tenemos un espacio para el equipo`,
+      parrafos: [
+        `Es una sesión grupal de seguimiento para quienes acompañan, facilitada por <strong>${p.facilitador}</strong>. No es evaluación de nadie: es un espacio para descargarse, pensar juntos los casos que pesan y cuidarse.`,
+        p.agenda ? `Llega con estas preguntas, que salieron de quienes pidieron el espacio: ${p.agenda}` : null,
+        'Si no puedes, avísanos por WhatsApp y te contamos de la siguiente.',
+      ].filter(Boolean),
+      datos: [
+        `<strong>Cuándo:</strong> ${cuando}`,
+        `<strong>Facilita:</strong> ${p.facilitador}`,
+        `<strong>Enlace para entrar:</strong> <a href="${p.enlace}">${p.enlace}</a>`,
+      ],
+    })
+  },
+
   // ---------------------------------------------------------------- agenda
 
   /**

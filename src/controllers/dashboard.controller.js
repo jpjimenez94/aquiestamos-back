@@ -3,6 +3,7 @@ import { VIVOS } from '../services/assignmentState.service.js'
 import { plazosDeLiberacion } from '../asignacion/barrido.js'
 import { SLA_ALTA_DIAS } from '../citas/barrido.js'
 import { SettingsService } from '../services/settings.service.js'
+import { checkInsSinAtender } from '../services/cuidado.service.js'
 import { ok } from '../views/response.view.js'
 import { formatearLocal } from '../services/timezone.service.js'
 import {
@@ -96,6 +97,9 @@ export const DashboardController = {
         }),
       ])
 
+      // Cuidado del equipo: cuántos pidieron el espacio y nadie ha convocado.
+      const cuidadoPendientes = await checkInsSinAtender()
+
       let miAgendaCount = 0
       if (req.usuario?.professionalId) {
         miAgendaCount = await prisma.appointment.count({
@@ -117,6 +121,7 @@ export const DashboardController = {
           miAgenda: miAgendaCount,
           tareas: tareasAbiertas,
           personas: personasSinAsignar + sesionesSinReportar + asignadasSinHora,
+          cuidado: cuidadoPendientes,
         }),
       )
     } catch (error) {
