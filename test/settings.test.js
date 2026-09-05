@@ -33,3 +33,22 @@ describe('SettingsService · Parametrización y Plantillas', () => {
     expect(resultado).toBe('Hola Carlos, tu código es {codigo}')
   })
 })
+
+/**
+ * Cada clave vive en una de las TRES categorías que la pantalla conoce.
+ *
+ * `WHATSAPP_CUIDADO_OFRECER` salió con una categoría inventada
+ * —`PLANTILLA_WHATSAPP`— y Parametrización agrupa por las tres que conoce: la
+ * clave existía, se guardaba, se usaba… y no se podía editar desde ninguna
+ * pestaña. Nadie la vio hasta que Byron la fue a buscar.
+ */
+describe('las categorías son las que la pantalla sabe pintar', () => {
+  const CONOCIDAS = ['MENSAJE_WHATSAPP', 'PLANTILLA_CORREO', 'PARAMETRO_GENERAL']
+
+  it('ninguna clave se queda fuera de las tres pestañas', () => {
+    const huerfanas = DEFAULT_SETTINGS.filter((s) => !CONOCIDAS.includes(s.category)).map(
+      (s) => `${s.key} (${s.category})`,
+    )
+    expect(huerfanas).toEqual([])
+  })
+})

@@ -492,22 +492,29 @@ Nos comunicamos contigo reconociendo tu valioso liderazgo en *{territorio}* y qu
   },
   {
     key: 'WHATSAPP_CUIDADO_OFRECER',
-    category: 'PLANTILLA_WHATSAPP',
-    name: 'WhatsApp · Ofrecerle el espacio «¿Cómo estás tú?» al profesional',
+    // MENSAJE_WHATSAPP, como las otras dieciocho. Salió con una categoría
+    // inventada —PLANTILLA_WHATSAPP— y la pantalla, que agrupa por las tres
+    // que conoce, no la enseñaba en ninguna pestaña: existía y no se podía
+    // editar.
+    category: 'MENSAJE_WHATSAPP',
+    name: 'Cuidado del equipo · Ofrecerle el espacio «¿Cómo estás tú?»',
     description:
-      'Lo manda coordinación desde Cuidado del equipo a quien ya lleva varias sesiones y no ha pedido el espacio. El enlace lo lleva directo al bloque, al final de su caso.',
+      'Lo manda coordinación desde Cuidado del equipo a quien ya lleva varias sesiones y no ha pedido el espacio. El enlace es del profesional, no de un caso, y se firma nuevo cada vez.',
     dataType: 'TEXTO',
+    // «sesiones» ya viene con la palabra: «1 sesión» o «4 sesiones». Escribir
+    // «{sesiones} sesiones» en la plantilla daba «1 sesiones», y el plural no
+    // se puede resolver desde aquí.
     variables: ['profesional', 'sesiones', 'enlace'],
     defaultValue: [
       'Hola {profesional} 👋',
       '',
-      'Llevas {sesiones} sesiones acompañando en la red, y queríamos preguntarte cómo estás *tú*.',
+      'Llevas {sesiones} acompañando en la red, y queríamos preguntarte cómo estás *tú*.',
       '',
       'Si te sirve, hay un espacio para eso: pedir apoyo, pensar un caso difícil con otros psicólogos, o simplemente descargarte. Lo cuadramos en una sesión grupal con alguien de la red.',
       '',
-      'Entra aquí y lo encuentras al final: {enlace}',
+      'Aquí lo tienes: {enlace}',
       '',
-      'Si ahora no lo necesitas, no pasa nada. Queda ahí para cuando quieras.',
+      'Es tuyo y te sirve siempre, así que guárdalo. Y si ahora no lo necesitas, no pasa nada: queda ahí para cuando quieras.',
     ].join('\n'),
   },
   {
