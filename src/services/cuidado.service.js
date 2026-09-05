@@ -161,6 +161,63 @@ export function supervisoresDisponibles() {
   })
 }
 
+/**
+ * A quién puede coordinación ofrecerle el espacio hoy.
+ *
+ * El bloque «¿Cómo estás tú?» vive al final del enlace del caso, y el
+ * profesional solo lo ve si entra. Sin esta lista, el módulo esperaba a que
+ * alguien se acordara solo de pedir ayuda —justo lo que no hace quien está
+ * cargado—, y coordinación no tenía forma de saber a quién ofrecérselo.
+ *
+ * Son los que ya cruzaron el umbral y no tienen una petición sin atender. Hace
+ * falta además un caso abierto suyo: el enlace del bloque es el de un caso, y
+ * sin ninguno vivo no hay puerta por la que mandarlo.
+ */
+export async function profesionalesParaOfrecerles(umbral, cuenta) {
+  const asignaciones = await prisma.caseAssignment.findMany({
+    where: { status: { in: ['ACEPTADA', 'ACTIVA'] }, deletedAt: null, patient: { deletedAt: null } },
+    select: {
+      patientId: true,
+      professional: {
+        select: { id: true, fullName: true, phone: true, status: true, deletedAt: true },
+      },
+    },
+    orderBy: { startedAt: 'desc' },
+  })
+
+  const pendientes = await prisma.professionalCheckIn.findMany({
+    where: { groupSessionId: null },
+    select: { professionalId: true },
+  })
+  const yaPidieron = new Set(pendientes.map((p) => p.professionalId))
+
+  const ultimos = await prisma.professionalCheckIn.findMany({
+    orderBy: { createdAt: 'desc' },
+    select: { professionalId: true, createdAt: true },
+  })
+  const ultimaVez = new Map()
+  for (const c of ultimos) if (!ultimaVez.has(c.professionalId)) ultimaVez.set(c.professionalId, c.createdAt)
+
+  const vistos = new Map()
+  for (const a of asignaciones) {
+    const p = a.professional
+    if (!p || p.deletedAt || p.status !== 'ACTIVO') continue
+    if (yaPidieron.has(p.id) || vistos.has(p.id)) continue
+    const sesiones = cuenta(p.id)
+    if (sesiones < umbral) continue
+    vistos.set(p.id, {
+      id: p.id,
+      nombre: p.fullName,
+      telefono: p.phone,
+      sesiones,
+      // Uno de sus casos abiertos: por ahí entra al bloque.
+      pacienteId: a.patientId,
+      ultimaVez: ultimaVez.get(p.id) ?? null,
+    })
+  }
+  return [...vistos.values()].sort((a, b) => b.sesiones - a.sesiones)
+}
+
 /** Lo que ve coordinación al abrir el módulo. */
 export async function resumenParaCoordinacion() {
   const [pendientes, supervisores, sesiones] = await Promise.all([
@@ -180,9 +237,13 @@ export async function resumenParaCoordinacion() {
     }),
   ])
 
+  const umbral = await umbralDeCheckIn()
+  const cuenta = await sesionesHechasPorTodos()
+
   return {
-    umbral: await umbralDeCheckIn(),
+    umbral,
     checkInsPendientes: pendientes.map(vistaCheckIn),
+    paraOfrecer: await profesionalesParaOfrecerles(umbral, cuenta),
     supervisores,
     sesiones: sesiones.map(vistaSesion),
   }

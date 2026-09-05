@@ -491,6 +491,26 @@ Nos comunicamos contigo reconociendo tu valioso liderazgo en *{territorio}* y qu
     }),
   },
   {
+    key: 'WHATSAPP_CUIDADO_OFRECER',
+    category: 'PLANTILLA_WHATSAPP',
+    name: 'WhatsApp · Ofrecerle el espacio «¿Cómo estás tú?» al profesional',
+    description:
+      'Lo manda coordinación desde Cuidado del equipo a quien ya lleva varias sesiones y no ha pedido el espacio. El enlace lo lleva directo al bloque, al final de su caso.',
+    dataType: 'TEXTO',
+    variables: ['profesional', 'sesiones', 'enlace'],
+    defaultValue: [
+      'Hola {profesional} 👋',
+      '',
+      'Llevas {sesiones} sesiones acompañando en la red, y queríamos preguntarte cómo estás *tú*.',
+      '',
+      'Si te sirve, hay un espacio para eso: pedir apoyo, pensar un caso difícil con otros psicólogos, o simplemente descargarte. Lo cuadramos en una sesión grupal con alguien de la red.',
+      '',
+      'Entra aquí y lo encuentras al final: {enlace}',
+      '',
+      'Si ahora no lo necesitas, no pasa nada. Queda ahí para cuando quieras.',
+    ].join('\n'),
+  },
+  {
     key: 'CORREO_CHECKIN_RECIBIDO',
     category: 'PLANTILLA_CORREO',
     name: 'Correo · Un profesional pidió el espacio «¿Cómo estás tú?»',
