@@ -25,10 +25,14 @@ export const ProfessionalController = {
       })
 
       const carga = await cargaActual(profesionales.map((p) => p.id))
+      // Sesiones hechas en la red, con la regla del módulo de cuidado: es lo
+      // que dice a quién se le abre ya el espacio «¿Cómo estás tú?».
+      const sesiones = await sesionesHechasPorTodos()
       const sitio = env.sitioUrl.replace(/\/$/, '')
       const lista = profesionalLista(profesionales, req.usuario).map((p) => ({
         ...p,
         carga: carga(p.id),
+        sesionesHechas: sesiones(p.id),
         // El enlace por el que ÉL sube sus documentos. Solo mientras falte:
         // verificado, no hay nada que pedir.
         enlaceDocumentos: p.professionalCardVerified
@@ -57,6 +61,9 @@ export const ProfessionalController = {
             ? null
             : `${env.sitioUrl.replace(/\/$/, '')}/documentos/${crearEnlaceDocumentos(profesional.id)}`,
           carga: casos.length,
+          // Para la ficha: cuántas lleva y desde cuántas se le abre el espacio.
+          sesionesHechas: await sesionesHechasPor(profesional.id),
+          umbralCheckIn: await umbralDeCheckIn(),
           casos: casos.map((c) => ({
             id: c.id,
             paciente: { id: c.patient.id, nombre: c.patient.fullName },
@@ -332,3 +339,5 @@ export const ProfessionalController = {
   },
 }
 
+// Izados: el módulo de cuidado del equipo presta el conteo de sesiones.
+import { sesionesHechasPor, sesionesHechasPorTodos, umbralDeCheckIn } from '../services/cuidado.service.js'

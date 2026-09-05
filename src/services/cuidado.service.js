@@ -375,3 +375,35 @@ export function checkInsSinAtender() {
     where: { groupSessionId: null, professional: { deletedAt: null } },
   })
 }
+
+/**
+ * Lo mismo que `sesionesHechasPor`, para todos a la vez: dos consultas en
+ * total en vez de dos por profesional. Es lo que enseña la lista de
+ * Profesionales, para saber de un vistazo a quién se le abre ya el espacio.
+ * Devuelve una función, como `cargaActual`: `(id) => cuántas`.
+ */
+export async function sesionesHechasPorTodos() {
+  const [citas, reportes] = await Promise.all([
+    prisma.appointment.findMany({
+      where: { patient: { deletedAt: null } },
+      select: {
+        id: true,
+        professionalId: true,
+        startsAt: true,
+        status: true,
+        caseAssignmentId: true,
+        patientFirstJoinedAt: true,
+        professionalFirstJoinedAt: true,
+      },
+    }),
+    prisma.caseReport.findMany({
+      select: { id: true, assignmentId: true, outcome: true, createdAt: true },
+    }),
+  ])
+  const porProfesional = new Map()
+  for (const c of citas) {
+    if (!huboSesion(c, reportes)) continue
+    porProfesional.set(c.professionalId, (porProfesional.get(c.professionalId) ?? 0) + 1)
+  }
+  return (professionalId) => porProfesional.get(professionalId) ?? 0
+}
