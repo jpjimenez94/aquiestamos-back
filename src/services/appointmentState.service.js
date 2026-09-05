@@ -122,6 +122,22 @@ export const REPORTE_NIEGA = 'NO_ASISTIO'
  * después de que empezara. Con dos sesiones en el mismo caso, a cada una le
  * toca el suyo.
  */
+/**
+ * Cuánto antes de su hora registrada puede escribirse el reporte de una sesión.
+ *
+ * La hora de una cita creada desde «la cita acordada del reporte» es la que
+ * tecleó el profesional al reportar la anterior, no la hora real: se desvía.
+ * En producción hay una sesión cuyo reporte se escribió 25 minutos ANTES de la
+ * hora registrada, y se quedaba sin nota mientras la ficha enseñaba el reporte
+ * ahí mismo, debajo.
+ *
+ * 30 minutos, y no más, por una razón concreta: dos sesiones no pueden estar a
+ * menos de 75 minutos (45 de sesión + 30 de descanso), así que media hora
+ * nunca alcanza a solapar la franja de la sesión anterior. Un reporte escrito
+ * durante una sesión no puede caer nunca en la ventana de la siguiente.
+ */
+const MARGEN_ANTES_DE_LA_HORA = 30
+
 export function reporteDeLaCita(cita, reportes, citasDelCaso = []) {
   if (!cita?.caseAssignmentId || !reportes?.length) return null
   const empezo = new Date(cita.startsAt).getTime()
@@ -151,11 +167,12 @@ export function reporteDeLaCita(cita, reportes, citasDelCaso = []) {
     if (cuando > empezo && cuando < siguiente) siguiente = cuando
   }
 
+  const ventana = MARGEN_ANTES_DE_LA_HORA * 60000
   const suyos = reportes
     .filter((r) => {
       if (r.assignmentId !== cita.caseAssignmentId) return false
       const cuando = new Date(r.createdAt).getTime()
-      return cuando >= empezo && cuando < siguiente
+      return cuando >= empezo - ventana && cuando < siguiente - ventana
     })
     .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
   return suyos[0] ?? null

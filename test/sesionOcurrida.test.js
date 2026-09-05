@@ -164,3 +164,47 @@ describe('un reporte no se lo quedan dos sesiones', () => {
     expect(huboSesion(segunda, [tardio], [...citas, deOtroCaso])).toBe(true)
   })
 })
+
+/**
+ * LA HORA REGISTRADA DE UNA CITA ES APROXIMADA.
+ *
+ * Cuando coordinación agenda «la cita acordada del reporte», la hora sale de
+ * lo que tecleó el profesional al reportar la sesión anterior — no de la hora
+ * real. En producción hay una sesión cuyo reporte se escribió 25 minutos ANTES
+ * de esa hora: la ficha decía «Sin reportar» con el reporte impreso justo
+ * debajo.
+ *
+ * Media hora de margen, y ni un minuto más: dos sesiones no caben a menos de
+ * 75 minutos, así que la ventana nunca alcanza la franja de la anterior.
+ */
+describe('el reporte puede llegar un poco antes de la hora registrada', () => {
+  const sesion = cita({ startsAt: new Date(ahora) })
+  const antes = (minutos) => ({
+    outcome: REPORTE_CONFIRMA,
+    assignmentId: CASO,
+    createdAt: new Date(ahora - minutos * 60000),
+  })
+
+  it('25 minutos antes: es de esa sesión', () => {
+    expect(huboSesion(sesion, [antes(25)], [sesion])).toBe(true)
+  })
+
+  it('dos horas antes: no lo es', () => {
+    expect(huboSesion(sesion, [antes(120)], [sesion])).toBe(false)
+  })
+
+  /**
+   * Lo que el margen NO puede hacer: que un reporte escrito durante una sesión
+   * se lo quede la siguiente. Con 75 minutos entre las dos —el mínimo que
+   * permite la agenda— el reporte se queda donde va.
+   */
+  it('no le roba el reporte a la sesión anterior', () => {
+    const primera = cita({ startsAt: new Date(ahora) })
+    const segunda = cita({ startsAt: new Date(ahora + 75 * 60000) })
+    const citas = [primera, segunda]
+    // Escrito 20 minutos después de empezar la primera: suyo es.
+    const durante = { outcome: REPORTE_CONFIRMA, assignmentId: CASO, createdAt: new Date(ahora + 20 * 60000) }
+    expect(huboSesion(primera, [durante], citas)).toBe(true)
+    expect(huboSesion(segunda, [durante], citas)).toBe(false)
+  })
+})
