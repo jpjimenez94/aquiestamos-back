@@ -230,9 +230,13 @@ export async function resumenParaCoordinacion() {
     prisma.supportGroupSession.findMany({
       orderBy: { startsAt: 'desc' },
       take: 20,
+      // Los teléfonos: la convocatoria también se manda por WhatsApp desde
+      // el portal, no solo por el correo automático.
       include: {
-        facilitator: { select: { id: true, fullName: true } },
-        invitations: { include: { professional: { select: { id: true, fullName: true } } } },
+        facilitator: { select: { id: true, fullName: true, phone: true } },
+        invitations: {
+          include: { professional: { select: { id: true, fullName: true, phone: true } } },
+        },
       },
     }),
   ])
@@ -274,6 +278,7 @@ function vistaSesion(s) {
     invitados: s.invitations.map((i) => ({
       id: i.professional.id,
       nombre: i.professional.fullName,
+      telefono: i.professional.phone ?? null,
       asistio: i.attended,
     })),
     creadaPor: s.createdByEmail,

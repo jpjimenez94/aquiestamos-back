@@ -538,6 +538,30 @@ Nos comunicamos contigo reconociendo tu valioso liderazgo en *{territorio}* y qu
     ].join('\n'),
   },
   {
+    key: 'WHATSAPP_SESION_GRUPAL',
+    category: 'MENSAJE_WHATSAPP',
+    // La convocatoria salía solo por correo, y es lo único de la red que
+    // viajaba solo por ahí: quien acompaña vive en WhatsApp. El enlace de la
+    // reunión, la hora y quién facilita tienen que poder mandarse por donde
+    // sí se leen.
+    name: 'Cuidado del equipo · Convocar a la sesión grupal',
+    description:
+      'Lo manda coordinación desde Cuidado del equipo a cada invitado y al facilitador. Lleva la fecha, la hora, quién facilita y el enlace de la reunión. El correo automático sigue saliendo igual al convocar.',
+    dataType: 'TEXTO',
+    variables: ['profesional', 'cuando', 'facilitador', 'enlace'],
+    defaultValue: [
+      'Hola {profesional} 👋',
+      '',
+      'Ya quedó la sesión grupal de seguimiento: *{cuando}*, hora de Colombia. La facilita {facilitador}.',
+      '',
+      'Es el espacio del equipo: descargarse, pensar juntos los casos que pesan y cuidarnos entre quienes acompañamos. *No es una evaluación del trabajo de nadie.*',
+      '',
+      'Para entrar: {enlace}',
+      '',
+      'Llegamos con las preguntas que dejaron ustedes mismos. Y si ese día no puedes, dínoslo y te contamos de la siguiente.',
+    ].join('\n'),
+  },
+  {
     key: 'CORREO_CHECKIN_RECIBIDO',
     category: 'PLANTILLA_CORREO',
     name: 'Correo · Un profesional pidió el espacio «¿Cómo estás tú?»',
