@@ -67,6 +67,34 @@ export async function generarEnlaceVideollamada(appointmentId) {
 }
 
 /**
+ * Sala para una sesión grupal de Cuidado del equipo.
+ *
+ * La misma receta que la de una cita —determinista, derivada del secreto, en
+ * el dominio que diga Parametrización— y con otro prefijo, para que dos
+ * identificadores iguales de tablas distintas nunca den la misma sala.
+ *
+ * Antes había que pegar a mano un enlace de Meet o Zoom: la reunión vivía en
+ * la cuenta personal de quien la creó, nadie más podía abrirla si esa persona
+ * faltaba, y en la auditoría quedaba una URL de la que la red no sabe nada.
+ * Con la sala propia, convocar no depende de la cuenta de nadie.
+ *
+ * Pegar un enlace propio sigue valiendo: hay quien prefiere Zoom por la
+ * grabación o por costumbre, y eso no se le quita a nadie.
+ */
+export async function generarEnlaceSalaGrupal(sessionId) {
+  if (!sessionId) return null
+
+  const hash = crypto
+    .createHmac('sha256', secreto())
+    .update(`support-session-room-${sessionId}`)
+    .digest('hex')
+    .slice(0, 16)
+
+  const shortId = String(sessionId).replace(/-/g, '').slice(0, 8)
+  return `https://${await dominioJitsi()}/AquiEstamos-Equipo-${shortId}-${hash}`
+}
+
+/**
  * Llave de entrada a la sala de espera, sellada y con el rol dentro.
  * Formato: base64url(payload) + '.' + hmac(payload, secreto)
  *

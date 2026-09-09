@@ -3,6 +3,8 @@ import { DomainError } from '../errors/DomainError.js'
 import { SettingsService } from './settings.service.js'
 import { huboSesion } from './appointmentState.service.js'
 import { crearEnlaceCuidado } from '../auth/enlaceCuidado.js'
+import { generarEnlaceSalaGrupal } from './meeting.service.js'
+import crypto from 'crypto'
 import { env } from '../config/env.js'
 
 /**
@@ -387,13 +389,26 @@ export async function convocarSesionGrupal({
     include: { professional: { select: { fullName: true } } },
   })
 
+  /**
+   * El identificador se decide aquí, antes de crear la fila.
+   *
+   * La sala se deriva del id de la sesión —igual que la de una cita—, así que
+   * hace falta conocerlo antes de guardar. Pedirlo aquí evita crear la fila,
+   * calcular la sala y volver a actualizarla: una escritura menos y ningún
+   * momento en el que la sesión exista sin enlace.
+   */
+  const id = crypto.randomUUID()
+  const pegado = typeof meetingUrl === 'string' ? meetingUrl.trim() : ''
+  const enlace = pegado || (await generarEnlaceSalaGrupal(id))
+
   const sesion = await prisma.$transaction(async (tx) => {
     const creada = await tx.supportGroupSession.create({
       data: {
+        id,
         facilitatorId,
         startsAt: inicio,
         endsAt: fin,
-        meetingUrl: meetingUrl.trim(),
+        meetingUrl: enlace,
         agenda: agenda?.trim() ? agenda.trim() : armarAgenda(pendientes),
         createdByEmail: createdByEmail ?? null,
         invitations: { create: ids.map((professionalId) => ({ professionalId })) },
@@ -408,7 +423,9 @@ export async function convocarSesionGrupal({
     return creada
   })
 
-  return { sesion, facilitador, invitados: profesionales }
+  // `salaPropia` es para la auditoría y para el aviso: no es lo mismo una
+  // sala de la red que un Zoom de la cuenta de alguien.
+  return { sesion, facilitador, invitados: profesionales, salaPropia: !pegado }
 }
 
 export async function cambiarEstadoSesionGrupal(id, hacia) {

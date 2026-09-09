@@ -29,7 +29,7 @@ export const CuidadoController = {
   /** POST /api/cuidado/sesiones — convocar una sesión grupal. */
   async convocar(req, res, next) {
     try {
-      const { sesion, facilitador, invitados } = await convocarSesionGrupal({
+      const { sesion, facilitador, invitados, salaPropia } = await convocarSesionGrupal({
         ...req.validated,
         createdByEmail: req.usuario?.email ?? null,
       })
@@ -43,6 +43,11 @@ export const CuidadoController = {
           facilitador: facilitador.fullName,
           inicio: sesion.startsAt,
           invitados: invitados.map((p) => p.fullName),
+          enlace: sesion.meetingUrl,
+          // Si la sala es de la red o alguien pegó la suya. Un enlace de la
+          // cuenta personal de quien convoca deja de abrirse el día que esa
+          // persona se va, y sin esto no habría forma de saber cuáles eran.
+          salaDeLaRed: salaPropia,
         },
       })
 

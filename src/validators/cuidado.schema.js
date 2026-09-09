@@ -26,11 +26,21 @@ export const convocarSesionSchema = z.object({
   facilitatorId: z.string().uuid('El facilitador no es válido'),
   startsAt: z.string().datetime({ offset: true, message: 'La fecha y hora no son válidas' }),
   duracionMinutos: z.number().int().min(30).max(180).default(60),
+  /**
+   * Opcional: si no viene, la red crea su propia sala.
+   *
+   * Era obligatorio y había que pegar un Meet o un Zoom de la cuenta personal
+   * de quien convocaba. Sigue aceptándose —hay quien prefiere Zoom por la
+   * grabación— pero ya no hace falta.
+   */
   meetingUrl: z
     .string()
     .trim()
     .url('El enlace de la reunión no es válido')
-    .max(500),
+    .max(500)
+    .optional()
+    .nullable()
+    .or(z.literal('')),
   invitados: z
     .array(z.string().uuid())
     .min(1, 'Invita al menos a una persona')

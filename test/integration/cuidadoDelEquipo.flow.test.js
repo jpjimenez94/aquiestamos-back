@@ -335,6 +335,73 @@ describe('desde el portal', () => {
     expect(resumen.body.data.sesiones.map((s) => s.id)).toContain(ids.sesion)
   })
 
+  /**
+   * La sala la pone la red, no la cuenta de quien convoca.
+   *
+   * El enlace era obligatorio y salía de un Meet o un Zoom personal: la
+   * reunión dejaba de existir el día que esa persona se iba de la red, y en la
+   * auditoría quedaba una URL de la que no sabíamos nada. Ahora, si no se pega
+   * ninguno, la sesión abre en la videollamada de la red — la misma receta que
+   * la sala de una cita: derivada del identificador y del secreto, así que es
+   * siempre la misma para esa sesión y no se puede adivinar.
+   */
+  it('sin enlace pegado, la sesión abre en la sala de la red', async () => {
+    const r = await comoAdmin('post', '/sesiones').send({
+      facilitatorId: ids.facilita,
+      startsAt: new Date(Date.now() + 96 * 3600000).toISOString(),
+      invitados: [ids.acompana],
+    })
+    expect(r.status).toBe(201)
+
+    const sesion = await prisma.supportGroupSession.findUnique({ where: { id: r.body.data.id } })
+    expect(sesion.meetingUrl).toMatch(/^https:\/\/[^\/]+\/AquiEstamos-Equipo-[0-9a-f]{8}-[0-9a-f]{16}$/)
+
+    // Y es la que se les manda por correo, no otra.
+    const avisos = await prisma.notification.findMany({
+      where: { entityId: sesion.id, template: 'SESION_GRUPAL' },
+    })
+    expect(avisos.length).toBeGreaterThan(0)
+    for (const aviso of avisos) expect(aviso.payload.enlace).toBe(sesion.meetingUrl)
+
+    // La auditoría dice cuál es y que la puso la red.
+    const rastro = await prisma.auditLog.findFirst({
+      where: { entity: 'sesion_grupal', entityId: sesion.id },
+      orderBy: { createdAt: 'desc' },
+    })
+    expect(rastro.after.enlace).toBe(sesion.meetingUrl)
+    expect(rastro.after.salaDeLaRed).toBe(true)
+
+    await prisma.supportGroupSession.update({
+      where: { id: sesion.id },
+      data: { status: 'CANCELADA' },
+    })
+  })
+
+  /** Pegar el propio sigue valiendo: hay quien prefiere Zoom por la grabación. */
+  it('si pegan un enlace propio, se respeta y queda dicho en la auditoría', async () => {
+    const r = await comoAdmin('post', '/sesiones').send({
+      facilitatorId: ids.facilita,
+      startsAt: new Date(Date.now() + 120 * 3600000).toISOString(),
+      meetingUrl: 'https://zoom.us/j/123456789',
+      invitados: [ids.acompana],
+    })
+    expect(r.status).toBe(201)
+
+    const sesion = await prisma.supportGroupSession.findUnique({ where: { id: r.body.data.id } })
+    expect(sesion.meetingUrl).toBe('https://zoom.us/j/123456789')
+
+    const rastro = await prisma.auditLog.findFirst({
+      where: { entity: 'sesion_grupal', entityId: sesion.id },
+      orderBy: { createdAt: 'desc' },
+    })
+    expect(rastro.after.salaDeLaRed).toBe(false)
+
+    await prisma.supportGroupSession.update({
+      where: { id: sesion.id },
+      data: { status: 'CANCELADA' },
+    })
+  })
+
   it('el profesional ve desde su enlace que ya tiene sesión convocada', async () => {
     const r = await suEnlace('get')
     const mio = r.body.data.checkIns.find((c) => c.id === ids.checkIn)
