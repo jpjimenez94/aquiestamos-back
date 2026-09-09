@@ -39,6 +39,9 @@ export const PERMISOS = {
     'colaborador:editar',
     'paciente:leer',
     'paciente:crear',
+    // Corregir una nota de seguimiento ya escrita. Es quien más las escribe
+    // —recibe, llama y agenda— y quien antes ve el dato equivocado.
+    'paciente:nota-editar',
     'profesional:crear',
     'profesional:leer',
     'profesional:verificar-tarjeta',
@@ -77,6 +80,7 @@ export const PERMISOS = {
     'cuidado:gestionar',
     'paciente:leer',
     'paciente:editar',
+    'paciente:nota-editar',
     'profesional:leer',
     'agenda:leer',
     'disponibilidad:leer',

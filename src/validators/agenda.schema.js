@@ -131,6 +131,16 @@ export const editarProfesionalSchema = z.object({
   userId: z.string().uuid('Identificador no valido').nullable().optional(),
 })
 
+/**
+ * Corregir una nota de seguimiento.
+ *
+ * El mismo límite que la columna —2000— y no vacía: una nota en blanco no
+ * corrige nada, borra sin dejar rastro de que se borró.
+ */
+export const corregirNotaSchema = z.object({
+  note: z.string().trim().min(1, 'La nota no puede estar vacía').max(2000),
+})
+
 export const editarPacienteSchema = z.object({
   priority: choice(['BAJA', 'MEDIA', 'ALTA']).optional(),
   fullName: z.string().trim().min(1).max(160).optional(),

@@ -679,6 +679,16 @@ model PatientNote {
   authorName  String   @map("author_name") @db.VarChar(160)
   authorEmail String   @map("author_email") @db.VarChar(160)
 
+  /// Quién la corrigió y cuándo, si alguien lo hizo.
+  ///
+  /// Una nota de seguimiento se escribe deprisa y con la persona al teléfono,
+  /// así que se cuela un nombre mal o un dato cambiado, y quedaba para
+  /// siempre. Corregirla no borra al autor: sigue siendo suya, con la marca de
+  /// quién la arregló. El texto anterior queda en la auditoría.
+  editedAt      DateTime? @map("edited_at") @db.Timestamptz(3)
+  editedByName  String?   @map("edited_by_name") @db.VarChar(160)
+  editedByEmail String?   @map("edited_by_email") @db.VarChar(160)
+
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 

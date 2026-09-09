@@ -20,6 +20,7 @@ import {
   admitirSolicitudSchema,
   editarProfesionalSchema,
   editarPacienteSchema,
+  corregirNotaSchema,
   actualizarTarjetaProfesionalSchema,
   actualizarConsentimientoSchema,
   confirmarHorarioSchema,
@@ -114,6 +115,14 @@ patientRoutes.patch(
 )
 patientRoutes.get('/:id/notes', authorize('paciente:leer'), PatientController.obtenerNotas)
 patientRoutes.post('/:id/notes', authorize('paciente:leer'), PatientController.agregarNota)
+// Corregir una ya escrita. Permiso aparte de escribirlas: cualquiera del
+// equipo puede añadir la suya, tocar la de otro es otra cosa y queda firmado.
+patientRoutes.patch(
+  '/:id/notes/:notaId',
+  authorize('paciente:nota-editar'),
+  validateBody(corregirNotaSchema),
+  PatientController.corregirNota,
+)
 patientRoutes.delete('/:id', authorize('paciente:borrar'), PatientController.destroy)
 
 // ---------------------------------------------------------------- agenda

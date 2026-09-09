@@ -31,6 +31,24 @@ export const PatientNoteModel = {
     })
   },
 
+  /**
+   * Corrige el texto y deja la firma de quien lo corrigió.
+   *
+   * No toca al autor ni la fecha original: la nota sigue siendo de quien la
+   * escribió, y el historial no se reordena por haberla arreglado.
+   */
+  actualizar({ id, note, editorName, editorEmail }) {
+    return prisma.patientNote.update({
+      where: { id },
+      data: {
+        note,
+        editedAt: new Date(),
+        editedByName: editorName,
+        editedByEmail: editorEmail,
+      },
+    })
+  },
+
   delete(id) {
     return prisma.patientNote.delete({
       where: { id },

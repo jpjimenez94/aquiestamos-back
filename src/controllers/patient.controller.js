@@ -32,6 +32,25 @@ import {
   ETIQUETAS_FEEDBACK_CONTINUAR,
 } from '../catalogos.js'
 
+/**
+ * Cómo viaja una nota al portal.
+ *
+ * Estaba escrito tres veces —al crearla, al listarlas y ahora al corregirla— y
+ * la corrección añade dos campos: si nace en un sitio y se olvida en otro, la
+ * pantalla enseña «corregida» en la lista y no en el detalle, o al revés.
+ */
+function vistaNota(n) {
+  return {
+    id: n.id,
+    nota: n.note,
+    autor: n.authorName,
+    email: n.authorEmail,
+    fecha: n.createdAt,
+    corregidaPor: n.editedByName ?? null,
+    corregidaEl: n.editedAt ?? null,
+  }
+}
+
 export const PatientController = {
   /** GET /api/patients */
   async index(req, res, next) {
@@ -443,7 +462,11 @@ export const PatientController = {
       const paciente = await PatientModel.findById(req.params.id)
       if (!paciente) return res.status(404).json(failure('Persona no encontrada'))
 
-      const authorName = req.usuario?.fullName || req.usuario?.email || 'Coordinación'
+      // La cuenta del portal guarda el nombre en `name`; `fullName` es de
+      // profesionales y pacientes. Pedirlo aquí no fallaba: caía al correo, y
+      // en el historial de notas salía «vargasbuitrago@gmail.com» donde tenía
+      // que salir un nombre. Las notas ya escritas se quedan como están.
+      const authorName = req.usuario?.name || req.usuario?.email || 'Coordinación'
       const authorEmail = req.usuario?.email || 'sistema'
 
       const nuevaNota = await PatientNoteModel.create({
@@ -470,20 +493,72 @@ export const PatientController = {
 
       return res.status(201).json(
         created({
-          nota: {
-            id: nuevaNota.id,
-            nota: nuevaNota.note,
-            autor: nuevaNota.authorName,
-            email: nuevaNota.authorEmail,
-            fecha: nuevaNota.createdAt,
-          },
-          notas: notas.map((n) => ({
-            id: n.id,
-            nota: n.note,
-            autor: n.authorName,
-            email: n.authorEmail,
-            fecha: n.createdAt,
-          })),
+          nota: vistaNota(nuevaNota),
+          notas: notas.map(vistaNota),
+        }),
+      )
+    } catch (error) {
+      next(error)
+    }
+  },
+
+  /**
+   * PATCH /patients/:id/notes/:notaId — corregir una nota ya escrita.
+   *
+   * Las notas se escriben deprisa, muchas veces con la persona al teléfono, y
+   * hasta ahora lo que saliera mal se quedaba así para siempre: no había forma
+   * de arreglar un nombre cambiado o un dato equivocado, ni siquiera siendo
+   * quien la escribió.
+   *
+   * Se corrige el texto y nada más: el autor y la fecha original no se tocan
+   * —la nota sigue siendo suya y el historial no se reordena—, la corrección
+   * queda firmada con quién y cuándo, y el texto anterior se guarda en la
+   * auditoría, que es donde vive lo que ya no está a la vista.
+   */
+  async corregirNota(req, res, next) {
+    try {
+      const paciente = await PatientModel.findById(req.params.id)
+      if (!paciente) return res.status(404).json(failure('Persona no encontrada'))
+
+      const nota = await PatientNoteModel.findById(req.params.notaId)
+      // La nota tiene que ser de ESTA persona: sin esto, con el id de otra
+      // nota se editaría desde la ficha de quien fuera.
+      if (!nota || nota.patientId !== paciente.id) {
+        return res.status(404).json(failure('La nota no existe en esta persona'))
+      }
+
+      const texto = req.validated.note.trim()
+      const editorName = req.usuario?.name || req.usuario?.email || 'Coordinación'
+      const editorEmail = req.usuario?.email || 'sistema'
+
+      const corregida = await PatientNoteModel.actualizar({
+        id: nota.id,
+        note: texto,
+        editorName,
+        editorEmail,
+      })
+
+      await registrar({
+        req,
+        action: ACCION.EDITAR,
+        entity: 'paciente_nota',
+        entityId: nota.id,
+        before: { nota: nota.note },
+        after: {
+          pacienteId: paciente.id,
+          pacienteNombre: paciente.fullName,
+          nota: corregida.note,
+          autor: nota.authorName,
+          corregidaPor: editorName,
+        },
+      })
+
+      const notas = await PatientNoteModel.findDePaciente(paciente.id)
+
+      return res.json(
+        ok({
+          nota: vistaNota(corregida),
+          notas: notas.map(vistaNota),
         }),
       )
     } catch (error) {
@@ -500,15 +575,7 @@ export const PatientController = {
       const notas = await PatientNoteModel.findDePaciente(paciente.id)
 
       return res.json(
-        ok(
-          notas.map((n) => ({
-            id: n.id,
-            nota: n.note,
-            autor: n.authorName,
-            email: n.authorEmail,
-            fecha: n.createdAt,
-          })),
-        ),
+        ok(notas.map(vistaNota)),
       )
     } catch (error) {
       next(error)

@@ -206,6 +206,24 @@ describe('matriz de permisos', () => {
     }
   })
 
+  /**
+   * Corregir una nota de seguimiento ya escrita.
+   *
+   * Escribir la suya la escribe cualquiera del equipo —basta `paciente:leer`—,
+   * pero tocar la de otro es otra cosa y tiene permiso propio. El voluntario
+   * digital lo tiene porque es quien más notas escribe y quien antes ve el
+   * dato equivocado; quien solo lee, nunca.
+   */
+  it('corregir notas: el voluntario digital y gestión de casos, no lectura', () => {
+    expect(puede(agendador, 'paciente:nota-editar')).toBe(true)
+    expect(puede({ role: 'COORDINADOR_CASOS' }, 'paciente:nota-editar')).toBe(true)
+    expect(puede(admin, 'paciente:nota-editar')).toBe(true)
+
+    expect(puede({ role: 'LECTURA' }, 'paciente:nota-editar')).toBe(false)
+    expect(puede({ role: 'ADMISION' }, 'paciente:nota-editar')).toBe(false)
+    expect(puede(profesional, 'paciente:nota-editar')).toBe(false)
+  })
+
   it('permisosDe expone la lista para el portal', () => {
     expect(permisosDe('ADMIN')).toEqual(['*'])
     expect(permisosDe('AGENDADOR')).toContain('cita:crear')
