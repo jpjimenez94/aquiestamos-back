@@ -197,6 +197,54 @@ export const AppointmentController = {
     }
   },
 
+  /**
+   * POST /api/appointments/:id/aviso — apuntar que ya se le contó a alguien.
+   *
+   * Los dos correos salen solos al agendar, pero lo que de verdad leen es el
+   * WhatsApp, y ese lo manda coordinación a mano desde la ficha. Nadie
+   * apuntaba si se había mandado: la pantalla lo deducía del reloj —«si
+   * pasaron doce horas, alguien lo habrá hecho»—, así que dos citas iguales
+   * decían cosas distintas según la hora a la que se miraran, y el aviso
+   * podía desaparecer sin que nadie hubiera escrito a nadie.
+   *
+   * Se guarda la PRIMERA vez y no se pisa. Reenviar el mensaje es normal
+   * —porque no contestó, porque se le olvidó—, pero el hecho que importa es
+   * cuándo se le contó por primera vez; si cada reenvío moviera la fecha, el
+   * dato dejaría de responder a la única pregunta que se le hace.
+   */
+  async marcarAviso(req, res, next) {
+    try {
+      const cita = await AppointmentModel.findById(req.params.id)
+      if (!cita) return res.status(404).json(failure('Cita no encontrada'))
+
+      const aLaPersona = req.validated.a === 'PERSONA'
+      const yaEstaba = aLaPersona ? cita.confirmedToPatientAt : cita.confirmedToProfessionalAt
+
+      if (!yaEstaba) {
+        const quien = req.usuario?.name || req.usuario?.email || 'Coordinación'
+        const ahora = new Date()
+        await AppointmentModel.update(cita.id,
+          aLaPersona
+            ? { confirmedToPatientAt: ahora, confirmedToPatientBy: quien }
+            : { confirmedToProfessionalAt: ahora, confirmedToProfessionalBy: quien },
+        )
+
+        await registrar({
+          req,
+          action: ACCION.EDITAR,
+          entity: 'cita',
+          entityId: cita.id,
+          after: { aviso: aLaPersona ? 'persona' : 'profesional', quien, cuando: ahora },
+        })
+      }
+
+      const actualizada = await AppointmentModel.findById(cita.id)
+      return res.json(ok(citaVista(actualizada)))
+    } catch (error) {
+      next(error)
+    }
+  },
+
   /** PATCH /api/appointments/:id/estado */
   async cambiarEstado(req, res, next) {
     try {

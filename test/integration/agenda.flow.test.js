@@ -555,6 +555,78 @@ describe('7 · cierre del caso', () => {
   })
 })
 
+/**
+ * Apuntar a quién se le contó que la cita existe.
+ *
+ * Los dos correos salen solos al agendar, pero lo que de verdad leen es el
+ * WhatsApp, y ese se manda a mano. Antes nadie lo apuntaba: la ficha lo
+ * deducía del reloj —«si pasaron doce horas, alguien lo habrá hecho»— y con
+ * eso dos citas iguales decían cosas distintas según la hora a la que se
+ * miraran, o el aviso desaparecía sin que nadie hubiera escrito a nadie.
+ */
+describe('7 bis · el aviso de la cita se apunta', () => {
+  it('marca a la persona, con quién y cuándo', async () => {
+    const res = await request(app)
+      .post(`/api/appointments/${ids.citaId}/aviso`)
+      .set(agendador())
+      .send({ a: 'PERSONA' })
+
+    expect(res.status).toBe(200)
+    expect(res.body.data.avisoALaPersona).toBeTruthy()
+    expect(res.body.data.avisoALaPersona.quien).toBeTruthy()
+    // Al profesional todavía no: son dos marcas, no una.
+    expect(res.body.data.avisoAlProfesional).toBeNull()
+  })
+
+  /**
+   * Reenviar el mensaje es normal —no contestó, se le olvidó—, pero la fecha
+   * que importa es la primera vez que se le contó. Si cada reenvío la moviera,
+   * el dato dejaría de responder a la única pregunta que se le hace.
+   */
+  it('reenviar no mueve la fecha del primer aviso', async () => {
+    const primero = await prisma.appointment.findUnique({ where: { id: ids.citaId } })
+    const res = await request(app)
+      .post(`/api/appointments/${ids.citaId}/aviso`)
+      .set(agendador())
+      .send({ a: 'PERSONA' })
+
+    expect(res.status).toBe(200)
+    const despues = await prisma.appointment.findUnique({ where: { id: ids.citaId } })
+    expect(despues.confirmedToPatientAt.toISOString()).toBe(
+      primero.confirmedToPatientAt.toISOString(),
+    )
+  })
+
+  it('y la del profesional es independiente', async () => {
+    const res = await request(app)
+      .post(`/api/appointments/${ids.citaId}/aviso`)
+      .set(agendador())
+      .send({ a: 'PROFESIONAL' })
+
+    expect(res.status).toBe(200)
+    expect(res.body.data.avisoAlProfesional).toBeTruthy()
+    expect(res.body.data.avisoALaPersona).toBeTruthy()
+  })
+
+  it('queda en la auditoría', async () => {
+    const rastro = await prisma.auditLog.findFirst({
+      where: { entity: 'cita', entityId: ids.citaId },
+      orderBy: { createdAt: 'desc' },
+    })
+    expect(rastro).toBeTruthy()
+    expect(JSON.stringify(rastro.after)).toContain('aviso')
+  })
+
+  it('a quién se le avisó tiene que ser la persona o el profesional', async () => {
+    const res = await request(app)
+      .post(`/api/appointments/${ids.citaId}/aviso`)
+      .set(agendador())
+      .send({ a: 'EL_VECINO' })
+
+    expect(res.status).toBe(422)
+  })
+})
+
 describe('8 · tablero', () => {
   it('devuelve los indicadores de operación', async () => {
     const res = await request(app).get('/api/dashboard').set(admin())

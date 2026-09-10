@@ -984,6 +984,22 @@ model Appointment {
   totalCallDurationSeconds  Int       @default(0) @map("total_call_duration_seconds")
   accessLogs                MeetingAccessLog[]
 
+  /// Cuándo se le contó a cada uno que esta cita existe, y quién lo hizo.
+  ///
+  /// Los dos correos salen solos al agendar, pero lo que de verdad leen es el
+  /// WhatsApp, y ese lo manda coordinación a mano. Hasta ahora nadie apuntaba
+  /// si se había mandado: la ficha lo deducía del reloj —«si pasaron doce
+  /// horas, alguien lo habrá hecho»— y con eso dos citas iguales decían cosas
+  /// distintas según la hora a la que se miraran, o el aviso desaparecía solo
+  /// sin que nadie hubiera escrito a nadie.
+  ///
+  /// Guarda que coordinación abrió el mensaje, no que la persona lo leyó. No
+  /// es lo mismo, pero es un hecho y no una suposición.
+  confirmedToPatientAt      DateTime? @map("confirmed_to_patient_at") @db.Timestamptz(3)
+  confirmedToPatientBy      String?   @map("confirmed_to_patient_by") @db.VarChar(160)
+  confirmedToProfessionalAt DateTime? @map("confirmed_to_professional_at") @db.Timestamptz(3)
+  confirmedToProfessionalBy String?   @map("confirmed_to_professional_by") @db.VarChar(160)
+
   consentSigned            Boolean   @default(false) @map("consent_signed")
   consentSignedDocumentUrl String?   @map("consent_signed_document_url") @db.VarChar(500)
   consentSignedAt          DateTime? @map("consent_signed_at") @db.Timestamptz(3)

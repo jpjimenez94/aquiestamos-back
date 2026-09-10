@@ -141,6 +141,18 @@ export const corregirNotaSchema = z.object({
   note: z.string().trim().min(1, 'La nota no puede estar vacía').max(2000),
 })
 
+/**
+ * Apuntar que ya se le contó a alguien que la cita existe.
+ *
+ * Un solo campo: a quién. El cuándo es ahora y el quién sale de la sesión —no
+ * se le pregunta al navegador, que podría decir cualquier cosa.
+ */
+export const avisoDeCitaSchema = z.object({
+  a: z.enum(['PERSONA', 'PROFESIONAL'], {
+    errorMap: () => ({ message: 'Di a quién se le avisó: PERSONA o PROFESIONAL' }),
+  }),
+})
+
 export const editarPacienteSchema = z.object({
   priority: choice(['BAJA', 'MEDIA', 'ALTA']).optional(),
   fullName: z.string().trim().min(1).max(160).optional(),

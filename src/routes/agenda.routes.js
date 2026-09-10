@@ -21,6 +21,7 @@ import {
   editarProfesionalSchema,
   editarPacienteSchema,
   corregirNotaSchema,
+  avisoDeCitaSchema,
   actualizarTarjetaProfesionalSchema,
   actualizarConsentimientoSchema,
   confirmarHorarioSchema,
@@ -150,6 +151,14 @@ appointmentRoutes.patch(
   authorize('cita:confirmar'),
   validateBody(actualizarConsentimientoSchema),
   AppointmentController.actualizarConsentimiento,
+)
+// Apuntar que se le mandó el WhatsApp. Mismo permiso que confirmar la cita:
+// quien puede darla por confirmada es quien avisa.
+appointmentRoutes.post(
+  '/:id/aviso',
+  authorize('cita:confirmar'),
+  validateBody(avisoDeCitaSchema),
+  AppointmentController.marcarAviso,
 )
 appointmentRoutes.post(
   '/:id/reprogramar',

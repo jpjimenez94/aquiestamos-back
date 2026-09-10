@@ -104,6 +104,18 @@ export function cita(c) {
     estado: c.status,
     estadoLegible: ETIQUETAS[c.status] ?? c.status,
     siguientesEstados: transicionesDesde(c.status),
+    /**
+     * A quién se le avisó ya, y quién avisó.
+     *
+     * La ficha lo deducía del reloj y por eso dos citas iguales decían cosas
+     * distintas según la hora a la que se miraran. Esto es el hecho.
+     */
+    avisoALaPersona: c.confirmedToPatientAt
+      ? { cuando: c.confirmedToPatientAt, quien: c.confirmedToPatientBy ?? null }
+      : null,
+    avisoAlProfesional: c.confirmedToProfessionalAt
+      ? { cuando: c.confirmedToProfessionalAt, quien: c.confirmedToProfessionalBy ?? null }
+      : null,
     consentSigned: c.consentSigned ?? false,
     consentSignedDocumentUrl: c.consentSignedDocumentUrl,
     consentSignedAt: c.consentSignedAt,
