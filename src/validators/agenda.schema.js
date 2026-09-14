@@ -153,6 +153,24 @@ export const avisoDeCitaSchema = z.object({
   }),
 })
 
+/**
+ * Por qué no se ha podido agendar a alguien.
+ *
+ * Tres motivos y no un campo libre: lo que importa es poder contarlos. «No
+ * contesta» y «el número está mal» piden cosas distintas —insistir en un caso,
+ * buscar otro teléfono en el otro—, y si van mezclados en texto libre no se
+ * puede saber cuántos de cada uno hay.
+ */
+export const MOTIVOS_SIN_CONTACTO = ['NO_CONTESTA', 'NUMERO_ERRADO', 'OTRO']
+
+export const sinContactoSchema = z.object({
+  motivo: z.enum(MOTIVOS_SIN_CONTACTO, {
+    errorMap: () => ({ message: 'Di por qué: no contesta, el número está errado, u otro' }),
+  }),
+  /** Lo que se quiera dejar dicho; se guarda como nota de seguimiento. */
+  nota: z.string().trim().max(500).optional().nullable(),
+})
+
 export const editarPacienteSchema = z.object({
   priority: choice(['BAJA', 'MEDIA', 'ALTA']).optional(),
   fullName: z.string().trim().min(1).max(160).optional(),

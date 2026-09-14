@@ -22,6 +22,7 @@ import {
   editarPacienteSchema,
   corregirNotaSchema,
   avisoDeCitaSchema,
+  sinContactoSchema,
   actualizarTarjetaProfesionalSchema,
   actualizarConsentimientoSchema,
   confirmarHorarioSchema,
@@ -123,6 +124,19 @@ patientRoutes.patch(
   authorize('paciente:nota-editar'),
   validateBody(corregirNotaSchema),
   PatientController.corregirNota,
+)
+// No se logra hablar con la persona: se apunta el intento. Permiso propio,
+// para quien llama — que es quien lo sabe.
+patientRoutes.post(
+  '/:id/sin-contacto',
+  authorize('paciente:contacto'),
+  validateBody(sinContactoSchema),
+  PatientController.marcarSinContacto,
+)
+patientRoutes.delete(
+  '/:id/sin-contacto',
+  authorize('paciente:contacto'),
+  PatientController.quitarSinContacto,
 )
 patientRoutes.delete('/:id', authorize('paciente:borrar'), PatientController.destroy)
 

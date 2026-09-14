@@ -647,6 +647,27 @@ model Patient {
   availableSlots    DaySlot[]          @map("available_slots")
 
   status   PatientStatus @default(NUEVO)
+
+  /// A quién no se ha podido contactar para agendar, y desde cuándo.
+  ///
+  /// Se llama, se escribe, y no contesta —o el número está mal escrito—. Esa
+  /// persona se quedaba en «Por asignar» sin decir por qué, mezclada con las
+  /// que sí esperan que alguien las asigne: la columna crecía y no se sabía
+  /// cuáles eran un caso pendiente de verdad y cuáles un teléfono que no
+  /// responde.
+  ///
+  /// No es un estado del caso: sigue siendo NUEVO o EN_ADMISION, porque no ha
+  /// pasado nada con ella — solo no hemos conseguido hablarle. Cuando por fin
+  /// contesta, o cuando se le asigna profesional, la marca se borra.
+  unreachableSince  DateTime? @map("unreachable_since") @db.Timestamptz(3)
+  /// El último intento, para saber cuándo toca volver a llamar.
+  unreachableLastAt DateTime? @map("unreachable_last_at") @db.Timestamptz(3)
+  /// Cuántas veces se ha intentado. Tres intentos ya dicen algo.
+  unreachableTries  Int       @default(0) @map("unreachable_tries")
+  /// NO_CONTESTA | NUMERO_ERRADO | OTRO — el del último intento.
+  unreachableReason String?   @map("unreachable_reason") @db.VarChar(40)
+  unreachableBy     String?   @map("unreachable_by") @db.VarChar(160)
+
   /// La define quien admite la solicitud. Es obligatoria en el formulario de
   /// admision; el valor por defecto solo existe para las filas anteriores a
   /// este campo.
@@ -663,6 +684,8 @@ model Patient {
 
   @@index([status])
   @@index([status, priority])
+  /// El tablero separa a quienes no contestan del resto de «Por asignar».
+  @@index([unreachableSince])
   @@index([city])
   @@index([createdAt])
   @@index([deletedAt])

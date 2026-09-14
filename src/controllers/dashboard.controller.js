@@ -421,6 +421,17 @@ export const DashboardController = {
           isMinor: p.isMinor,
           createdAt: p.createdAt,
           diasEsperando: Math.floor((Date.now() - new Date(p.createdAt).getTime()) / 86400000),
+          // Por qué no se ha podido agendar: no contesta, o el número quedó
+          // mal escrito en la solicitud.
+          sinContacto: p.unreachableSince
+            ? {
+                desde: p.unreachableSince,
+                ultimoIntento: p.unreachableLastAt,
+                intentos: p.unreachableTries ?? 0,
+                motivo: p.unreachableReason,
+                quien: p.unreachableBy,
+              }
+            : null,
           ultimaCita: ultimaCita
             ? {
                 id: ultimaCita.id,
@@ -486,8 +497,23 @@ export const DashboardController = {
       // Columnas del pipeline: la 1 por ausencia de negociación, la 2 y la 3
       // por el estado de la asignación, la 4 y 5 por las citas futuras o en curso, y la 6
       // por los casos en acompañamiento o cuya cita ya pasó (+45 min).
-      const porAsignar = pacientes
-        .filter((p) => p.assignments.length === 0)
+      /**
+       * «Por asignar» se parte en dos.
+       *
+       * Estaban mezcladas las personas que esperan a que alguien las asigne
+       * con aquellas a las que no se ha logrado contactar —no contestan, o el
+       * número quedó mal escrito—. Son trabajos distintos: una pide buscar
+       * profesional, la otra pide volver a llamar o conseguir otro teléfono.
+       * Juntas, la columna solo decía «hay catorce» sin decir de qué.
+       *
+       * El SLA de prioridad alta solo se mira en las que sí se pueden asignar:
+       * marcar en rojo a alguien que no contesta no le ayuda a nadie, y esconde
+       * a quien sí está esperando de verdad.
+       */
+      const sinAsignacion = pacientes.filter((p) => p.assignments.length === 0)
+
+      const porAsignar = sinAsignacion
+        .filter((p) => !p.unreachableSince)
         .map((p) => {
           const base = mapearPaciente(p)
           return {
@@ -495,6 +521,15 @@ export const DashboardController = {
             slaVencido: p.priority === 'ALTA' && base.diasEsperando >= SLA_ALTA_DIAS,
           }
         })
+
+      const noContestan = sinAsignacion
+        .filter((p) => p.unreachableSince)
+        .map(mapearPaciente)
+        // El que lleva más tiempo sin que nadie lo intente, primero.
+        .sort(
+          (a, b) =>
+            new Date(a.sinContacto?.ultimoIntento ?? 0) - new Date(b.sinContacto?.ultimoIntento ?? 0),
+        )
 
       const esperandoProfesional = pacientes
         .filter((p) => p.assignments[0]?.status === 'PROPUESTA')
@@ -578,6 +613,7 @@ export const DashboardController = {
       return res.json(
         ok({
           porAsignar,
+          noContestan,
           esperandoProfesional,
           porCuadrarHorario,
           citasAbiertas: citasMapeadas,

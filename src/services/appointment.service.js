@@ -396,6 +396,22 @@ export async function proponerCaso({ professionalId, patientId, actorId }) {
       respondedAt: new Date(),
     })
 
+    /**
+     * Si llegó a asignarse, ya no es una persona con la que no se logra
+     * hablar: la marca se borra sola.
+     *
+     * Dejarla puesta sería peor que no tenerla — el tablero enseñaría a
+     * alguien en «No contestan» con profesional asignado, y quien coordina
+     * dejaría de creerse esa columna.
+     */
+    await PatientModel.update(patientId, {
+      unreachableSince: null,
+      unreachableLastAt: null,
+      unreachableTries: 0,
+      unreachableReason: null,
+      unreachableBy: null,
+    })
+
     return asignacion
   } catch (error) {
     throw traducirChoque(error)

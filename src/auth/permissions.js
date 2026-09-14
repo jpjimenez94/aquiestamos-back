@@ -42,6 +42,9 @@ export const PERMISOS = {
     // Corregir una nota de seguimiento ya escrita. Es quien más las escribe
     // —recibe, llama y agenda— y quien antes ve el dato equivocado.
     'paciente:nota-editar',
+    // Marcar que no se logra contactar a alguien. Es quien llama, así que es
+    // quien sabe que el teléfono da apagado por cuarta vez.
+    'paciente:contacto',
     'profesional:crear',
     'profesional:leer',
     'profesional:verificar-tarjeta',
@@ -81,6 +84,7 @@ export const PERMISOS = {
     'paciente:leer',
     'paciente:editar',
     'paciente:nota-editar',
+    'paciente:contacto',
     'profesional:leer',
     'agenda:leer',
     'disponibilidad:leer',

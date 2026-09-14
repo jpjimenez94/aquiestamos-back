@@ -51,6 +51,22 @@ function vistaNota(n) {
   }
 }
 
+/** Lo que el portal necesita saber del contacto, en un solo sitio. */
+function vistaSinContacto(p) {
+  return {
+    id: p.id,
+    sinContacto: p.unreachableSince
+      ? {
+          desde: p.unreachableSince,
+          ultimoIntento: p.unreachableLastAt,
+          intentos: p.unreachableTries ?? 0,
+          motivo: p.unreachableReason,
+          quien: p.unreachableBy,
+        }
+      : null,
+  }
+}
+
 export const PatientController = {
   /** GET /api/patients */
   async index(req, res, next) {
@@ -161,6 +177,8 @@ export const PatientController = {
       return res.json(
         ok({
           ...pacienteSegunRol(paciente, req.usuario),
+          // Si no se ha logrado hablar con ella para agendar, y desde cuándo.
+          ...vistaSinContacto(paciente),
           /**
            * La negociación con el profesional, no solo "quién lo lleva".
            *
@@ -497,6 +515,104 @@ export const PatientController = {
           notas: notas.map(vistaNota),
         }),
       )
+    } catch (error) {
+      next(error)
+    }
+  },
+
+  /**
+   * POST /patients/:id/sin-contacto — no se logra hablar con la persona.
+   *
+   * Se llama, se escribe por WhatsApp, y nada: o no contesta, o el número
+   * quedó mal escrito en la solicitud. Esa persona se quedaba en «Por
+   * asignar» sin decir por qué, mezclada con las que sí esperan a que alguien
+   * las asigne — la columna crecía y no se distinguía un caso pendiente de un
+   * teléfono que no responde.
+   *
+   * Marcar NO cambia el estado del caso: sigue siendo NUEVO o EN_ADMISION,
+   * porque con ella no ha pasado nada; lo que no hemos conseguido es hablarle.
+   * Cada intento suma —tres intentos ya dicen algo— y la fecha del primero no
+   * se pisa, que es la que dice cuánto lleva esperando de verdad.
+   *
+   * Si viene nota, se guarda como nota de seguimiento: ahí es donde el equipo
+   * ya busca el detalle, y así queda con su autor y su hora.
+   */
+  async marcarSinContacto(req, res, next) {
+    try {
+      const paciente = await PatientModel.findById(req.params.id)
+      if (!paciente) return res.status(404).json(failure('Persona no encontrada'))
+
+      const quien = req.usuario?.name || req.usuario?.email || 'Coordinación'
+      const ahora = new Date()
+      const { motivo, nota } = req.validated
+
+      const actualizada = await PatientModel.update(paciente.id, {
+        // La primera vez manda: es la que dice desde cuándo no se le alcanza.
+        unreachableSince: paciente.unreachableSince ?? ahora,
+        unreachableLastAt: ahora,
+        unreachableTries: (paciente.unreachableTries ?? 0) + 1,
+        unreachableReason: motivo,
+        unreachableBy: quien,
+      })
+
+      if (nota?.trim()) {
+        await PatientNoteModel.create({
+          patientId: paciente.id,
+          note: nota.trim(),
+          authorName: quien,
+          authorEmail: req.usuario?.email || 'sistema',
+        })
+      }
+
+      await registrar({
+        req,
+        action: ACCION.EDITAR,
+        entity: 'paciente',
+        entityId: paciente.id,
+        before: { intentos: paciente.unreachableTries ?? 0 },
+        after: {
+          sinContacto: motivo,
+          intentos: actualizada.unreachableTries,
+          quien,
+        },
+      })
+
+      return res.json(ok(vistaSinContacto(actualizada)))
+    } catch (error) {
+      next(error)
+    }
+  },
+
+  /**
+   * DELETE /patients/:id/sin-contacto — por fin contestó.
+   *
+   * Se borra entera, incluido el contador: si vuelve a perderse el contacto
+   * más adelante, eso es una racha nueva y no la continuación de la de hace
+   * dos meses.
+   */
+  async quitarSinContacto(req, res, next) {
+    try {
+      const paciente = await PatientModel.findById(req.params.id)
+      if (!paciente) return res.status(404).json(failure('Persona no encontrada'))
+
+      const actualizada = await PatientModel.update(paciente.id, {
+        unreachableSince: null,
+        unreachableLastAt: null,
+        unreachableTries: 0,
+        unreachableReason: null,
+        unreachableBy: null,
+      })
+
+      await registrar({
+        req,
+        action: ACCION.EDITAR,
+        entity: 'paciente',
+        entityId: paciente.id,
+        before: { sinContacto: paciente.unreachableReason, intentos: paciente.unreachableTries },
+        after: { sinContacto: null },
+      })
+
+      return res.json(ok(vistaSinContacto(actualizada)))
     } catch (error) {
       next(error)
     }
