@@ -12,3 +12,9 @@ prisma/datos/
 # Scripts sueltos de diagnostico, no son del proyecto.
 _*.mjs
 _*.js
+
+# Scripts de un rato (parches y arreglos puntuales): herramienta, no repositorio.
+/.patch*.mjs
+/.arreglo*.mjs
+/.caso*.mjs
+/.cuentas*.mjs
