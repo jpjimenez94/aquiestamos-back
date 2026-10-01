@@ -225,3 +225,10 @@ dashboardRoutes.get('/badges', authenticate, DashboardController.badges)
 dashboardRoutes.get('/', authenticate, authorize('agenda:leer'), DashboardController.index)
 dashboardRoutes.get('/tablero', authenticate, authorize('agenda:leer'), DashboardController.tablero)
 dashboardRoutes.get('/metricas', authenticate, authorize('metricas:leer'), DashboardController.metricas)
+// El informe semanal del área: las cifras que hay que entregar cada lunes.
+dashboardRoutes.get(
+  '/informe-semanal',
+  authenticate,
+  authorize('informe:leer'),
+  DashboardController.informeSemanal,
+)

@@ -45,6 +45,15 @@ export const PERMISOS = {
     // Marcar que no se logra contactar a alguien. Es quien llama, así que es
     // quien sabe que el teléfono da apagado por cuarta vez.
     'paciente:contacto',
+    /*
+      El informe semanal del área.
+      
+      Va aparte de `metricas:leer` —que es solo de administración y lectura, por
+      petición expresa— porque son cosas distintas: las métricas miran el
+      embudo del proyecto; el informe son las cifras de la semana que quien
+      dirige Operaciones tiene que entregar, y es su trabajo.
+    */
+    'informe:leer',
     'profesional:crear',
     'profesional:leer',
     'profesional:verificar-tarjeta',
@@ -85,6 +94,7 @@ export const PERMISOS = {
     'paciente:editar',
     'paciente:nota-editar',
     'paciente:contacto',
+    'informe:leer',
     'profesional:leer',
     'agenda:leer',
     'disponibilidad:leer',
@@ -129,6 +139,7 @@ export const PERMISOS = {
     // Las métricas de impacto: para leer, no para operar. El AGENDADOR no
     // las tiene a propósito — pedido explícito: solo administración y lectura.
     'metricas:leer',
+    'informe:leer',
   ],
 
   // Profesional de la red: su agenda y sus propias franjas de disponibilidad.

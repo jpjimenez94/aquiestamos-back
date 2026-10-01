@@ -4,7 +4,12 @@ import { plazosDeLiberacion } from '../asignacion/barrido.js'
 import { SLA_ALTA_DIAS } from '../citas/barrido.js'
 import { SettingsService } from '../services/settings.service.js'
 import { checkInsSinAtender } from '../services/cuidado.service.js'
-import { ok } from '../views/response.view.js'
+import { ok, failure } from '../views/response.view.js'
+import {
+  informeSemanal,
+  semanaDe,
+  semanaPasada,
+} from '../services/informeSemanal.service.js'
 import { formatearLocal } from '../services/timezone.service.js'
 import {
   huboSesion,
@@ -636,6 +641,30 @@ export const DashboardController = {
    * qué dice la gente en la encuesta del cierre. Solo lectura: nada de aquí
    * se edita, y por eso el permiso es `metricas:leer` (ADMIN y LECTURA).
    */
+  /**
+   * GET /api/dashboard/informe-semanal?desde=YYYY-MM-DD
+   *
+   * Las cifras del informe que el área entrega cada semana. Sin `desde` va la
+   * semana que acaba de cerrar, que es la que se informa el lunes.
+   *
+   * La semana es de lunes a domingo en hora de Bogotá, no en la del servidor:
+   * corriendo en UTC, por la noche ya es el día siguiente y el corte saldría
+   * movido un día — con cifras que no cuadran con lo que se ve en pantalla.
+   */
+  async informeSemanal(req, res, next) {
+    try {
+      const pedida = req.query.desde ? new Date(`${req.query.desde}T12:00:00.000Z`) : null
+      if (pedida && Number.isNaN(pedida.getTime())) {
+        return res.status(400).json(failure('La fecha no es válida'))
+      }
+
+      const semana = pedida ? semanaDe(pedida) : semanaPasada()
+      return res.json(ok(await informeSemanal(semana)))
+    } catch (error) {
+      next(error)
+    }
+  },
+
   async metricas(req, res, next) {
     try {
       const DIA = 24 * 3600 * 1000
