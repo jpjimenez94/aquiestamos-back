@@ -282,6 +282,49 @@ export const PLANTILLAS = {
       boton: { texto: 'Ver el caso', url: urlDelSitio(p.ruta) },
     }),
 
+  /**
+   * Al profesional: la persona que acompañaba decidió no continuar.
+   *
+   * Esto existe porque el cierre ya no lo hace siempre una persona sentada
+   * frente al portal. Cuando ella firma su constancia desde el teléfono —un
+   * domingo por la noche, por ejemplo— no hay nadie para avisar a mano, y al
+   * profesional se le desvanecía la cita de la agenda sin una palabra.
+   *
+   * Sin su nombre, como todos los avisos: va el enlace.
+   */
+  PROFESIONAL_DESISTIMIENTO: (p) =>
+    armar('Se cerró un acompañamiento tuyo', {
+      titulo: 'La persona decidió no continuar',
+      parrafos: [
+        'Una de las personas que acompañabas dejó dicho, por escrito y por su propia voluntad, que no quiere continuar con el acompañamiento. El caso queda cerrado.',
+        /*
+          Esta frase no sobra.
+
+          Quien acompaña tiende a leer un desistimiento como un fallo suyo, y
+          casi nunca lo es: la gente deja de venir porque mejoró, porque le
+          cambió el horario, porque la vida se le atravesó. Decirlo aquí
+          cuesta una línea.
+        */
+        'No es una queja sobre tu trabajo ni hace falta que hagas nada. Si tenías sesiones por delante con ella, ya quedaron canceladas y su cupo vuelve a estar libre.',
+      ],
+      datos: [p.cuando ? `<strong>Lo dejó registrado el:</strong> ${p.cuando}` : null].filter(
+        Boolean,
+      ),
+      boton: { texto: 'Ver tu agenda', url: urlDelSitio('/portal/mi-agenda') },
+    }),
+
+  /** A coordinación: se cerró un caso porque la persona lo dijo ella misma. */
+  COORD_DESISTIMIENTO: (p) =>
+    armar('Alguien cerró su caso por desistimiento', {
+      titulo: 'Dejó constancia de que no quiere continuar',
+      parrafos: [
+        'Una persona abrió su enlace y dejó firmado que, por su propia voluntad, no quiere continuar con el acompañamiento. El caso ya está cerrado y las sesiones que tenía por delante quedaron canceladas.',
+        'La constancia queda guardada con el texto que leyó y la fecha. No hay que hacer nada más, salvo que quieras revisarla.',
+      ],
+      datos: [p.motivo ? `<strong>Quiso contarnos:</strong> ${p.motivo}` : null].filter(Boolean),
+      boton: { texto: 'Ver el caso', url: urlDelSitio(p.ruta) },
+    }),
+
   /** A coordinación: el profesional no puede. Hay que buscarle otro. */
   COORD_PROPUESTA_RECHAZADA: (p) =>
     armar('Un profesional no pudo tomar un caso', {

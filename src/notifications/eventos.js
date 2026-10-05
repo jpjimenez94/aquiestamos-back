@@ -540,6 +540,53 @@ export async function avisoSlaAlta({ paciente, dias }) {
   return encolados > 0
 }
 
+/**
+ * Alguien dejó constancia de que no quiere continuar, y el caso se cerró.
+ *
+ * Avisa al profesional que la acompañaba y a coordinación. Hace falta porque
+ * este cierre, a diferencia de todos los demás, no lo hace nadie del equipo:
+ * lo hace ella desde su teléfono, a la hora que sea. Sin esto, al profesional
+ * se le cancelaban las sesiones y nadie se lo decía — justo el agujero que ya
+ * tuvimos con reasignar y cancelar.
+ *
+ * Ni el nombre de ella ni su teléfono viajan en el correo: va el enlace.
+ */
+export async function desistimientoRegistrado({ paciente, profesional, constancia }) {
+  const cuando = constancia?.signedAt
+    ? new Date(constancia.signedAt).toLocaleDateString('es-CO', {
+        timeZone: 'America/Bogota',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      })
+    : null
+
+  if (profesional?.email) {
+    await encolar({
+      plantilla: 'PROFESIONAL_DESISTIMIENTO',
+      para: profesional.email,
+      nombre: profesional.fullName,
+      payload: { nombre: nombreDePila(profesional.fullName), cuando },
+      entidad: 'paciente',
+      entidadId: paciente.id,
+      clave: `desistimiento-profesional:${paciente.id}`,
+    })
+  }
+
+  await avisarACoordinacion({
+    plantilla: 'COORD_DESISTIMIENTO',
+    payload: {
+      // El motivo lo escribió ella y puede no haberlo escrito: es opcional a
+      // propósito, y aquí tampoco se inventa nada si viene vacío.
+      motivo: constancia?.reason || null,
+      ruta: `/portal/personas/${paciente.id}`,
+    },
+    entidad: 'paciente',
+    entidadId: paciente.id,
+    clave: `coord-desistimiento:${paciente.id}`,
+  })
+}
+
 export async function propuestaRespondida({ asignacion, profesional }) {
   await avisarACoordinacion({
     plantilla: asignacion.status === 'ACEPTADA' ? 'COORD_PROPUESTA_ACEPTADA' : 'COORD_PROPUESTA_RECHAZADA',

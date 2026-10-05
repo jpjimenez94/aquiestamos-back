@@ -52,6 +52,15 @@ export const CODIGO = {
    * a la que acompaña.
    */
   cuidado: 9,
+
+  /**
+   * La constancia de que alguien decidió no tomar el acompañamiento.
+   *
+   * Apunta a la PERSONA y no a la asignación: quien desiste desiste del
+   * acompañamiento, no del profesional que le tocó. Si mañana vuelve a pedir
+   * ayuda, es un caso nuevo y un enlace nuevo.
+   */
+  desistimiento: 10,
 }
 
 const LARGO_CUERPO = 21

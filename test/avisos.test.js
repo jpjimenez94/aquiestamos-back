@@ -74,6 +74,15 @@ const CASOS = {
     motivo: 'Me queda muy lejos',
     ruta: '/portal/personas/abc',
   },
+  /**
+   * El desistimiento, con y sin motivo.
+   *
+   * El motivo es opcional de verdad —a quien desiste no se le pide que se
+   * explique— así que el payload tiene que aguantar venir vacío sin dejar un
+   * «Quiso contarnos: null» en el correo de nadie.
+   */
+  PROFESIONAL_DESISTIMIENTO: { nombre: 'Ana', cuando: '5 de octubre de 2026' },
+  COORD_DESISTIMIENTO: { motivo: null, ruta: '/portal/personas/abc' },
   RECORDATORIO_CITA_PROFESIONAL: {
     nombre: 'Ana',
     cuando: '2026-08-25T19:30:00-05:00',

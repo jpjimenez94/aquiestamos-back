@@ -8,6 +8,7 @@ import { cita } from '../views/appointment.view.js'
 import { crearEnlaceEncuesta } from '../auth/enlaceEncuesta.js'
 import { crearEnlaceAgenda } from '../auth/enlaceAgenda.js'
 import { crearEnlaceFeedback } from '../auth/enlaceFeedback.js'
+import { crearEnlaceDesistimiento } from '../auth/enlaceDesistimiento.js'
 import { env } from '../config/env.js'
 import { prisma } from '../config/database.js'
 import { admitirSolicitud } from '../services/promotion.service.js'
@@ -145,6 +146,24 @@ export const PatientController = {
       const enlaceAgenda = `${env.sitioUrl.replace(/\/$/, '')}/agenda/${crearEnlaceAgenda(paciente.id)}`
 
       /**
+       * El enlace para que ella misma dé por cerrado su caso.
+       *
+       * Cerrar «porque no quiso» era, hasta ahora, nuestra palabra sobre la
+       * decisión de otra persona: coordinación escribía un motivo y listo.
+       * Con esto lo dice ella, desde su enlace, y queda qué texto leyó al
+       * decirlo.
+       *
+       * Va siempre, también con el caso ya cerrado: la ficha enseña entonces
+       * la constancia en vez del botón.
+       */
+      const enlaceDesistimiento = `${env.sitioUrl.replace(/\/$/, '')}/desistimiento/${crearEnlaceDesistimiento(paciente.id)}`
+      const desistimiento = await prisma.caseWithdrawal.findFirst({
+        where: { patientId: paciente.id },
+        orderBy: { signedAt: 'desc' },
+        select: { id: true, signedAt: true, signedName: true, textVersion: true, reason: true },
+      })
+
+      /**
        * Con el caso cerrado, la ficha trae la encuesta: el enlace para
        * mandársela a la persona por WhatsApp y, si ya respondió, lo que dijo.
        * El enlace sale de SITIO_URL, como todos.
@@ -179,6 +198,15 @@ export const PatientController = {
           ...pacienteSegunRol(paciente, req.usuario),
           // Si no se ha logrado hablar con ella para agendar, y desde cuándo.
           ...vistaSinContacto(paciente),
+          enlaceDesistimiento,
+          desistimiento: desistimiento
+            ? {
+                firmadaEl: desistimiento.signedAt,
+                nombre: desistimiento.signedName,
+                version: desistimiento.textVersion,
+                motivo: desistimiento.reason,
+              }
+            : null,
           /**
            * La negociación con el profesional, no solo "quién lo lleva".
            *

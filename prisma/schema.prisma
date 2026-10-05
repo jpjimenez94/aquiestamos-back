@@ -681,6 +681,7 @@ model Patient {
   appointments Appointment[]
   notes        PatientNote[]
   feedbacks    PatientFeedback[]
+  withdrawals  CaseWithdrawal[]
 
   @@index([status])
   @@index([status, priority])
@@ -717,6 +718,47 @@ model PatientNote {
 
   @@index([patientId, createdAt])
   @@map("patient_notes")
+}
+
+/// La constancia de que una persona decidió no tomar el acompañamiento.
+///
+/// No es un estado del caso ni una nota: es un documento. Alguien a quien se
+/// le ofreció el servicio dice, por su propia voluntad y desde su enlace, que
+/// no quiere seguir. Lo que lo hace valer es que quede exactamente qué leyó y
+/// cuándo lo aceptó — por eso se guarda el texto entero, y no solo su versión:
+/// si legal lo cambia mañana, lo que esta persona aceptó sigue aquí.
+///
+/// Sin `@@unique`: alguien puede desistir, volver meses después y volver a
+/// desistir. Cada vez es su propia constancia.
+model CaseWithdrawal {
+  id           String          @id @default(uuid()) @db.Uuid
+  patientId    String          @map("patient_id") @db.Uuid
+  patient      Patient         @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  /// La asignación que estaba viva al desistir, si había alguna.
+  assignmentId String?         @map("assignment_id") @db.Uuid
+  assignment   CaseAssignment? @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
+
+  /// El nombre que escribió al aceptar. No se da por bueno el de la ficha:
+  /// quien firma es quien escribe.
+  signedName   String          @map("signed_name") @db.VarChar(160)
+  /// La versión del texto, para poder agrupar y comparar.
+  textVersion  String          @map("text_version") @db.VarChar(20)
+  /// El texto íntegro que leyó, tal como estaba ese día.
+  textSnapshot String          @map("text_snapshot")
+  /// Lo que quiso decir con sus palabras. Opcional: nadie debe justificarse.
+  reason       String?         @db.VarChar(600)
+
+  signedAt     DateTime        @default(now()) @map("signed_at") @db.Timestamptz(3)
+  ipAddress    String?         @map("ip_address") @db.VarChar(100)
+  userAgent    String?         @map("user_agent") @db.VarChar(300)
+  /// Quién de coordinación le mandó el enlace.
+  requestedBy  String?         @map("requested_by") @db.VarChar(160)
+
+  createdAt    DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([patientId])
+  @@index([signedAt])
+  @@map("case_withdrawals")
 }
 
 /// Quién acompaña a quién, durante qué periodo.
@@ -784,6 +826,7 @@ model CaseAssignment {
   appointments Appointment[]
   reports      CaseReport[]
   feedbacks    PatientFeedback[]
+  withdrawals  CaseWithdrawal[]
 
   @@index([professionalId, status])
   @@index([patientId, status])

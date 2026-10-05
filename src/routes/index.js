@@ -13,6 +13,7 @@ import cuidadoRoutes from './cuidado.routes.js'
 import cuidadoProfesionalRoutes from './cuidadoProfesional.routes.js'
 import { triageRoutes } from './triage.routes.js'
 import { consentimientoRoutes } from './consentimiento.routes.js'
+import { desistimientoRoutes } from './desistimiento.routes.js'
 import { encuestaRoutes } from './encuesta.routes.js'
 import { feedbackRoutes } from './feedback.routes.js'
 import { agendaPersonaRoutes } from './agendaPersona.routes.js'
@@ -59,6 +60,8 @@ apiRoutes.use('/shared-cases', sharedCaseRoutes)
 // --- Tamizaje: la persona responde su propio enlace, sin sesión ---
 apiRoutes.use('/triage', triageRoutes)
 apiRoutes.use('/consentimiento', consentimientoRoutes)
+// La constancia de quien decide no tomar el acompañamiento.
+apiRoutes.use('/desistimiento', desistimientoRoutes)
 apiRoutes.use('/encuesta', encuestaRoutes)
 apiRoutes.use('/experiencia', feedbackRoutes)
 

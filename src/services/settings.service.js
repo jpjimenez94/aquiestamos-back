@@ -538,6 +538,34 @@ Nos comunicamos contigo reconociendo tu valioso liderazgo en *{territorio}* y qu
     ].join('\n'),
   },
   {
+    key: 'WHATSAPP_DESISTIMIENTO',
+    category: 'MENSAJE_WHATSAPP',
+    name: 'Cierre por desistimiento · Mandarle la constancia',
+    description:
+      'A quien decide no tomar el acompañamiento. Lleva el enlace donde lee la constancia y la acepta. No se le reprocha nada ni se le pide que explique: desistir es su derecho.',
+    dataType: 'TEXTO',
+    variables: ['persona', 'enlace'],
+    defaultValue: [
+      'Hola {persona} 👋',
+      '',
+      'Entendemos que por ahora no quieres continuar con el acompañamiento, y está bien: es tu decisión y no hay que dar explicaciones.',
+      '',
+      'Para cerrar tu caso necesitamos que lo confirmes tú misma desde aquí: {enlace}',
+      '',
+      'Y si más adelante quieres retomar, solo tienes que escribirnos: te atendemos igual.',
+      '',
+      /*
+        Los teléfonos van AQUÍ y no solo detrás del enlace.
+
+        Quien recibe esto puede estar peor, no mejor: desistir no siempre
+        significa «ya estoy bien», a veces significa «no puedo con nada». Si
+        las líneas viven solo en la página, se las pierde quien no abre el
+        enlace — que es justo quien más preocupa.
+      */
+      'Si en este momento estás en peligro o sientes que puedes hacerte daño, no esperes: llama al *123* (línea de emergencias) o al *106* (línea de salud mental). Son gratuitas y atienden a toda hora.',
+    ].join('\n'),
+  },
+  {
     key: 'WHATSAPP_SESION_GRUPAL',
     category: 'MENSAJE_WHATSAPP',
     // La convocatoria salía solo por correo, y es lo único de la red que
@@ -738,6 +766,34 @@ Nos comunicamos contigo reconociendo tu valioso liderazgo en *{territorio}* y qu
     defaultValue: '3',
   },
   {
+    key: 'DESISTIMIENTO_TEXTO',
+    category: 'PARAMETRO_GENERAL',
+    name: 'Texto de la constancia de desistimiento',
+    description:
+      'Lo que lee y acepta quien decide no tomar el acompañamiento. Se guarda ENTERO con cada constancia, así que cambiarlo aquí no altera lo que ya aceptó nadie. Si lo cambias, sube también la versión de abajo.',
+    dataType: 'TEXTO',
+    variables: [],
+    defaultValue: [
+      'La Red Aquí Estamos te ofreció acompañamiento psicológico gratuito con un profesional voluntario.',
+      '',
+      'Al aceptar esta constancia dejas dicho que, por tu propia voluntad, decides no continuar con ese acompañamiento, y que nadie te ha presionado para hacerlo.',
+      '',
+      'Esto significa que cerramos tu caso y que la red deja de hacerte seguimiento. No es una renuncia a nada que te corresponda: puedes volver a solicitar acompañamiento cuando quieras, y se te atenderá igual que la primera vez.',
+      '',
+      'Si en algún momento sientes que estás en peligro, llama a la Línea de emergencias 123 o a la Línea de salud mental 106. Esos teléfonos no dependen de nosotros y están disponibles siempre.',
+    ].join('\n'),
+  },
+  {
+    key: 'DESISTIMIENTO_VERSION',
+    category: 'PARAMETRO_GENERAL',
+    name: 'Versión del texto de desistimiento',
+    description:
+      'Cambia esto cada vez que cambie el texto de arriba. Cada constancia guarda la versión que la persona aceptó: es lo que permite saber, meses después, qué decía exactamente lo que firmó.',
+    dataType: 'TEXTO',
+    variables: [],
+    defaultValue: '2026-10',
+  },
+  {
     key: 'SESIONES_PARA_CHECKIN',
     category: 'PARAMETRO_GENERAL',
     name: 'Sesiones para abrir el espacio «¿Cómo estás tú?» al profesional',
@@ -904,6 +960,44 @@ Nos comunicamos contigo reconociendo tu valioso liderazgo en *{territorio}* y qu
                 "<strong>Además dijo:</strong> {nota}"
           ],
           "botonTexto": "Ver el caso"
+    }),
+  },
+  {
+    key: 'CORREO_PROFESIONAL_DESISTIMIENTO',
+    category: 'PLANTILLA_CORREO',
+    name: 'Correo · La persona que acompañabas decidió no continuar',
+    description:
+      'Le llega al profesional cuando alguien firma su constancia de desistimiento. Este cierre lo hace ella desde su teléfono, a cualquier hora, así que no hay nadie del equipo para avisarle a mano. No lleva el nombre de ella: lleva el enlace.',
+    dataType: 'JSON',
+    variables: ['nombre', 'cuando'],
+    defaultValue: JSON.stringify({
+      asunto: 'Se cerró un acompañamiento tuyo',
+      titulo: 'La persona decidió no continuar',
+      parrafos: [
+        'Una de las personas que acompañabas dejó dicho, por escrito y por su propia voluntad, que no quiere continuar con el acompañamiento. El caso queda cerrado.',
+        'No es una queja sobre tu trabajo ni hace falta que hagas nada. Si tenías sesiones por delante con ella, ya quedaron canceladas y su cupo vuelve a estar libre.',
+      ],
+      datos: ['<strong>Lo dejó registrado el:</strong> {cuando}'],
+      botonTexto: 'Ver tu agenda',
+    }),
+  },
+  {
+    key: 'CORREO_COORD_DESISTIMIENTO',
+    category: 'PLANTILLA_CORREO',
+    name: 'Correo · Alguien cerró su caso por desistimiento',
+    description:
+      'Le llega a coordinación cuando una persona firma su constancia y el caso se cierra solo. No hay que hacer nada: es para enterarse.',
+    dataType: 'JSON',
+    variables: ['motivo'],
+    defaultValue: JSON.stringify({
+      asunto: 'Alguien cerró su caso por desistimiento',
+      titulo: 'Dejó constancia de que no quiere continuar',
+      parrafos: [
+        'Una persona abrió su enlace y dejó firmado que, por su propia voluntad, no quiere continuar con el acompañamiento. El caso ya está cerrado y las sesiones que tenía por delante quedaron canceladas.',
+        'La constancia queda guardada con el texto que leyó y la fecha. No hay que hacer nada más, salvo que quieras revisarla.',
+      ],
+      datos: ['<strong>Quiso contarnos:</strong> {motivo}'],
+      botonTexto: 'Ver el caso',
     }),
   },
   {
