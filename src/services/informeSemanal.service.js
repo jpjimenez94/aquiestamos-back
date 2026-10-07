@@ -79,6 +79,7 @@ const diasDesde = (fecha) => Math.floor((Date.now() - new Date(fecha).getTime())
 async function sesionesDeLaSemana(rango) {
   const citas = await prisma.appointment.findMany({
     where: { startsAt: rango },
+    orderBy: { startsAt: 'asc' },
     select: {
       id: true,
       status: true,
@@ -86,9 +87,11 @@ async function sesionesDeLaSemana(rango) {
       caseAssignmentId: true,
       patientFirstJoinedAt: true,
       professionalFirstJoinedAt: true,
+      patient: { select: { id: true, fullName: true } },
+      professional: { select: { fullName: true } },
     },
   })
-  if (citas.length === 0) return { realizadas: 0, pendientesDeCerrar: 0 }
+  if (citas.length === 0) return { realizadas: 0, pendientesDeCerrar: 0, detalle: [] }
 
   const asignaciones = [...new Set(citas.map((c) => c.caseAssignmentId).filter(Boolean))]
 
@@ -115,12 +118,57 @@ async function sesionesDeLaSemana(rango) {
   const ahora = Date.now()
   let realizadas = 0
   let pendientesDeCerrar = 0
+
+  /**
+   * Y las citas una por una, no solo el total.
+   *
+   * Una cifra que no se puede abrir no se puede defender. Quien firma el
+   * informe tiene que poder contestar «¿cuáles seis?» y, sobre todo, saber a
+   * qué profesional preguntarle por cada una de las que faltan: sin eso, «10
+   * pendientes» es un reproche sin destinatario.
+   *
+   * Lleva el nombre de la persona y el del profesional porque es exactamente
+   * la frase que hay que poder decir —«la cita de Andrea con Laura»— y porque
+   * esta pantalla ya pide `informe:leer`, el mismo permiso con el que se ven
+   * las otras tres listas, que también van con nombre.
+   */
+  const detalle = []
   for (const cita of citas) {
-    if (huboSesion(cita, reportes, citasDelCaso)) realizadas += 1
-    else if (esperandoCierre(cita, reportes, ahora, citasDelCaso)) pendientesDeCerrar += 1
+    const sesion = huboSesion(cita, reportes, citasDelCaso)
+    const pendiente = !sesion && esperandoCierre(cita, reportes, ahora, citasDelCaso)
+    if (sesion) realizadas += 1
+    else if (pendiente) pendientesDeCerrar += 1
+
+    detalle.push({
+      id: cita.id,
+      cuando: cita.startsAt,
+      personaId: cita.patient?.id ?? null,
+      persona: cita.patient?.fullName ?? null,
+      profesional: cita.professional?.fullName ?? null,
+      estado: cita.status,
+      /**
+       * En qué grupo cae, ya decidido aquí.
+       *
+       * Si lo dedujera la pantalla a partir del estado, volveríamos a tener
+       * dos reglas para lo mismo —y la de la pantalla no sabe de reportes ni
+       * de sala, que es justo lo que hace falta—. Es la misma clasificación
+       * que produce las cifras de arriba, dicha una sola vez.
+       */
+      que: sesion
+        ? 'SESION'
+        : pendiente
+          ? 'PENDIENTE'
+          : cita.status === 'NO_ASISTIO'
+            ? 'NO_ASISTIO'
+            : cita.status === 'CANCELADA'
+              ? 'CANCELADA'
+              : cita.status === 'REPROGRAMADA'
+                ? 'REPROGRAMADA'
+                : 'POR_DELANTE',
+    })
   }
 
-  return { realizadas, pendientesDeCerrar }
+  return { realizadas, pendientesDeCerrar, detalle }
 }
 
 export async function informeSemanal({ desde, hasta }) {
@@ -265,6 +313,15 @@ export async function informeSemanal({ desde, hasta }) {
       citasSinAsistirEnLaSemana: citasSemana.NO_ASISTIO ?? 0,
       citasPorDelante: (citasSemana.PROGRAMADA ?? 0) + (citasSemana.CONFIRMADA ?? 0),
     },
+
+    /**
+     * Las citas de la semana, una por una, detrás de las cifras.
+     *
+     * Van al lado de `atenciones` y no dentro: son el respaldo de esas cifras,
+     * no otra cifra. Quien firma el informe tiene que poder abrir el número y
+     * decir cuál es cada cita — y a quién llamar por las que faltan.
+     */
+    citasDeLaSemana: sesiones.detalle ?? [],
 
     casos: {
       nuevosEnLaSemana: personasNuevas,

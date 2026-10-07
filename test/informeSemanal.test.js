@@ -166,4 +166,45 @@ describe('las cifras del informe', () => {
     const res = await pedir('', LIDERES)
     expect(res.status).toBe(403)
   })
+
+  /**
+   * Las cifras se pueden abrir.
+   *
+   * «Me salen las cifras, pero quiero ver las citas puntuales que cuenta el
+   * informe» —Sofi, 6 de octubre—. Un número que no se puede abrir no se puede
+   * defender: quien firma tiene que poder contestar «¿cuáles seis?» y saber a
+   * qué profesional preguntarle por cada una de las que faltan.
+   */
+  it('trae las citas de la semana una por una', async () => {
+    const { body } = await pedir()
+    expect(Array.isArray(body.data.citasDeLaSemana)).toBe(true)
+    expect(body.data.citasDeLaSemana.length).toBe(body.data.atenciones.citasDeLaSemana)
+  })
+
+  /**
+   * Y la lista no puede contradecir a la cifra.
+   *
+   * Son dos salidas del mismo recuento, y si alguien las calculara por
+   * caminos distintos acabaríamos con una pantalla que dice seis y una lista
+   * con cinco filas. Esto lo ata.
+   */
+  it('la lista y las cifras cuentan lo mismo', async () => {
+    const { body } = await pedir()
+    const d = body.data
+    const cuantas = (que) => d.citasDeLaSemana.filter((c) => c.que === que).length
+
+    expect(cuantas('SESION')).toBe(d.atenciones.citasRealizadasEnLaSemana)
+    expect(cuantas('PENDIENTE')).toBe(d.atenciones.citasPendientesDeCerrar)
+  })
+
+  /** Y cada fila dice a quién llamar, que es para lo que sirve. */
+  it('cada cita dice de quién es y quién la atendía', async () => {
+    const { body } = await pedir()
+    for (const c of body.data.citasDeLaSemana) {
+      expect(c).toHaveProperty('cuando')
+      expect(c).toHaveProperty('persona')
+      expect(c).toHaveProperty('profesional')
+      expect(c).toHaveProperty('personaId')
+    }
+  })
 })
