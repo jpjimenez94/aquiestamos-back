@@ -279,8 +279,31 @@ describe('el profesional responde qué pasó', () => {
          * código que dice probar.
          */
         meetsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        // «¿Se dio la sesión?» se pregunta aparte de «¿qué sigue?»: un
+        // «quedamos en una cita» sin contestarla no se acepta, porque es justo
+        // ahí donde se perdían las sesiones ya dadas.
+        sessionHeld: true,
       })
     expect(completo.status).toBe(201)
+  })
+
+  /**
+   * Y la pregunta es obligatoria de verdad, no una casilla decorativa.
+   *
+   * Sin esto, el campo se podría dejar de mandar desde el formulario sin que
+   * nada fallara — y volveríamos a tener reportes que no dicen si la sesión
+   * que acababa de darse ocurrió.
+   */
+  it('«quedamos en una cita» sin decir si hubo sesión no se acepta', async () => {
+    const res = await request(app)
+      .post(`/api/shared-cases/${ids.paciente}/reporte`)
+      .set('x-shared-case-token', t())
+      .send({
+        outcome: 'CITA_ACORDADA',
+        modality: 'VIRTUAL',
+        meetsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      })
+    expect(res.status).toBe(422)
   })
 
   it('no se puede reportar sin el enlace', async () => {

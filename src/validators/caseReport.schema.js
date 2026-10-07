@@ -23,6 +23,16 @@ export const RESULTADOS = [
 /** Los resultados en los que hubo o habrá un encuentro. */
 export const CON_ENCUENTRO = ['CITA_ACORDADA', 'YA_ATENDIDA']
 
+/**
+ * Los resultados en los que «¿se dio la sesión?» ya está contestada sola.
+ *
+ * «Ya la acompañé» es que sí; «no se presentó» es que no. Solo queda por
+ * preguntar en «quedamos en una cita», que es justo donde se perdían: quien
+ * acompañó y de paso cuadró la siguiente elegía ese, y la sesión que acababa
+ * de dar no la contaba nadie.
+ */
+export const SESION_IMPLICITA = { YA_ATENDIDA: true, NO_ASISTIO: false }
+
 const opcional = (max) => z.string().trim().max(max).optional().or(z.literal(''))
 
 const choiceOpcional = (values) =>
@@ -36,6 +46,23 @@ export const caseReportCreateSchema = z
     outcome: z.enum(RESULTADOS, {
       errorMap: () => ({ message: 'Cuéntanos qué pasó' }),
     }),
+    /**
+     * ¿Se dio la sesión? Pregunta propia, no un matiz de `outcome`.
+     *
+     * Opcional aquí porque en la mayoría de resultados no se pregunta —no
+     * tiene sentido preguntárselo a quien dice que el número está mal— y
+     * porque los reportes que ya existen no la tienen. El `refine` de abajo la
+     * exige donde sí hace falta.
+     */
+    sessionHeld: z.preprocess((v) => {
+      if (v === '' || v === null || v === undefined) return undefined
+      // A mano y no con `z.coerce.boolean()`: ese convierte la cadena "false"
+      // en `true` —toda cadena no vacía es verdadera— y aquí eso significaría
+      // apuntar una sesión que el profesional acaba de decir que no hubo.
+      if (v === 'true' || v === true) return true
+      if (v === 'false' || v === false) return false
+      return v
+    }, z.boolean({ errorMap: () => ({ message: 'Dinos si la sesión se dio o no' }) }).optional()),
     modality: choiceOpcional(['PRESENCIAL', 'VIRTUAL']),
     /** Fecha y hora en ISO. Solo tiene sentido si quedaron en algo. */
     meetsAt: z.preprocess(
@@ -74,6 +101,19 @@ export const caseReportCreateSchema = z
   .refine((d) => d.outcome !== 'CITA_ACORDADA' || !d.meetsAt || d.meetsAt.getTime() > Date.now(), {
     message: 'Esa fecha ya pasó. Revisa el día y el mes.',
     path: ['meetsAt'],
+  })
+  /**
+   * «Quedamos en una cita» obliga a decir si hubo sesión.
+   *
+   * Es el único resultado donde la respuesta no se deduce, y es exactamente
+   * donde se perdían las sesiones: 9 de los 14 reportes de la semana del 29/09
+   * dijeron «quedamos en una cita», y ninguno dejó dicho si venía de una sesión
+   * que acababa de darse o de una llamada para cuadrar. Diez citas de esa
+   * semana se quedaron sin cerrar por no tener esta línea.
+   */
+  .refine((d) => d.outcome !== 'CITA_ACORDADA' || typeof d.sessionHeld === 'boolean', {
+    message: 'Dinos si hoy tuviste sesión con ella o solo hablaron para cuadrar',
+    path: ['sessionHeld'],
   })
   // "Otra cosa" obliga a decir cuál: si no, el reporte no dice nada.
   .refine((d) => d.outcome !== 'OTRO' || Boolean(d.notes?.trim()), {

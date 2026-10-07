@@ -2,7 +2,10 @@ import { describe, it, expect } from 'vitest'
 import { caseReportCreateSchema } from '../src/validators/caseReport.schema.js'
 
 const HORA = 3600000
-const base = { outcome: 'CITA_ACORDADA', modality: 'VIRTUAL' }
+// `sessionHeld` va en la base desde que «¿se dio la sesión?» se pregunta
+// aparte de «¿qué sigue?»: sin ella, un «quedamos en una cita» no pasa el
+// validador. Aquí lo que se mira es la fecha, no esa pregunta.
+const base = { outcome: 'CITA_ACORDADA', modality: 'VIRTUAL', sessionHeld: false }
 
 /**
  * «Quedamos en una cita» para un día que ya pasó no puede ser verdad.

@@ -990,6 +990,12 @@ model CaseReport {
   assignment   CaseAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
 
   outcome  CaseOutcome
+  /// Si la sesión se dio. Va aparte de `outcome` porque son dos preguntas
+  /// distintas y `outcome` solo admite una respuesta: quien acompañó Y de paso
+  /// cuadró la siguiente tenía que elegir, elegía CITA_ACORDADA, y la sesión
+  /// que acababa de dar desaparecía de las cifras. Nulo en los reportes
+  /// viejos, que es la verdad: a nadie se le preguntó.
+  sessionHeld Boolean? @map("session_held")
   /// Solo cuando hubo o habrá encuentro.
   modality Modality?
   /// Cuándo quedaron, si quedaron. La hora la escribe el profesional.

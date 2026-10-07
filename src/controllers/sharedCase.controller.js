@@ -15,6 +15,7 @@ import { reporteRecibido, propuestaRespondida } from '../notifications/eventos.j
 import { env } from '../config/env.js'
 import { exigirTransicion } from '../services/assignmentState.service.js'
 import { franjasEnPalabras } from '../services/scheduling.service.js'
+import { SESION_IMPLICITA } from '../validators/caseReport.schema.js'
 
 /**
  * CONTROLADOR: caso compartido.
@@ -274,6 +275,15 @@ export async function reportarCaso(req, res, next) {
     const creado = await CaseReportModel.create({
       assignmentId: asignacion.id,
       outcome: input.outcome,
+      /**
+       * Si la sesión se dio.
+       *
+       * En «ya la acompañé» y «no se presentó» la respuesta está dentro del
+       * propio resultado y se deduce aquí: preguntárselo otra vez sería
+       * tratarle de tonto. En los demás, se guarda lo que haya contestado, y
+       * `null` cuando no se le preguntó.
+       */
+      sessionHeld: SESION_IMPLICITA[input.outcome] ?? input.sessionHeld ?? null,
       // La modalidad y la fecha solo tienen sentido si hubo o habrá encuentro.
       modality: hubo ? (input.modality ?? null) : null,
       meetsAt: hubo ? (input.meetsAt ?? null) : null,

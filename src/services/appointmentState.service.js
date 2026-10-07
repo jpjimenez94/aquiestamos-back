@@ -200,7 +200,20 @@ export function reporteDeLaCita(cita, reportes, citasDelCaso = []) {
 export function huboSesion(cita, reportes = [], citasDelCaso = []) {
   if (!cita) return false
 
-  const dijoElProfesional = reporteDeLaCita(cita, reportes, citasDelCaso)?.outcome ?? null
+  const suyo = reporteDeLaCita(cita, reportes, citasDelCaso)
+
+  /**
+   * Lo primero, porque es la pregunta hecha directamente.
+   *
+   * `sessionHeld` es «¿se dio la sesión?» contestada aparte de «¿qué sigue?».
+   * Antes solo existía lo segundo, y quien acompañó Y cuadró la siguiente
+   * tenía que elegir: elegía «quedamos en una cita» y la sesión recién dada no
+   * la contaba nadie. Viene nulo en los reportes escritos antes de que la
+   * pregunta existiera, y entonces se sigue con lo de abajo.
+   */
+  if (typeof suyo?.sessionHeld === 'boolean') return suyo.sessionHeld
+
+  const dijoElProfesional = suyo?.outcome ?? null
   if (dijoElProfesional === REPORTE_CONFIRMA) return true
   if (dijoElProfesional === REPORTE_NIEGA) return false
 
@@ -221,7 +234,26 @@ export function huboSesion(cita, reportes = [], citasDelCaso = []) {
 export function esperandoCierre(cita, reportes = [], ahora = Date.now(), citasDelCaso = []) {
   if (!cita) return false
   if (esFinal(cita.status)) return false
-  if (reporteDeLaCita(cita, reportes, citasDelCaso)) return false
+
+  /**
+   * Un reporte solo cierra la pregunta si la contesta.
+   *
+   * Esto descartaba la cita en cuanto hubiera CUALQUIER reporte colgado de
+   * ella, y el reporte más común —«quedamos en una cita»— no dice si la sesión
+   * de ese día ocurrió. Así, diez citas de la semana del 29 de septiembre
+   * estaban sin cerrar y la cuenta de deuda enseñaba cinco: las otras cinco se
+   * daban por resueltas con un papel que no resolvía nada.
+   *
+   * Contestan: la pregunta directa (`sessionHeld`), «ya la acompañé» y «no se
+   * presentó». Lo demás deja la cita esperando, que es la verdad.
+   */
+  const suyo = reporteDeLaCita(cita, reportes, citasDelCaso)
+  const contesta =
+    typeof suyo?.sessionHeld === 'boolean' ||
+    suyo?.outcome === REPORTE_CONFIRMA ||
+    suyo?.outcome === REPORTE_NIEGA
+  if (contesta) return false
+
   if (huboSesion(cita, reportes, citasDelCaso)) return false
   return new Date(cita.startsAt).getTime() <= ahora
 }

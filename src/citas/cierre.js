@@ -50,7 +50,7 @@ export async function cerrarSesionesConPrueba({ patientId, ahora = Date.now() } 
   const reportes = asignaciones.length
     ? await prisma.caseReport.findMany({
         where: { assignmentId: { in: asignaciones } },
-        select: { outcome: true, createdAt: true, assignmentId: true },
+        select: { outcome: true, sessionHeld: true, createdAt: true, assignmentId: true },
       })
     : []
 
@@ -72,10 +72,21 @@ export async function cerrarSesionesConPrueba({ patientId, ahora = Date.now() } 
   const resumen = { realizadas: 0, ausencias: 0, revisadas: abiertas.length }
 
   for (const cita of abiertas) {
-    const dijo = reporteDeLaCita(cita, reportes, citasDelCaso)?.outcome ?? null
+    const suyo = reporteDeLaCita(cita, reportes, citasDelCaso)
+    const dijo = suyo?.outcome ?? null
     let nuevo = null
     let prueba = null
 
+    /**
+     * Solo el «no se presentó» explícito marca ausencia.
+     *
+     * `sessionHeld === false` dice «hoy no hubo sesión», que NO es lo mismo:
+     * lo más normal es que la reprogramaran de común acuerdo. Dar por ausencia
+     * esa respuesta le deja una falta a ella por una deducción nuestra, y una
+     * ausencia en su ficha pesa —se mira al decidir si sigue el caso—. Si no
+     * hubo sesión y nadie dijo por qué, la cita se queda esperando cierre, que
+     * es lo único honesto.
+     */
     if (dijo === REPORTE_NIEGA) {
       nuevo = ESTADOS.NO_ASISTIO
       prueba = 'el profesional reportó que no se presentó'

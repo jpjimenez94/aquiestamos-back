@@ -1,5 +1,6 @@
 import { prisma } from '../config/database.js'
 import { partesLocales, deLocalAUtc } from './timezone.service.js'
+import { huboSesion, esperandoCierre } from './appointmentState.service.js'
 
 /**
  * SERVICIO: el informe semanal del área de Operaciones y Atención.
@@ -56,6 +57,72 @@ export function semanaPasada(ahora = new Date()) {
 const diasDesde = (fecha) => Math.floor((Date.now() - new Date(fecha).getTime()) / DIA)
 
 /** Las cifras y las listas del informe, para una semana concreta. */
+/**
+ * Cuántas sesiones se dieron de verdad, y cuántas están sin cerrar.
+ *
+ * El informe contaba `status === 'REALIZADA'`, que es la casilla que alguien
+ * tiene que acordarse de marcar en el portal. Eso no mide el acompañamiento:
+ * mide la memoria de quien coordina. La semana del 29 de septiembre decía 6
+ * sesiones, y al lado había 10 citas que ya habían pasado y nadie había
+ * cerrado — ni ausencias ni sesiones, simplemente sin tocar.
+ *
+ * `huboSesion()` es la regla que ya usan el tablero y el cierre automático, y
+ * mira tres cosas en orden: lo que contestó el profesional, la casilla, y si
+ * las dos personas entraron a la sala. Que el informe usara otra regla era
+ * tener dos verdades sobre lo mismo.
+ *
+ * Y las que no se sabe se cuentan aparte, a la vista. Meterlas en «realizadas»
+ * infla la cifra y meterlas en «no asistió» la hunde; decir «hay nueve sin
+ * cerrar» es lo único que no miente, y además le dice a quien firma el informe
+ * cuántas llamadas le faltan para que el número sea cierto.
+ */
+async function sesionesDeLaSemana(rango) {
+  const citas = await prisma.appointment.findMany({
+    where: { startsAt: rango },
+    select: {
+      id: true,
+      status: true,
+      startsAt: true,
+      caseAssignmentId: true,
+      patientFirstJoinedAt: true,
+      professionalFirstJoinedAt: true,
+    },
+  })
+  if (citas.length === 0) return { realizadas: 0, pendientesDeCerrar: 0 }
+
+  const asignaciones = [...new Set(citas.map((c) => c.caseAssignmentId).filter(Boolean))]
+
+  /**
+   * Todas las citas del caso, no solo las de la semana.
+   *
+   * Un reporte se le cuelga a la sesión que lo precede, y esa puede caer fuera
+   * del rango. Con solo las de la semana, el reporte de un lunes se le colgaría
+   * a una sesión del martes y la daría por hecha con prueba ajena.
+   */
+  const [reportes, citasDelCaso] = asignaciones.length
+    ? await Promise.all([
+        prisma.caseReport.findMany({
+          where: { assignmentId: { in: asignaciones } },
+          select: { outcome: true, sessionHeld: true, createdAt: true, assignmentId: true },
+        }),
+        prisma.appointment.findMany({
+          where: { caseAssignmentId: { in: asignaciones } },
+          select: { startsAt: true, caseAssignmentId: true },
+        }),
+      ])
+    : [[], []]
+
+  const ahora = Date.now()
+  let realizadas = 0
+  let pendientesDeCerrar = 0
+  for (const cita of citas) {
+    if (huboSesion(cita, reportes, citasDelCaso)) realizadas += 1
+    else if (esperandoCierre(cita, reportes, ahora, citasDelCaso)) pendientesDeCerrar += 1
+  }
+
+  return { realizadas, pendientesDeCerrar }
+}
+
 export async function informeSemanal({ desde, hasta }) {
   const rango = { gte: desde, lt: hasta }
 
@@ -160,6 +227,8 @@ export async function informeSemanal({ desde, hasta }) {
   const citasSemana = porEstado(citasDeLaSemana)
   const profes = porEstado(profesionales)
 
+  const sesiones = await sesionesDeLaSemana(rango)
+
   const activosEnLaSemana = tareasDeLaSemana.length
   const registrados = colaboradores
 
@@ -187,7 +256,11 @@ export async function informeSemanal({ desde, hasta }) {
       citasHistorico: Object.values(citas).reduce((a, b) => a + b, 0),
       citasCanceladasHistorico: citas.CANCELADA ?? 0,
       citasDeLaSemana: Object.values(citasSemana).reduce((a, b) => a + b, 0),
-      citasRealizadasEnLaSemana: citasSemana.REALIZADA ?? 0,
+      citasRealizadasEnLaSemana: sesiones.realizadas,
+      /** Las que se marcaron a mano, por si alguien compara con la pantalla. */
+      citasMarcadasRealizadas: citasSemana.REALIZADA ?? 0,
+      /** Ya pasaron y nadie dijo qué pasó. Ni ausencias ni sesiones: deuda. */
+      citasPendientesDeCerrar: sesiones.pendientesDeCerrar,
       citasCanceladasEnLaSemana: citasSemana.CANCELADA ?? 0,
       citasSinAsistirEnLaSemana: citasSemana.NO_ASISTIO ?? 0,
       citasPorDelante: (citasSemana.PROGRAMADA ?? 0) + (citasSemana.CONFIRMADA ?? 0),

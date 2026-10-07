@@ -808,7 +808,7 @@ export const DashboardController = {
         },
       })
       const reportesDeCasos = await prisma.caseReport.findMany({
-        select: { outcome: true, createdAt: true, assignmentId: true },
+        select: { outcome: true, sessionHeld: true, createdAt: true, assignmentId: true },
       })
 
       // La misma regla del embudo, para que las dos cifras del informe no
@@ -971,7 +971,7 @@ export const DashboardController = {
                * informe solo miraba la casilla del portal y el rastro de la
                * sala.
                */
-              reports: { select: { outcome: true, createdAt: true, assignmentId: true } },
+              reports: { select: { outcome: true, sessionHeld: true, createdAt: true, assignmentId: true } },
             },
           },
           appointments: {

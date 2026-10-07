@@ -30,6 +30,19 @@ export function pacienteParaAgendador(p) {
     prioridadLegible: ETIQUETAS_PRIORIDAD[p.priority] ?? p.priority,
     createdAt: p.createdAt,
     diasEsperando: Math.floor((Date.now() - new Date(p.createdAt).getTime()) / 86400000),
+    /**
+     * Cuántas sesiones lleva. No es lo mismo que el estado de su última cita.
+     *
+     * El filtro «Realizada» de la lista miraba `cita.estado`, que es SOLO la
+     * última: filtrar por él enseñaba a quien tenía su cita más reciente
+     * marcada como realizada y no había vuelto a agendar — cuatro personas
+     * antiguas— y escondía a todas las que llevan sesiones y ya tienen la
+     * siguiente puesta. Quien filtra no está preguntando «¿cómo quedó su
+     * última cita?» sino «¿a quiénes hemos acompañado?».
+     *
+     * Se cuenta aquí y no con otra consulta porque la lista ya trae las citas.
+     */
+    sesionesRealizadas: (p.appointments ?? []).filter((c) => c.status === 'REALIZADA').length,
     cita: ultimaCita
       ? {
           id: ultimaCita.id,

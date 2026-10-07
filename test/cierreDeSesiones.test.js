@@ -47,14 +47,35 @@ beforeAll(async () => {
   const conSala = await crear({ startsAt: hace(20), endsAt: hace(19), patientFirstJoinedAt: hace(20), professionalFirstJoinedAt: hace(20) })
   // 4 · Pasada, sin ninguna prueba: se queda como está.
   const sinPrueba = await crear({ startsAt: hace(10), endsAt: hace(9) })
-  // 5 · Futura: no se toca aunque hubiera rastro.
+  /**
+   * 5 · La que se perdía: acompañó Y de paso cuadró la siguiente.
+   *
+   * El profesional elige «quedamos en una cita» —es lo que toca hacer a
+   * continuación, y es lo que tiene en la cabeza al escribir—, así que el
+   * resultado no dice nada de la sesión que acababa de dar. Sin sala, esta
+   * cita se quedaba CONFIRMADA para siempre: de las 21 citas de la semana del
+   * 29 de septiembre, diez estaban así. Ahora lo dice `sessionHeld`.
+   */
+  const conSesionYCita = await crear({ startsAt: hace(6), endsAt: hace(5) })
+  await prisma.caseReport.create({
+    data: {
+      assignmentId: asignacion.id,
+      outcome: 'CITA_ACORDADA',
+      sessionHeld: true,
+      modality: 'VIRTUAL',
+      meetsAt: hace(-72),
+      reportedByEmail: profesional.email,
+      createdAt: hace(4),
+    },
+  })
+  // 6 · Futura: no se toca aunque hubiera rastro.
   const futura = await crear({ startsAt: hace(-24), endsAt: new Date(hace(-24).getTime() + 45 * 60000) })
 
-  Object.assign(ids, { profesional: profesional.id, persona: persona.id, asignacion: asignacion.id, reportada: reportada.id, ausente: ausente.id, conSala: conSala.id, sinPrueba: sinPrueba.id, futura: futura.id })
+  Object.assign(ids, { profesional: profesional.id, persona: persona.id, asignacion: asignacion.id, reportada: reportada.id, ausente: ausente.id, conSala: conSala.id, sinPrueba: sinPrueba.id, conSesionYCita: conSesionYCita.id, futura: futura.id })
 })
 
 afterAll(async () => {
-  await prisma.auditLog.deleteMany({ where: { entityId: { in: [ids.reportada, ids.ausente, ids.conSala, ids.sinPrueba, ids.futura] } } })
+  await prisma.auditLog.deleteMany({ where: { entityId: { in: [ids.reportada, ids.ausente, ids.conSala, ids.sinPrueba, ids.conSesionYCita, ids.futura] } } })
   await prisma.caseReport.deleteMany({ where: { assignmentId: ids.asignacion } })
   await prisma.appointment.deleteMany({ where: { patientId: ids.persona } })
   await prisma.caseAssignment.deleteMany({ where: { id: ids.asignacion } })
@@ -67,12 +88,14 @@ const estadoDe = async (id) => (await prisma.appointment.findUnique({ where: { i
 describe('cerrar las sesiones que ya tienen prueba', () => {
   it('cierra lo que se puede y deja lo demás', async () => {
     const r = await cerrarSesionesConPrueba({ patientId: ids.persona })
-    expect(r.realizadas).toBe(2)
+    expect(r.realizadas).toBe(3)
     expect(r.ausencias).toBe(1)
 
     expect(await estadoDe(ids.reportada)).toBe('REALIZADA')
     expect(await estadoDe(ids.ausente)).toBe('NO_ASISTIO')
     expect(await estadoDe(ids.conSala)).toBe('REALIZADA')
+    // La que decía «quedamos en una cita» y además hubo sesión: ya cierra.
+    expect(await estadoDe(ids.conSesionYCita)).toBe('REALIZADA')
     expect(await estadoDe(ids.sinPrueba)).toBe('CONFIRMADA')
     expect(await estadoDe(ids.futura)).toBe('CONFIRMADA')
   })
