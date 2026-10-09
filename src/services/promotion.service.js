@@ -56,6 +56,9 @@ export async function aprobarPostulacion({ volunteerId, ajustes = {} }) {
         populations: postulacion.populations,
         modality: modalidad,
         travelsTo: postulacion.availableToTravel,
+        // El idioma en que se postuló viaja con el profesional: quien reparte
+        // los casos trabaja desde su ficha, no desde la postulación.
+        formLocale: postulacion.formLocale ?? null,
         // Nace pendiente de validación: alguien tiene que revisar su tarjeta
         // profesional antes de que reciba casos.
         status: ajustes.status ?? 'PENDIENTE_VALIDACION',
@@ -141,6 +144,9 @@ export async function admitirSolicitud({ supportRequestId, ajustes = {} }) {
         contactName: solicitud.contactName,
         relationship: solicitud.relationship,
         preferredContact: solicitud.preferredContact,
+        // El idioma en que pidió ayuda viaja con la persona: quien la va a
+        // llamar mira su ficha, no la solicitud de la que nació.
+        formLocale: solicitud.formLocale ?? null,
         // Lo que respondió en el tamizaje manda sobre lo que trajo la
         // solicitud: es más fresco, y el formulario público pide esto como
         // opcional, así que casi siempre viene vacío.

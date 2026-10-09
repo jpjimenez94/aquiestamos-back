@@ -314,6 +314,11 @@ model Volunteer {
   sensitiveDataConsent  Boolean @default(false) @map("sensitive_data_consent")
   communicationsConsent Boolean @default(false) @map("communications_consent")
 
+  /// En qué idioma estaba el formulario cuando lo envió: es, en o pt. Lo manda
+  /// el sitio, no la persona. Dice también en qué idioma leyó la autorización
+  /// que aceptó. Nulo en lo anterior a que el sitio tuviera idiomas.
+  formLocale String? @map("form_locale") @db.VarChar(5)
+
   // --- Heredados de la primera version del formulario ---
   /// @deprecated Sustituido por `profession` y `additionalTraining`.
   training     String?  @db.VarChar(300)
@@ -371,6 +376,11 @@ model SupportRequest {
   /// Obligatoria cuando la persona acompanada es menor de edad.
   guardianConsent       Boolean @default(false) @map("guardian_consent")
   communicationsConsent Boolean @default(false) @map("communications_consent")
+
+  /// En qué idioma estaba el formulario cuando lo envió: es, en o pt. Lo manda
+  /// el sitio, no la persona. Dice también en qué idioma leyó la autorización
+  /// que aceptó. Nulo en lo anterior a que el sitio tuviera idiomas.
+  formLocale String? @map("form_locale") @db.VarChar(5)
 
   // --- Heredados de la primera version del formulario ---
   /// @deprecated Sustituido por `city`.
@@ -532,6 +542,11 @@ model Collaborator {
   sensitiveDataConsent  Boolean @default(false) @map("sensitive_data_consent")
   communicationsConsent Boolean @default(false) @map("communications_consent")
 
+  /// En qué idioma estaba el formulario cuando lo envió: es, en o pt. Lo manda
+  /// el sitio, no la persona. Dice también en qué idioma leyó la autorización
+  /// que aceptó. Nulo en lo anterior a que el sitio tuviera idiomas.
+  formLocale String? @map("form_locale") @db.VarChar(5)
+
   status    SubmissionStatus @default(ACTIVO)
   createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -602,6 +617,9 @@ model Professional {
   populations                 String[]
   modality                    Modality
   travelsTo                   String?                 @map("travels_to") @db.VarChar(200)
+  /// En qué idioma llenó el formulario con el que se postuló: es, en o pt.
+  /// Se copia de la postulación al aprobarla. Nulo si no se sabe.
+  formLocale                  String?                 @map("form_locale") @db.VarChar(5)
 
   status         ProfessionalStatus @default(PENDIENTE_VALIDACION)
   /// Cuántos acompañamientos simultáneos acepta.
@@ -645,6 +663,12 @@ model Patient {
   /// profesional para encontrar un hueco comun.
   availableDays     Weekday[]          @map("available_days")
   availableSlots    DaySlot[]          @map("available_slots")
+
+  /// En qué idioma llenó el formulario con el que pidió ayuda: es, en o pt.
+  /// Se copia de la solicitud al admitirla, porque quien la va a llamar mira
+  /// esta ficha. Nulo si no se sabe (lo anterior a que el sitio tuviera
+  /// idiomas, o una ficha creada a mano).
+  formLocale String? @map("form_locale") @db.VarChar(5)
 
   status   PatientStatus @default(NUEVO)
 

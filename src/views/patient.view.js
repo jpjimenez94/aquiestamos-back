@@ -24,6 +24,9 @@ export function pacienteParaAgendador(p) {
     preferredModality: p.preferredModality,
     availableDays: p.availableDays,
     availableSlots: p.availableSlots,
+    // En qué idioma llenó el formulario (es, en, pt), o null si no se sabe.
+    // Quien agenda lo necesita antes de llamar: puede que no hable español.
+    formLocale: p.formLocale ?? null,
     status: p.status,
     estadoLegible: ETIQUETAS_ESTADO_PACIENTE[p.status] ?? p.status,
     priority: p.priority,
@@ -165,6 +168,9 @@ export function casoPropuesto(p) {
     isMinor: p.isMinor,
     availableDays: p.availableDays,
     availableSlots: p.availableSlots,
+    // El idioma del formulario sí se enseña antes de aceptar: no identifica a
+    // nadie, y es justo lo que hace falta para decidir si se puede acompañar.
+    formLocale: p.formLocale ?? null,
   }
 }
 
@@ -184,6 +190,7 @@ export function casoCompartido(p, citas) {
     relationship: p.isMinor ? p.relationship : null,
     availableDays: p.availableDays,
     availableSlots: p.availableSlots,
+    formLocale: p.formLocale ?? null,
     appointments: citas.map((c) => ({
       id: c.id,
       startsAt: c.startsAt,

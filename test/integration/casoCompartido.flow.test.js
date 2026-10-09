@@ -142,6 +142,10 @@ describe('caso compartido', () => {
         'puedeDeclinar',
         'email',
         'estado',
+        // En qué idioma llenó el formulario. No es dato de salud ni identifica
+        // a nadie, y es lo que evita que el profesional descubra al teléfono
+        // que la persona quizá no habla español.
+        'formLocale',
         'fullName',
         'isMinor',
         'phone',

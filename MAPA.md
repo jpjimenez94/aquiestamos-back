@@ -234,6 +234,29 @@ que el fallo se viera como un conteo raro en vez de como un 422.
 Los 3 endpoints públicos van con `formLimiter`: **20 envíos / 15 min por IP**
 (`back/src/routes/index.js`).
 
+**Tres idiomas (oct-2026).** El sitio público existe en español, inglés y portugués
+de Brasil. El español conserva sus direcciones de siempre, sin prefijo
+(`front/app/(sitio)/…`); los otros dos cuelgan de `/en/…` y `/pt/…`
+(`front/app/[lang]/…`), con las mismas rutas por dentro. Cada página es una sola
+vista (`front/components/sitio/vistas/`) pintada con su diccionario
+(`front/lib/i18n/diccionarios/{es,en,pt}.ts`); `es.ts` es el original y el compilador
+obliga a los otros dos a tener las mismas claves.
+
+- Solo se traduce el sitio público. El portal, los correos, los mensajes de WhatsApp
+  y los enlaces con token (tamizaje, agenda, consentimiento, sala) siguen en español:
+  el acompañamiento se presta en español.
+- Las respuestas de los formularios se guardan **igual en los tres idiomas**: las
+  opciones viajan con el mismo valor interno. Lo único que llega en otro idioma es el
+  texto libre.
+- Los formularios mandan `locale` (`es` · `en` · `pt`) y el backend lo guarda en
+  `formLocale` (`back/src/validators/idioma.js`). Se copia a la ficha de la persona al
+  admitir y a la del profesional al aprobar, y el portal lo enseña como «Formulario en
+  inglés / portugués» (`front/lib/idiomaDelFormulario.ts`). Un valor que no se
+  reconoce **nunca rechaza el envío**: se guarda nulo.
+- Las dos infografías que eran imágenes con el texto dibujado ahora son HTML
+  (`InfografiaEmergencia`, `InfografiaCamino`); sus dibujos se recortan del cartel
+  original con `front/scripts/recortar-infografias.cjs`.
+
 ---
 
 ## 🔗 Flujos por enlace firmado (sin sesión)
@@ -390,6 +413,8 @@ URL firmada de **60 s**. Endpoints: `POST /api/documentos` ·
 ## 🗄️ Modelo de datos — `back/prisma/schema.prisma`
 
 Cuidado del equipo (migración `20260905013420_cuidado_del_equipo`): `Professional.supervisorVolunteer(+At)`, `ProfessionalCheckIn` (necesidad, notas, pregunta para el grupo, sesiones al pedirlo, y a qué sesión se le invitó), `SupportGroupSession` (facilitador, hora, enlace externo, agenda, estado) y `SupportGroupInvitation` (sesión × profesional, asistió). Enums `CheckInNeed` y `GroupSessionStatus`.
+
+Idioma del formulario (migración `20261008150000_idioma_del_formulario`): `formLocale` en `SupportRequest`, `Volunteer`, `Collaborator`, `Patient` y `Professional`. Texto (`es` · `en` · `pt`), nulo en todo lo anterior: de eso no se sabe en qué idioma se llenó.
 
 **Identidad y trazabilidad:** `User` · `Session` · `AuditLog`
 

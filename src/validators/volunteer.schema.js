@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { VERSIONES_VALIDAS } from '../consent/versions.js'
+import { idiomaDelFormulario } from './idioma.js'
 
 export const POPULATION_OPTIONS = [
   'Niños y niñas',
@@ -96,6 +97,9 @@ export const volunteerCreateSchema = z
     identityDocumentUrl: z.string().trim().max(500).optional().or(z.literal('')),
     identityDocumentBackUrl: z.string().trim().max(500).optional().or(z.literal('')),
     professionalCardNumber: z.string().trim().max(60).optional().or(z.literal('')),
+
+    // En qué idioma estaba el formulario. Lo manda el sitio, no la persona.
+    locale: idiomaDelFormulario,
   })
   // Si marcó "Otra" población, hay que decir cuál.
   .refine(

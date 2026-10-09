@@ -42,6 +42,8 @@ export function volunteerAdmin(volunteer) {
     dataConsent: volunteer.dataConsent,
     sensitiveDataConsent: volunteer.sensitiveDataConsent,
     communicationsConsent: volunteer.communicationsConsent,
+    // En qué idioma llenó el formulario (es, en, pt), o null si no se sabe.
+    formLocale: volunteer.formLocale ?? null,
 
     status: volunteer.status,
     createdAt: volunteer.createdAt,

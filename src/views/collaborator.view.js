@@ -43,6 +43,8 @@ export function collaboratorAdmin(c) {
     dataConsent: c.dataConsent,
     sensitiveDataConsent: c.sensitiveDataConsent,
     communicationsConsent: c.communicationsConsent,
+    // En qué idioma llenó el formulario (es, en, pt), o null si no se sabe.
+    formLocale: c.formLocale ?? null,
 
     status: c.status,
     createdAt: c.createdAt,

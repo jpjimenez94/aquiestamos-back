@@ -26,6 +26,9 @@ export function profesionalBase(p) {
     populations: p.populations,
     modality: p.modality,
     travelsTo: p.travelsTo,
+    // En qué idioma se postuló (es, en, pt), o null si no se sabe. Sirve para
+    // emparejar: a quien pidió ayuda en portugués le conviene quien lo habla.
+    formLocale: p.formLocale ?? null,
     status: p.status,
     estadoLegible: ETIQUETAS_ESTADO_PROFESIONAL[p.status] ?? p.status,
     maxActiveCases: p.maxActiveCases,

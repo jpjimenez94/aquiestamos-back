@@ -43,6 +43,8 @@ export const SupportRequestController = {
         sensitiveDataConsent: input.sensitiveDataConsent,
         guardianConsent: input.isMinor === true ? input.guardianConsent : false,
         communicationsConsent: input.communicationsConsent,
+
+        formLocale: input.locale ?? null,
       })
 
       // Si el formulario incluyó las preguntas de triaje prioritario, guardar TriageResponse y admitir de inmediato

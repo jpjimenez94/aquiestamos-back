@@ -30,6 +30,8 @@ export function supportRequestAgendador(request) {
     preferredModality: request.preferredModality,
     availableDays: request.availableDays,
     availableSlots: request.availableSlots,
+    // En qué idioma llenó el formulario (es, en, pt), o null si no se sabe.
+    formLocale: request.formLocale ?? null,
     status: request.status,
     createdAt: request.createdAt,
     /**

@@ -85,6 +85,8 @@ export const VolunteerController = {
         dataConsent: input.dataConsent,
         sensitiveDataConsent: soloVirtual ? false : input.sensitiveDataConsent,
         communicationsConsent: input.communicationsConsent,
+
+        formLocale: input.locale ?? null,
       })
 
       // Auto-aprobación: los psicólogos voluntarios entran directamente como

@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { VERSIONES_VALIDAS } from '../consent/versions.js'
 import { WEEKDAYS, DAY_SLOTS } from './volunteer.schema.js'
+import { idiomaDelFormulario } from './idioma.js'
 
 /**
  * Catálogo de disciplinas del voluntariado de apoyo.
@@ -114,6 +115,9 @@ export const collaboratorCreateSchema = z
     dataConsent: consentimiento('Necesitamos tu autorización para poder contactarte'),
     sensitiveDataConsent: z.boolean().optional().default(false),
     communicationsConsent: z.boolean().optional().default(false),
+
+    // En qué idioma estaba el formulario. Lo manda el sitio, no la persona.
+    locale: idiomaDelFormulario,
   })
   // La disciplina tiene que pertenecer al área elegida. Sin esto, un envío
   // hecho a mano podría guardar "Cocina" dentro de "Salud" y el directorio

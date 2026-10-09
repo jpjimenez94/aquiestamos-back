@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { VERSIONES_VALIDAS } from '../consent/versions.js'
 import { WEEKDAYS, DAY_SLOTS } from './volunteer.schema.js'
+import { idiomaDelFormulario } from './idioma.js'
 
 const required = { required_error: 'Campo obligatorio', invalid_type_error: 'Campo obligatorio' }
 
@@ -68,6 +69,9 @@ export const supportRequestCreateSchema = z
     ),
     guardianConsent: z.boolean().optional().default(false),
     communicationsConsent: z.boolean().optional().default(false),
+
+    // En qué idioma estaba el formulario. Lo manda el sitio, no la persona.
+    locale: idiomaDelFormulario,
   })
   // Si eligió "Correo" como canal preferido, entonces sí hace falta un correo.
   .refine((d) => d.preferredContact !== 'CORREO' || Boolean(d.email), {
